@@ -1,0 +1,67 @@
+{
+  "meshes": [
+    {
+      "name": "Corpo_continuo",
+      "vertices": 6259,
+      "triangles": 12522,
+      "components": 1,
+      "open_edges": 0,
+      "flipped_normals": 0,
+      "unweighted_vertices": 0,
+      "invalid_weights": 0,
+      "nonfinite_vertices": 0
+    },
+    {
+      "name": "Rosto",
+      "vertices": 1112,
+      "triangles": 2156,
+      "components": 17,
+      "open_edges": 0,
+      "flipped_normals": 0,
+      "unweighted_vertices": 0,
+      "invalid_weights": 0,
+      "nonfinite_vertices": 0
+    },
+    {
+      "name": "Detalhes_membros",
+      "vertices": 1392,
+      "triangles": 2736,
+      "components": 20,
+      "open_edges": 0,
+      "flipped_normals": 0,
+      "unweighted_vertices": 0,
+      "invalid_weights": 0,
+      "nonfinite_vertices": 0
+    },
+    {
+      "name": "Vestuario",
+      "vertices": 1892,
+      "triangles": 3704,
+      "components": 21,
+      "open_edges": 0,
+      "flipped_normals": 0,
+      "unweighted_vertices": 0,
+      "invalid_weights": 0,
+      "nonfinite_vertices": 0
+    }
+  ],
+  "bones": 29,
+  "animations": [
+    "andando",
+    "parado"
+  ],
+  "triangles": 21118,
+  "hand_sockets": {
+    "D": [
+      -0.23899999260902405,
+      -0.04600000008940697,
+      0.32899999618530273
+    ],
+    "E": [
+      0.23899997770786285,
+      -0.04599998518824577,
+      0.3290000259876251
+    ]
+  },
+  "height_m": 0.9769
+}

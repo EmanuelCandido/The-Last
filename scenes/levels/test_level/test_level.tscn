@@ -1,0 +1,100 @@
+[gd_scene format=3]
+
+[ext_resource type="Shader" path="res://assets/shaders/prototype_grid.gdshader" id="1_grid"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_main"]
+sky_horizon_color = Color(0.66, 0.73, 0.82, 1)
+ground_horizon_color = Color(0.66, 0.73, 0.82, 1)
+
+[sub_resource type="Sky" id="Sky_main"]
+sky_material = SubResource("ProceduralSkyMaterial_main")
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 2
+sky = SubResource("Sky_main")
+ambient_light_source = 3
+tonemap_mode = 2
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ground"]
+render_priority = 0
+shader = ExtResource("1_grid")
+shader_parameter/base_color = Color(0.36, 0.42, 0.36, 1)
+shader_parameter/line_color = Color(0.27, 0.32, 0.27, 1)
+shader_parameter/cell_size = 1.0
+shader_parameter/line_width = 0.03
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_block"]
+render_priority = 0
+shader = ExtResource("1_grid")
+shader_parameter/base_color = Color(0.86, 0.56, 0.32, 1)
+shader_parameter/line_color = Color(0.72, 0.44, 0.24, 1)
+shader_parameter/cell_size = 0.5
+shader_parameter/line_width = 0.02
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_platform"]
+render_priority = 0
+shader = ExtResource("1_grid")
+shader_parameter/base_color = Color(0.36, 0.55, 0.82, 1)
+shader_parameter/line_color = Color(0.27, 0.43, 0.68, 1)
+shader_parameter/cell_size = 1.0
+shader_parameter/line_width = 0.03
+
+[node name="TestLevel" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.383022, 0.321394, 0, 0.642788, 0.766044, -0.5, -0.663414, 0.55667, 0, 10, 0)
+shadow_enabled = true
+directional_shadow_max_distance = 60.0
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+
+[node name="Blockout" type="CSGCombiner3D" parent="."]
+use_collision = true
+
+[node name="Ground" type="CSGBox3D" parent="Blockout"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+size = Vector3(80, 1, 80)
+material = SubResource("ShaderMaterial_ground")
+
+[node name="JumpBoxLow" type="CSGBox3D" parent="Blockout"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0.25, -6)
+size = Vector3(2, 0.5, 2)
+material = SubResource("ShaderMaterial_block")
+
+[node name="JumpBoxMid" type="CSGBox3D" parent="Blockout"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.5, -6)
+size = Vector3(2, 1, 2)
+material = SubResource("ShaderMaterial_block")
+
+[node name="JumpBoxHigh" type="CSGBox3D" parent="Blockout"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0.75, -6)
+size = Vector3(2, 1.5, 2)
+material = SubResource("ShaderMaterial_block")
+
+[node name="Ramp" type="CSGBox3D" parent="Blockout"]
+transform = Transform3D(1, 0, 0, 0, 0.970143, -0.242536, 0, 0.242536, 0.970143, 8, 1.056, -10.05)
+size = Vector3(4, 0.4, 10.308)
+material = SubResource("ShaderMaterial_block")
+
+[node name="Platform" type="CSGBox3D" parent="Blockout"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 1.25, -18)
+size = Vector3(6, 2.5, 6)
+material = SubResource("ShaderMaterial_platform")
+
+[node name="Wall" type="CSGBox3D" parent="Blockout"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 1.5, -24)
+size = Vector3(12, 3, 0.5)
+material = SubResource("ShaderMaterial_platform")
+
+[node name="PillarA" type="CSGBox3D" parent="Blockout"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 3, -14)
+size = Vector3(1, 6, 1)
+material = SubResource("ShaderMaterial_block")
+
+[node name="PillarB" type="CSGBox3D" parent="Blockout"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 3, 2)
+size = Vector3(1, 6, 1)
+material = SubResource("ShaderMaterial_block")

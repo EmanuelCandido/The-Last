@@ -1,0 +1,233 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/world/props/campfire.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/textures/bark.png" id="2_bark"]
+[ext_resource type="AudioStream" path="res://assets/audio/ambience/fire_loop.wav" id="3_fire"]
+[ext_resource type="Shader" path="res://assets/shaders/rock.gdshader" id="4_rock"]
+[ext_resource type="Texture2D" path="res://assets/textures/rock.png" id="5_rock"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground_forest.png" id="6_moss"]
+[ext_resource type="Script" path="res://components/occluded_audio.gd" id="7_occluded"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_fire"]
+height = 0.3
+radius = 0.5
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_stone"]
+shader = ExtResource("4_rock")
+shader_parameter/rock_texture = ExtResource("5_rock")
+shader_parameter/moss_texture = ExtResource("6_moss")
+shader_parameter/tint = Color(0.55, 0.52, 0.5, 1)
+shader_parameter/moss_tint = Color(0.4, 0.38, 0.35, 1)
+shader_parameter/tile_size = 0.8
+shader_parameter/moss_amount = 0.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_charred"]
+albedo_color = Color(0.3, 0.26, 0.24, 1)
+albedo_texture = ExtResource("2_bark")
+roughness = 1.0
+texture_filter = 4
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_log"]
+material = SubResource("StandardMaterial3D_charred")
+top_radius = 0.055
+bottom_radius = 0.065
+height = 0.75
+radial_segments = 7
+rings = 1
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_embers"]
+albedo_color = Color(0.08, 0.04, 0.03, 1)
+emission_enabled = true
+emission = Color(1, 0.32, 0.07, 1)
+emission_energy_multiplier = 2.2
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_embers"]
+material = SubResource("StandardMaterial3D_embers")
+top_radius = 0.24
+bottom_radius = 0.28
+height = 0.04
+radial_segments = 10
+rings = 1
+
+[sub_resource type="Gradient" id="Gradient_soft"]
+colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_soft"]
+gradient = SubResource("Gradient_soft")
+width = 32
+height = 32
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.5, 0)
+
+[sub_resource type="Gradient" id="Gradient_flame"]
+offsets = PackedFloat32Array(0, 0.4, 1)
+colors = PackedColorArray(1, 0.85, 0.45, 1, 1, 0.45, 0.12, 0.8, 0.5, 0.1, 0.02, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_flame"]
+gradient = SubResource("Gradient_flame")
+
+[sub_resource type="Curve" id="Curve_flame"]
+_data = [Vector2(0, 0.4), 0.0, 0.0, 0, 0, Vector2(0.3, 1), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="CurveTexture" id="CurveTexture_flame"]
+curve = SubResource("Curve_flame")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_flame"]
+emission_shape = 1
+emission_sphere_radius = 0.12
+direction = Vector3(0, 1, 0)
+spread = 12.0
+initial_velocity_min = 0.3
+initial_velocity_max = 0.6
+gravity = Vector3(0, 0.5, 0)
+scale_min = 0.6
+scale_max = 1.1
+scale_curve = SubResource("CurveTexture_flame")
+color_ramp = SubResource("GradientTexture1D_flame")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_flame"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+albedo_texture = SubResource("GradientTexture2D_soft")
+billboard_mode = 3
+
+[sub_resource type="QuadMesh" id="QuadMesh_flame"]
+material = SubResource("StandardMaterial3D_flame")
+size = Vector2(0.28, 0.36)
+
+[sub_resource type="Gradient" id="Gradient_smoke"]
+offsets = PackedFloat32Array(0, 0.25, 1)
+colors = PackedColorArray(0.35, 0.33, 0.32, 0, 0.35, 0.33, 0.32, 0.35, 0.45, 0.44, 0.43, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_smoke"]
+gradient = SubResource("Gradient_smoke")
+
+[sub_resource type="Curve" id="Curve_smoke"]
+_data = [Vector2(0, 0.3), 0.0, 0.0, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="CurveTexture_smoke"]
+curve = SubResource("Curve_smoke")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_smoke"]
+emission_shape = 1
+emission_sphere_radius = 0.1
+direction = Vector3(0, 1, 0)
+spread = 15.0
+initial_velocity_min = 0.3
+initial_velocity_max = 0.55
+gravity = Vector3(0.05, 0.12, -0.08)
+angle_min = -180.0
+angle_max = 180.0
+angular_velocity_min = -20.0
+angular_velocity_max = 20.0
+scale_curve = SubResource("CurveTexture_smoke")
+color_ramp = SubResource("GradientTexture1D_smoke")
+turbulence_enabled = true
+turbulence_noise_strength = 0.4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_smoke"]
+transparency = 1
+vertex_color_use_as_albedo = true
+albedo_texture = SubResource("GradientTexture2D_soft")
+billboard_mode = 3
+roughness = 1.0
+
+[sub_resource type="QuadMesh" id="QuadMesh_smoke"]
+material = SubResource("StandardMaterial3D_smoke")
+size = Vector2(0.9, 0.9)
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_sparks"]
+emission_shape = 1
+emission_sphere_radius = 0.15
+direction = Vector3(0, 1, 0)
+spread = 25.0
+initial_velocity_min = 0.5
+initial_velocity_max = 1.2
+gravity = Vector3(0, 0.2, 0)
+turbulence_enabled = true
+turbulence_noise_strength = 0.8
+turbulence_noise_scale = 1.5
+color_ramp = SubResource("GradientTexture1D_flame")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_spark"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+billboard_mode = 3
+
+[sub_resource type="QuadMesh" id="QuadMesh_spark"]
+material = SubResource("StandardMaterial3D_spark")
+size = Vector2(0.025, 0.025)
+
+[node name="Campfire" type="Node3D"]
+script = ExtResource("1_script")
+stone_material = SubResource("ShaderMaterial_stone")
+
+[node name="Embers" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
+mesh = SubResource("CylinderMesh_embers")
+
+[node name="LogA" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.0, -1.0, 0.0, 0.966, 0.0, 0.259, -0.259, 0.0, 0.966, 0.02, 0.08, 0.05)
+mesh = SubResource("CylinderMesh_log")
+
+[node name="LogB" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.5, -0.866, 0.0, 0.0, 0.0, -1.0, 0.866, 0.5, 0.0, -0.05, 0.1, -0.02)
+mesh = SubResource("CylinderMesh_log")
+
+[node name="LogC" type="MeshInstance3D" parent="."]
+transform = Transform3D(-0.5, -0.866, 0.0, 0.0, 0.0, -1.0, 0.866, -0.5, 0.0, 0.06, 0.12, 0.0)
+mesh = SubResource("CylinderMesh_log")
+
+[node name="Flames" type="GPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+amount = 12
+lifetime = 0.7
+process_material = SubResource("ParticleProcessMaterial_flame")
+draw_pass_1 = SubResource("QuadMesh_flame")
+
+[node name="Smoke" type="GPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
+amount = 14
+lifetime = 5.0
+preprocess = 5.0
+visibility_aabb = AABB(-2, -1, -2, 4, 5, 4)
+process_material = SubResource("ParticleProcessMaterial_smoke")
+draw_pass_1 = SubResource("QuadMesh_smoke")
+
+[node name="Sparks" type="GPUParticles3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
+amount = 8
+lifetime = 1.6
+process_material = SubResource("ParticleProcessMaterial_sparks")
+draw_pass_1 = SubResource("QuadMesh_spark")
+
+[node name="Light" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+light_color = Color(1, 0.5, 0.2, 1)
+light_energy = 1.0
+shadow_enabled = true
+omni_range = 7.5
+omni_attenuation = 1.3
+
+[node name="Crackle" type="AudioStreamPlayer3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+stream = ExtResource("3_fire")
+volume_db = -4.0
+unit_size = 2.5
+max_distance = 30.0
+autoplay = true
+bus = &"World"
+script = ExtResource("7_occluded")
+
+[node name="Collision" type="StaticBody3D" parent="."]
+
+[node name="Shape" type="CollisionShape3D" parent="Collision"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
+shape = SubResource("CylinderShape3D_fire")

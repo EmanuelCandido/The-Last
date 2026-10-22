@@ -1,0 +1,223 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/levels/forest/forest.gd" id="1_forest"]
+[ext_resource type="Script" path="res://scenes/world/terrain/terrain.gd" id="2_terrain"]
+[ext_resource type="Shader" path="res://assets/shaders/terrain.gdshader" id="3_terrain_shader"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground_grass.png" id="4_grass"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground_forest.png" id="5_forest"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground_dirt.png" id="6_dirt"]
+[ext_resource type="Texture2D" path="res://assets/textures/rock.png" id="7_rock"]
+[ext_resource type="Texture2D" path="res://assets/textures/macro_noise.png" id="8_macro"]
+[ext_resource type="Texture2D" path="res://assets/textures/dither_noise.png" id="9_dither"]
+[ext_resource type="PackedScene" path="res://scenes/world/cave/cave.tscn" id="10_cave"]
+[ext_resource type="Script" path="res://scenes/world/vegetation/vegetation.gd" id="11_vegetation"]
+[ext_resource type="Shader" path="res://assets/shaders/foliage.gdshader" id="12_foliage"]
+[ext_resource type="Shader" path="res://assets/shaders/rock.gdshader" id="13_rock_shader"]
+[ext_resource type="Texture2D" path="res://assets/textures/bark.png" id="14_bark"]
+[ext_resource type="Texture2D" path="res://assets/textures/pine_branch.png" id="15_pine"]
+[ext_resource type="Texture2D" path="res://assets/textures/leaves_card.png" id="16_leaves"]
+[ext_resource type="Texture2D" path="res://assets/textures/grass_card.png" id="17_grass_card"]
+[ext_resource type="Script" path="res://scenes/world/ambience/ambience.gd" id="18_ambience"]
+[ext_resource type="Texture2D" path="res://assets/textures/leaf.png" id="19_leaf"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_clouds"]
+frequency = 0.008
+fractal_octaves = 5
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_clouds"]
+width = 512
+height = 256
+seamless = true
+noise = SubResource("FastNoiseLite_clouds")
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_overcast"]
+sky_top_color = Color(0.36, 0.39, 0.42, 1)
+sky_horizon_color = Color(0.56, 0.58, 0.59, 1)
+sky_curve = 0.12
+sky_cover = SubResource("NoiseTexture2D_clouds")
+sky_cover_modulate = Color(0.72, 0.74, 0.76, 0.8)
+ground_bottom_color = Color(0.22, 0.23, 0.22, 1)
+ground_horizon_color = Color(0.56, 0.58, 0.59, 1)
+
+[sub_resource type="Sky" id="Sky_overcast"]
+sky_material = SubResource("ProceduralSkyMaterial_overcast")
+
+[sub_resource type="Environment" id="Environment_forest"]
+background_mode = 2
+sky = SubResource("Sky_overcast")
+ambient_light_source = 3
+reflected_light_source = 2
+tonemap_mode = 4
+ssao_enabled = true
+ssao_radius = 1.2
+ssao_intensity = 1.6
+glow_enabled = true
+glow_intensity = 0.35
+glow_bloom = 0.02
+glow_hdr_threshold = 1.2
+fog_enabled = true
+fog_light_color = Color(0.56, 0.58, 0.6, 1)
+fog_density = 0.016
+fog_aerial_perspective = 0.25
+fog_sky_affect = 0.75
+fog_height = 6.0
+fog_height_density = 0.04
+adjustment_enabled = true
+adjustment_contrast = 1.06
+adjustment_saturation = 0.72
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_terrain"]
+shader = ExtResource("3_terrain_shader")
+shader_parameter/grass_texture = ExtResource("4_grass")
+shader_parameter/forest_texture = ExtResource("5_forest")
+shader_parameter/dirt_texture = ExtResource("6_dirt")
+shader_parameter/rock_texture = ExtResource("7_rock")
+shader_parameter/macro_noise = ExtResource("8_macro")
+shader_parameter/dither_noise = ExtResource("9_dither")
+shader_parameter/tile_size = 3.0
+shader_parameter/macro_size = 70.0
+shader_parameter/tint = Color(1, 1, 1, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bark"]
+albedo_texture = ExtResource("14_bark")
+roughness = 1.0
+texture_filter = 4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dead_bark"]
+albedo_color = Color(0.8, 0.78, 0.76, 1)
+albedo_texture = ExtResource("14_bark")
+roughness = 1.0
+texture_filter = 4
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_needles"]
+shader = ExtResource("12_foliage")
+shader_parameter/albedo_texture = ExtResource("15_pine")
+shader_parameter/tint = Color(0.85, 0.95, 0.85, 1)
+shader_parameter/alpha_cut = 0.45
+shader_parameter/sway = 0.35
+shader_parameter/sway_from_color = 1.0
+shader_parameter/up_normal = 0.3
+shader_parameter/variation = 0.25
+shader_parameter/translucency = 0.15
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_leaves"]
+shader = ExtResource("12_foliage")
+shader_parameter/albedo_texture = ExtResource("16_leaves")
+shader_parameter/tint = Color(1, 1, 1, 1)
+shader_parameter/alpha_cut = 0.5
+shader_parameter/sway = 0.4
+shader_parameter/sway_from_color = 1.0
+shader_parameter/up_normal = 0.3
+shader_parameter/variation = 0.15
+shader_parameter/translucency = 0.35
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_grass"]
+shader = ExtResource("12_foliage")
+shader_parameter/albedo_texture = ExtResource("17_grass_card")
+shader_parameter/tint = Color(1.15, 1.12, 1, 1)
+shader_parameter/alpha_cut = 0.5
+shader_parameter/sway = 0.22
+shader_parameter/sway_from_color = 0.0
+shader_parameter/up_normal = 0.85
+shader_parameter/variation = 0.3
+shader_parameter/translucency = 0.25
+shader_parameter/follow_ground = 1.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fern"]
+shader = ExtResource("12_foliage")
+shader_parameter/albedo_texture = ExtResource("15_pine")
+shader_parameter/tint = Color(0.95, 1.2, 0.85, 1)
+shader_parameter/alpha_cut = 0.45
+shader_parameter/sway = 0.15
+shader_parameter/sway_from_color = 1.0
+shader_parameter/up_normal = 0.5
+shader_parameter/variation = 0.2
+shader_parameter/translucency = 0.3
+shader_parameter/follow_ground = 1.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_rock"]
+shader = ExtResource("13_rock_shader")
+shader_parameter/rock_texture = ExtResource("7_rock")
+shader_parameter/moss_texture = ExtResource("4_grass")
+shader_parameter/tint = Color(0.85, 0.84, 0.8, 1)
+shader_parameter/moss_tint = Color(0.75, 0.9, 0.7, 1)
+shader_parameter/tile_size = 2.5
+shader_parameter/moss_amount = 0.55
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_debris"]
+resource_local_to_scene = true
+emission_shape = 3
+emission_box_extents = Vector3(16, 4, 16)
+gravity = Vector3(1, -0.35, 0.3)
+damping_min = 0.3
+damping_max = 0.6
+angle_min = -180.0
+angle_max = 180.0
+angular_velocity_min = -250.0
+angular_velocity_max = 250.0
+scale_min = 0.4
+scale_max = 1.0
+turbulence_enabled = true
+turbulence_noise_strength = 2.0
+turbulence_noise_scale = 6.0
+turbulence_influence_min = 0.15
+turbulence_influence_max = 0.3
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_debris"]
+transparency = 2
+alpha_scissor_threshold = 0.5
+cull_mode = 2
+albedo_color = Color(0.8, 0.75, 0.65, 1)
+albedo_texture = ExtResource("19_leaf")
+texture_filter = 2
+billboard_mode = 3
+
+[sub_resource type="QuadMesh" id="QuadMesh_debris"]
+material = SubResource("StandardMaterial3D_debris")
+size = Vector2(0.09, 0.09)
+
+[node name="Forest" type="Node3D"]
+script = ExtResource("1_forest")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_forest")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.9397, 0.2802, -0.1962, 0, 0.5736, 0.8192, 0.342, 0.7698, -0.539, 0, 40, 0)
+light_color = Color(0.86, 0.88, 0.92, 1)
+light_energy = 0.65
+shadow_enabled = true
+shadow_blur = 2.5
+directional_shadow_max_distance = 70.0
+sky_mode = 1
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("2_terrain")
+material = SubResource("ShaderMaterial_terrain")
+
+[node name="Cave" parent="." instance=ExtResource("10_cave")]
+
+[node name="Vegetation" type="Node3D" parent="."]
+script = ExtResource("11_vegetation")
+bark_material = SubResource("StandardMaterial3D_bark")
+dead_bark_material = SubResource("StandardMaterial3D_dead_bark")
+needles_material = SubResource("ShaderMaterial_needles")
+leaves_material = SubResource("ShaderMaterial_leaves")
+grass_material = SubResource("ShaderMaterial_grass")
+fern_material = SubResource("ShaderMaterial_fern")
+rock_material = SubResource("ShaderMaterial_rock")
+
+[node name="Animals" type="Node3D" parent="."]
+
+[node name="Ambience" type="Node" parent="."]
+script = ExtResource("18_ambience")
+
+[node name="WindDebris" type="GPUParticles3D" parent="."]
+amount = 40
+lifetime = 8.0
+preprocess = 4.0
+visibility_aabb = AABB(-40, -20, -40, 80, 40, 80)
+process_material = SubResource("ParticleProcessMaterial_debris")
+draw_pass_1 = SubResource("QuadMesh_debris")
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]

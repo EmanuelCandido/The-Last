@@ -1,0 +1,49 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/player/player.gd" id="1_player"]
+[ext_resource type="PackedScene" path="res://assets/models/goblin/goblin.glb" id="2_goblin"]
+[ext_resource type="Script" path="res://components/footsteps.gd" id="3_footsteps"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
+radius = 0.26
+height = 1.0
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_camera"]
+radius = 0.2
+
+[node name="Player" type="CharacterBody3D" groups=["persist", "player"]]
+collision_layer = 4
+collision_mask = 3
+floor_max_angle = 0.872665
+floor_snap_length = 0.3
+script = ExtResource("1_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+shape = SubResource("CapsuleShape3D_body")
+
+[node name="Visual" type="Node3D" parent="."]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+[node name="Goblin" parent="Visual" instance=ExtResource("2_goblin")]
+
+[node name="CameraPivot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 0)
+
+[node name="SpringArm3D" type="SpringArm3D" parent="CameraPivot"]
+transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 0, 0)
+shape = SubResource("SphereShape3D_camera")
+spring_length = 3.0
+
+[node name="Camera3D" type="Camera3D" parent="CameraPivot/SpringArm3D"]
+h_offset = 0.45
+current = true
+fov = 65.0
+far = 1200.0
+
+[node name="Footsteps" type="AudioStreamPlayer3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
+unit_size = 4.0
+max_distance = 30.0
+bus = &"World"
+script = ExtResource("3_footsteps")

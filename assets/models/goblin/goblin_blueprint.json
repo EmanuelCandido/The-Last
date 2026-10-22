@@ -1,0 +1,358 @@
+{
+  "nome": "goblin",
+  "_polimento": {
+    "versao": 1,
+    "fonte_editavel": "source/goblin.blend",
+    "gerador": "source/polish_goblin.py",
+    "exportador": "source/export_goblin.py",
+    "nota": "As partes abaixo sao a base original do kit. O GLB atual inclui o polimento de anatomia e pesos da fonte Blender. Nao usar export_game diretamente, pois ele reconstrui apenas esta base."
+  },
+  "fundo": "#2A2D33",
+  "vistas": [
+    "az=-150,el=10",
+    "front",
+    "right"
+  ],
+  "paleta": {
+    "pele": "#6B7F3E",
+    "pele_escura": "#4C5C2B",
+    "trapo": "#5B4733",
+    "trapo_escuro": "#3F3124",
+    "olho": "#E3B23C",
+    "couro": "#3B2A1E",
+    "boca": "#24180F",
+    "dente": "#D8CFA8"
+  },
+  "apoiar_no_chao": [
+    "perna_D",
+    "perna_E"
+  ],
+  "partes": [
+    {
+      "id": "quadril",
+      "gerador": "caixa",
+      "params": {
+        "largura": 0.23,
+        "profundidade": 0.16,
+        "altura": 0.11,
+        "chanfro": 0.025
+      },
+      "cor": "couro"
+    },
+    {
+      "id": "perna_D",
+      "gerador": "perna",
+      "params": {
+        "comprimento": 0.36,
+        "largura": 0.078,
+        "profundidade": 0.085,
+        "meia_altura": 0.035,
+        "bota_altura": 0.05,
+        "bota_largura": 0.1,
+        "pe_frente": 0.1,
+        "chanfro": 0.014
+      },
+      "cores": {
+        "perna": "pele",
+        "meia": "trapo_escuro",
+        "bota": "pele_escura"
+      },
+      "preso_em": "quadril.base",
+      "offset": [
+        -0.07,
+        0,
+        0.02
+      ]
+    },
+    {
+      "id": "perna_E",
+      "espelho_de": "perna_D"
+    },
+    {
+      "id": "tronco",
+      "gerador": "caixa",
+      "params": {
+        "largura": 0.26,
+        "profundidade": 0.19,
+        "altura": 0.27,
+        "chanfro": 0.05,
+        "afinar_topo": 1.05
+      },
+      "cor": "pele",
+      "preso_em": "quadril.topo",
+      "rot": [
+        -22,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "trapo",
+      "gerador": "capa",
+      "params": {
+        "raio_pescoco": 0.085,
+        "raio_gola": 0.15,
+        "altura_gola": 0.045,
+        "raio_base": 0.21,
+        "comprimento": 0.3,
+        "lados": 7,
+        "dobras": 0.12,
+        "pontas": 0.07,
+        "irregular": 0.14,
+        "barra_frente": 0.85,
+        "queda_tras": 0.05
+      },
+      "cor": "trapo",
+      "preso_em": "tronco.topo",
+      "offset": [
+        0,
+        0,
+        0.02
+      ]
+    },
+    {
+      "id": "cabeca",
+      "gerador": "caixa",
+      "params": {
+        "largura": 0.25,
+        "profundidade": 0.23,
+        "altura": 0.21,
+        "chanfro": 0.06,
+        "afinar_topo": 0.78
+      },
+      "cor": "pele",
+      "preso_em": "tronco.topo",
+      "offset": [
+        0,
+        -0.08,
+        0
+      ],
+      "rot": [
+        18,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "nariz",
+      "gerador": "prisma",
+      "params": {
+        "raio_base": 0.048,
+        "raio_topo": 0.008,
+        "altura": 0.16,
+        "lados": 5
+      },
+      "cor": "pele_escura",
+      "preso_em": "cabeca.frente",
+      "offset": [
+        0,
+        0,
+        -0.005
+      ],
+      "rot": [
+        114,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "orelha_D",
+      "gerador": "prisma",
+      "params": {
+        "raio_base": 0.06,
+        "raio_topo": 0.004,
+        "altura": 0.27,
+        "lados": 3,
+        "irregular": 0.08
+      },
+      "cor": "pele",
+      "preso_em": "cabeca.direita",
+      "offset": [
+        0,
+        0.01,
+        0.03
+      ],
+      "rot": [
+        0,
+        -72,
+        0
+      ]
+    },
+    {
+      "id": "orelha_E",
+      "espelho_de": "orelha_D"
+    },
+    {
+      "id": "olho_D",
+      "gerador": "caixa",
+      "params": {
+        "largura": 0.05,
+        "profundidade": 0.02,
+        "altura": 0.03,
+        "pivo": "centro"
+      },
+      "cor": "olho",
+      "preso_em": "cabeca.frente",
+      "offset": [
+        -0.06,
+        0,
+        0.025
+      ]
+    },
+    {
+      "id": "olho_E",
+      "espelho_de": "olho_D"
+    },
+    {
+      "id": "sobrancelha",
+      "gerador": "caixa",
+      "params": {
+        "largura": 0.19,
+        "profundidade": 0.03,
+        "altura": 0.018,
+        "chanfro": 0.006,
+        "pivo": "centro"
+      },
+      "cor": "pele_escura",
+      "preso_em": "cabeca.frente",
+      "offset": [
+        0,
+        -0.004,
+        0.05
+      ],
+      "rot": [
+        -12,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "boca",
+      "gerador": "caixa",
+      "params": {
+        "largura": 0.11,
+        "profundidade": 0.012,
+        "altura": 0.014,
+        "pivo": "centro"
+      },
+      "cor": "boca",
+      "preso_em": "cabeca.frente",
+      "offset": [
+        0,
+        0,
+        -0.06
+      ]
+    },
+    {
+      "id": "presa_D",
+      "gerador": "prisma",
+      "params": {
+        "raio_base": 0.009,
+        "raio_topo": 0.002,
+        "altura": 0.03,
+        "lados": 4,
+        "pivo": "topo"
+      },
+      "cor": "dente",
+      "preso_em": "cabeca.frente",
+      "offset": [
+        -0.04,
+        -0.006,
+        -0.058
+      ]
+    },
+    {
+      "id": "presa_E",
+      "espelho_de": "presa_D"
+    },
+    {
+      "id": "braco_D",
+      "gerador": "braco",
+      "params": {
+        "comprimento": 0.44,
+        "espessura": 0.056,
+        "afinar": 0.75,
+        "mao_tamanho": 0.09,
+        "chanfro": 0.012
+      },
+      "cores": {
+        "braco": "pele",
+        "mao": "pele_escura"
+      },
+      "preso_em": "tronco.direita",
+      "offset": [
+        -0.01,
+        0,
+        0.08
+      ],
+      "rot": [
+        0,
+        -8,
+        0
+      ]
+    },
+    {
+      "id": "braco_E",
+      "espelho_de": "braco_D"
+    },
+    {
+      "id": "cinto",
+      "gerador": "caixa",
+      "params": {
+        "largura": 0.25,
+        "profundidade": 0.175,
+        "altura": 0.035,
+        "chanfro": 0.008,
+        "pivo": "centro"
+      },
+      "cor": "couro",
+      "preso_em": "quadril.topo",
+      "offset": [
+        0,
+        0,
+        -0.02
+      ]
+    },
+    {
+      "id": "tanga",
+      "gerador": "caixa",
+      "params": {
+        "largura": 0.15,
+        "profundidade": 0.02,
+        "altura": 0.17,
+        "pivo": "topo",
+        "afinar_topo": 1.25
+      },
+      "cor": "trapo_escuro",
+      "preso_em": "quadril.frente",
+      "offset": [
+        0,
+        -0.005,
+        -0.01
+      ],
+      "rot": [
+        -8,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "bolsa",
+      "gerador": "caixa",
+      "params": {
+        "largura": 0.04,
+        "profundidade": 0.08,
+        "altura": 0.09,
+        "chanfro": 0.012,
+        "pivo": "topo"
+      },
+      "cor": "couro",
+      "preso_em": "quadril.esquerda",
+      "offset": [
+        0.025,
+        0,
+        -0.01
+      ]
+    }
+  ]
+}

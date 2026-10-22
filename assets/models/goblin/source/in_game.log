@@ -1,0 +1,751 @@
+WorkerThreadPool: 16 threads, 4 max low-priority.
+Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+TextServer: Added interface "Dummy"
+TextServer: Added interface "ICU / HarfBuzz / Graphite (Built-in)"
+Accessibility: AccessKit driver loaded.
+WARNING: GENERAL - Message Id Number: 0 | Message Id Name: Loader Message
+	windows_read_data_files_in_registry: Registry lookup failed to get layer manifest files.
+	Objects - 1
+		Object[0] - VK_OBJECT_TYPE_INSTANCE, Handle 2638928718576
+   at: _debug_messenger_callback (drivers/vulkan/rendering_context_driver_vulkan.cpp:654)
+Accessibility: window 0 adapter created.
+Devices:
+  #0: NVIDIA NVIDIA GeForce RTX 3050 6GB Laptop GPU - Supported, Discrete
+  #1: Intel Intel(R) RaptorLake-S Mobile Graphics Controller - Supported, Integrated
+  #2: Intel Intel(R) RaptorLake-S Mobile Graphics Controller - Supported, Integrated
+Optional Vulkan device extension VK_EXT_fragment_density_map not found
+Optional Vulkan device extension VK_EXT_fragment_density_map2 not found
+Optional Vulkan device extension VK_QCOM_fragment_density_map_offset not found
+Optional Vulkan device extension VK_EXT_astc_decode_mode not found
+Optional Vulkan device extension VK_EXT_texture_compression_astc_hdr not found
+Optional Vulkan device extension VK_NV_ray_tracing_validation not found
+Optional Vulkan device extension VK_KHR_external_memory_fd not found
+Optional Vulkan device extension VK_EXT_debug_marker not found
+- Vulkan Fragment Shading Rate supported:
+  Pipeline fragment shading rate
+  Primitive fragment shading rate
+  Attachment fragment shading rate, min texel size: (16, 16), max texel size: (16, 16), max fragment size: (4, 4)
+- Vulkan Fragment Density Map not supported
+- Vulkan multiview supported:
+  max view count: 32
+  max instances: 134217727
+- Vulkan subgroup:
+  size: 32
+  min size: 32
+  max size: 32
+  stages: STAGE_VERTEX, STAGE_TESSELLATION_CONTROL, STAGE_TESSELLATION_EVALUATION, STAGE_GEOMETRY, STAGE_FRAGMENT, STAGE_COMPUTE, STAGE_RAYGEN_KHR, STAGE_ANY_HIT_KHR, STAGE_CLOSEST_HIT_KHR, STAGE_MISS_KHR, STAGE_INTERSECTION_KHR, STAGE_CALLABLE_KHR, STAGE_TASK_NV, STAGE_MESH_NV
+  supported ops: FEATURE_BASIC, FEATURE_VOTE, FEATURE_ARITHMETIC, FEATURE_BALLOT, FEATURE_SHUFFLE, FEATURE_SHUFFLE_RELATIVE, FEATURE_CLUSTERED, FEATURE_QUAD, FEATURE_PARTITIONED_NV
+  quad operations in all stages
+- Vulkan Acceleration Structure supported
+  min acceleration structure scratch offset alignment: 128
+- Vulkan Raytracing supported
+  shader group handle size: 32
+  shader group handle alignment: 32
+  shader group handle size aligned: 32
+  shader group base alignment: 64
+Vulkan 1.4.341 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 3050 6GB Laptop GPU
+Startup PSO cache (6.5 MiB)
+SDL: Init OK!
+Using "winink" pen tablet driver...
+Creating VMA small objects pool for memory type index 1
+Shader 'CanvasSdfShaderRD' (group 0) SHA256: 54b47da3ce58bfeb483acea9e9e45b5de11793d45b2a38279aa17b08296ef514
+Loading cache for shader CanvasSdfShaderRD, variant 0
+Loading cache for shader CanvasSdfShaderRD, variant 1
+Loading cache for shader CanvasSdfShaderRD, variant 2
+Loading cache for shader CanvasSdfShaderRD, variant 3
+Loading cache for shader CanvasSdfShaderRD, variant 4
+Loading cache for shader CanvasSdfShaderRD, variant 5
+Shader 'SkeletonShaderRD' (group 0) SHA256: 08b4464d16133f4db97a8df4663b95b2b956ecd3e7addf44a16e644f488157c2
+Loading cache for shader SkeletonShaderRD, variant 0
+Loading cache for shader SkeletonShaderRD, variant 1
+Shader 'SortShaderRD' (group 0) SHA256: 8e4ebbbb19fcd734c6f15656afbe1bcd5eb3acdfdae9cab023ebd6f54c901ef8
+Loading cache for shader SortShaderRD, variant 0
+Loading cache for shader SortShaderRD, variant 1
+Loading cache for shader SortShaderRD, variant 2
+Shader 'ParticlesShaderRD' (group 0) SHA256: 8f4c25caa97a2f74d5fa5f299aabdd514f57d9737b8642ed65c20e846dad5db0
+Loading cache for shader ParticlesShaderRD, variant 0
+Shader 'ParticlesCopyShaderRD' (group 0) SHA256: 688d10aec3c2e17e8c578ba3e2db1ea2f054eedd511b1e1647952c0acaeeab72
+Loading cache for shader ParticlesCopyShaderRD, variant 0
+Loading cache for shader ParticlesCopyShaderRD, variant 1
+Loading cache for shader ParticlesCopyShaderRD, variant 2
+Loading cache for shader ParticlesCopyShaderRD, variant 3
+Loading cache for shader ParticlesCopyShaderRD, variant 4
+Loading cache for shader ParticlesCopyShaderRD, variant 5
+Loading cache for shader ParticlesCopyShaderRD, variant 6
+Loading cache for shader ParticlesCopyShaderRD, variant 7
+Loading cache for shader ParticlesCopyShaderRD, variant 8
+Loading cache for shader ParticlesCopyShaderRD, variant 9
+Loading cache for shader ParticlesCopyShaderRD, variant 10
+Loading cache for shader ParticlesCopyShaderRD, variant 11
+Loading cache for shader ParticlesCopyShaderRD, variant 12
+Loading cache for shader ParticlesCopyShaderRD, variant 13
+Loading cache for shader ParticlesCopyShaderRD, variant 14
+Loading cache for shader ParticlesCopyShaderRD, variant 15
+Loading cache for shader ParticlesCopyShaderRD, variant 16
+Loading cache for shader ParticlesCopyShaderRD, variant 17
+Loading cache for shader ParticlesCopyShaderRD, variant 18
+Loading cache for shader ParticlesCopyShaderRD, variant 19
+Loading cache for shader ParticlesCopyShaderRD, variant 20
+Shader 'CanvasShaderRD' (group 0) SHA256: 1ac5f6c8d534ebab572b3f886e38134784245fbd5fa01c7cbb6cc452e5400080
+Loading cache for shader CanvasShaderRD, variant 0
+Loading cache for shader CanvasShaderRD, variant 1
+Loading cache for shader CanvasShaderRD, variant 2
+Loading cache for shader CanvasShaderRD, variant 3
+Loading cache for shader CanvasShaderRD, variant 4
+Loading cache for shader CanvasShaderRD, variant 5
+Shader 'CanvasOcclusionShaderRD' (group 0) SHA256: 3b765d5624135f9fbf3199b6660b8387d5b904f48be0914a622e5da9b906b504
+Loading cache for shader CanvasOcclusionShaderRD, variant 0
+Loading cache for shader CanvasOcclusionShaderRD, variant 1
+Loading cache for shader CanvasOcclusionShaderRD, variant 2
+Loading cache for shader CanvasShaderRD, variant 0
+Loading cache for shader CanvasShaderRD, variant 1
+Loading cache for shader CanvasShaderRD, variant 2
+Loading cache for shader CanvasShaderRD, variant 3
+Loading cache for shader CanvasShaderRD, variant 4
+Loading cache for shader CanvasShaderRD, variant 5
+Loading cache for shader CanvasShaderRD, variant 0
+Loading cache for shader CanvasShaderRD, variant 1
+Loading cache for shader CanvasShaderRD, variant 2
+Loading cache for shader CanvasShaderRD, variant 3
+Loading cache for shader CanvasShaderRD, variant 4
+Loading cache for shader CanvasShaderRD, variant 5
+Shader 'TexBlitShaderRD' (group 0) SHA256: ce377a6d54cd54d45abdd915ec4cf3877fef3cbace94de3df4ed73ec0124ea0c
+Loading cache for shader TexBlitShaderRD, variant 0
+Loading cache for shader TexBlitShaderRD, variant 1
+Loading cache for shader TexBlitShaderRD, variant 2
+Loading cache for shader TexBlitShaderRD, variant 3
+Shader 'ClusterRenderShaderRD' (group 0) SHA256: e1824bcfaf9ebab715957f09e04336284255c4a495944e7ca919e9c20509cf78
+Loading cache for shader ClusterRenderShaderRD, variant 0
+Loading cache for shader ClusterRenderShaderRD, variant 1
+Shader 'ClusterStoreShaderRD' (group 0) SHA256: 552b8bd4a514bf18836a8f9d32f41185bdb0efa58da3d5b3e68a39d68f6cecfc
+Loading cache for shader ClusterStoreShaderRD, variant 0
+Shader 'ClusterDebugShaderRD' (group 0) SHA256: 0825a26b8d0923d82c8881fc87e3d931ea89a116d0550106157b7033dfa382a7
+Loading cache for shader ClusterDebugShaderRD, variant 0
+Shader 'SceneForwardClusteredShaderRD' (group 0) SHA256: 069fad9662d1c110a7284347f6822a7ae0bb9be399f57215e33231e68a6e4692
+Shader 'SceneForwardClusteredShaderRD' (group 1) SHA256: e6ddf6e05db4f231ee7be3016d02a9e703882c6b2e93191499ae729257086fbf
+Shader 'SceneForwardClusteredShaderRD' (group 2) SHA256: 03231cc5a2baf868ce6ae9ca41bb9f199e71fe058e538a5f5121bcec6a77e72d
+Shader 'SceneForwardClusteredShaderRD' (group 3) SHA256: e3d89c1bd8f3ff6a0fef46ab1650f9c56e7ec927639ae227579c7831b94bc4ae
+Loading cache for shader SceneForwardClusteredShaderRD, variant 0
+Loading cache for shader SceneForwardClusteredShaderRD, variant 1
+Loading cache for shader SceneForwardClusteredShaderRD, variant 2
+Loading cache for shader SceneForwardClusteredShaderRD, variant 3
+Loading cache for shader SceneForwardClusteredShaderRD, variant 4
+Loading cache for shader SceneForwardClusteredShaderRD, variant 5
+Loading cache for shader SceneForwardClusteredShaderRD, variant 6
+Loading cache for shader SceneForwardClusteredShaderRD, variant 7
+Loading cache for shader SceneForwardClusteredShaderRD, variant 0
+Loading cache for shader SceneForwardClusteredShaderRD, variant 1
+Loading cache for shader SceneForwardClusteredShaderRD, variant 2
+Loading cache for shader SceneForwardClusteredShaderRD, variant 3
+Loading cache for shader SceneForwardClusteredShaderRD, variant 4
+Loading cache for shader SceneForwardClusteredShaderRD, variant 5
+Loading cache for shader SceneForwardClusteredShaderRD, variant 6
+Loading cache for shader SceneForwardClusteredShaderRD, variant 7
+Loading cache for shader SceneForwardClusteredShaderRD, variant 0
+Loading cache for shader SceneForwardClusteredShaderRD, variant 1
+Loading cache for shader SceneForwardClusteredShaderRD, variant 2
+Loading cache for shader SceneForwardClusteredShaderRD, variant 3
+Loading cache for shader SceneForwardClusteredShaderRD, variant 4
+Loading cache for shader SceneForwardClusteredShaderRD, variant 5
+Loading cache for shader SceneForwardClusteredShaderRD, variant 6
+Loading cache for shader SceneForwardClusteredShaderRD, variant 7
+Shader 'BestFitNormalShaderRD' (group 0) SHA256: 522b47cc4c3c4b572bc28faadfdeea9c0a31b5381e4ea2e3406d0f6fda73d52b
+Loading cache for shader BestFitNormalShaderRD, variant 0
+Shader 'IntegrateDfgShaderRD' (group 0) SHA256: 83448d29d7232c732c9d312b8e7faaa363fd72cf79165ec15256862089ebd46e
+Loading cache for shader IntegrateDfgShaderRD, variant 0
+Shader 'TaaResolveShaderRD' (group 0) SHA256: c5152f5d8d5e919024126af06b7cf1a216b5184957e1946e198175642a86027f
+Loading cache for shader TaaResolveShaderRD, variant 0
+Shader 'Fsr2DepthClipPassShaderRD' (group 0) SHA256: a20cc609c661dbc20c0e6a50851d7ef432d89eb01d24ccf77a8d354b1003b593
+Shader 'Fsr2ReconstructPreviousDepthPassShaderRD' (group 0) SHA256: cbbdd1c21ee3ee90d8d06a9dd43063e4947406284591dc52cda4af06f70cf4c5
+Shader 'Fsr2LockPassShaderRD' (group 0) SHA256: 995caf07233459282796e20cf661d1dff50d44e7f6b71a02f50ff28852375d11
+Shader 'Fsr2AccumulatePassShaderRD' (group 0) SHA256: 5d2518fa9d077ed7e9937130bcc8f122a0c112da50e4102e291ff2e2e3b3655a
+Shader 'Fsr2RcasPassShaderRD' (group 0) SHA256: 1a214ec56a6146372aa5be425b51e322c000385e510d969388b8a7b64e8633fe
+Shader 'Fsr2ComputeLuminancePyramidPassShaderRD' (group 0) SHA256: 858215f4d90283500ee2148c5aa0e0849b1581cc1eff4a636e59f7ab9c107253
+Shader 'Fsr2AutogenReactivePassShaderRD' (group 0) SHA256: 4c3e8464d1a8b62c5285265b7d298da6fd431f85d1353a00f4791bde194cda86
+Shader 'Fsr2TcrAutogenPassShaderRD' (group 0) SHA256: 6259947a4b72af42bd9446599035d159f6a0f4ad7816329d4ce18d50bf4ec655
+Shader 'SsEffectsDownsampleShaderRD' (group 0) SHA256: ccf4e10c5ab4528ecf8f9b97dbc17f491b409915c7c64f533bcc896c43acdfb0
+Loading cache for shader SsEffectsDownsampleShaderRD, variant 0
+Loading cache for shader SsEffectsDownsampleShaderRD, variant 1
+Loading cache for shader SsEffectsDownsampleShaderRD, variant 2
+Loading cache for shader SsEffectsDownsampleShaderRD, variant 3
+Loading cache for shader SsEffectsDownsampleShaderRD, variant 4
+Loading cache for shader SsEffectsDownsampleShaderRD, variant 5
+Loading cache for shader SsEffectsDownsampleShaderRD, variant 6
+Shader 'SsilShaderRD' (group 0) SHA256: 2b3bf37ba8a45aa5cbc064da9031687142e6f007565f6dee75f83189a9edcfa3
+Loading cache for shader SsilShaderRD, variant 0
+Loading cache for shader SsilShaderRD, variant 1
+Loading cache for shader SsilShaderRD, variant 2
+Shader 'SsilImportanceMapShaderRD' (group 0) SHA256: 1c4d07be7a352b493a9afdef9363514c1f219eb178911ec18626ea542c3b1334
+Loading cache for shader SsilImportanceMapShaderRD, variant 0
+Loading cache for shader SsilImportanceMapShaderRD, variant 1
+Loading cache for shader SsilImportanceMapShaderRD, variant 2
+Shader 'SsilBlurShaderRD' (group 0) SHA256: ba99bf82030acafb5628e8fbd1e0a70fb6a1fa2af5283800a6585fa9c71317d5
+Loading cache for shader SsilBlurShaderRD, variant 0
+Loading cache for shader SsilBlurShaderRD, variant 1
+Loading cache for shader SsilBlurShaderRD, variant 2
+Shader 'SsilInterleaveShaderRD' (group 0) SHA256: e3b6eab6e5b68136736435a560115616f4074e0be5dca3e2242912a504320162
+Loading cache for shader SsilInterleaveShaderRD, variant 0
+Loading cache for shader SsilInterleaveShaderRD, variant 1
+Loading cache for shader SsilInterleaveShaderRD, variant 2
+Shader 'SsaoShaderRD' (group 0) SHA256: 66a821ba71909db6948ec1aded9d3ee630866bfb4556c2e275650a1ba3b8f5e3
+Loading cache for shader SsaoShaderRD, variant 0
+Loading cache for shader SsaoShaderRD, variant 1
+Loading cache for shader SsaoShaderRD, variant 2
+Shader 'SsaoImportanceMapShaderRD' (group 0) SHA256: 8701d1e664bf71d29af6f5d0a42ba62d7efbdec7f5f82064ea3b0fe3eef94361
+Loading cache for shader SsaoImportanceMapShaderRD, variant 0
+Loading cache for shader SsaoImportanceMapShaderRD, variant 1
+Loading cache for shader SsaoImportanceMapShaderRD, variant 2
+Shader 'SsaoBlurShaderRD' (group 0) SHA256: 75c97c3818b26631d447852881b25a2a80e6c894e956c009b714072cbd46c1ef
+Loading cache for shader SsaoBlurShaderRD, variant 0
+Loading cache for shader SsaoBlurShaderRD, variant 1
+Loading cache for shader SsaoBlurShaderRD, variant 2
+Shader 'SsaoInterleaveShaderRD' (group 0) SHA256: bee8210303269b0457bb9b0180392661b1c86739a5b9b2efe8a252021fcca1f5
+Loading cache for shader SsaoInterleaveShaderRD, variant 0
+Loading cache for shader SsaoInterleaveShaderRD, variant 1
+Loading cache for shader SsaoInterleaveShaderRD, variant 2
+Shader 'ScreenSpaceReflectionDownsampleShaderRD' (group 0) SHA256: ce68b2844d60e91b13d566f130e5e6be4924ecd57975c33ed49db903d1d10cdd
+Loading cache for shader ScreenSpaceReflectionDownsampleShaderRD, variant 0
+Loading cache for shader ScreenSpaceReflectionDownsampleShaderRD, variant 1
+Loading cache for shader ScreenSpaceReflectionDownsampleShaderRD, variant 2
+Loading cache for shader ScreenSpaceReflectionDownsampleShaderRD, variant 3
+Shader 'ScreenSpaceReflectionHizShaderRD' (group 0) SHA256: d816ec3b916a39c24ef8495a965202569a714911181fd70869fdc76e1647898d
+Loading cache for shader ScreenSpaceReflectionHizShaderRD, variant 0
+Loading cache for shader ScreenSpaceReflectionHizShaderRD, variant 1
+Loading cache for shader ScreenSpaceReflectionHizShaderRD, variant 2
+Loading cache for shader ScreenSpaceReflectionHizShaderRD, variant 3
+Shader 'ScreenSpaceReflectionShaderRD' (group 0) SHA256: dd5e885eefeba0f65c2678de75b986844fb186f0d2a38e39381b435388d51dbb
+Loading cache for shader ScreenSpaceReflectionShaderRD, variant 0
+Shader 'ScreenSpaceReflectionFilterShaderRD' (group 0) SHA256: adaaba74fde6be6ed9036c3b4e1988baef6dcb0a7cc9aa46eee0f81796fd1ee7
+Loading cache for shader ScreenSpaceReflectionFilterShaderRD, variant 0
+Shader 'ScreenSpaceReflectionResolveShaderRD' (group 0) SHA256: 7179c7134fdf0cbefc7c3244957827cbec1fd0180b3dfa0ea580579b7b83a06c
+Loading cache for shader ScreenSpaceReflectionResolveShaderRD, variant 0
+Shader 'SubsurfaceScatteringShaderRD' (group 0) SHA256: 7c8ee12c5109342b5667f38d6fda4ec1c20f0d014ad9690457e6f19d602b96d9
+Loading cache for shader SubsurfaceScatteringShaderRD, variant 0
+Loading cache for shader SubsurfaceScatteringShaderRD, variant 1
+Loading cache for shader SubsurfaceScatteringShaderRD, variant 2
+Shader 'SkyShaderRD' (group 0) SHA256: 9be8c23dcd20154e4a1ab0bef919421f8c51853d47c2fe6dc91221f8cfc74997
+Loading cache for shader SkyShaderRD, variant 0
+Loading cache for shader SkyShaderRD, variant 1
+Loading cache for shader SkyShaderRD, variant 2
+Loading cache for shader SkyShaderRD, variant 3
+Loading cache for shader SkyShaderRD, variant 4
+Loading cache for shader SkyShaderRD, variant 5
+Loading cache for shader SkyShaderRD, variant 0
+Loading cache for shader SkyShaderRD, variant 1
+Loading cache for shader SkyShaderRD, variant 2
+Loading cache for shader SkyShaderRD, variant 3
+Loading cache for shader SkyShaderRD, variant 4
+Loading cache for shader SkyShaderRD, variant 5
+Shader 'VoxelGiShaderRD' (group 0) SHA256: be32ca7811c1d8efa7aea8f6759edee078b2130e3ae5a44ffb2866906b7f344a
+Loading cache for shader VoxelGiShaderRD, variant 0
+Loading cache for shader VoxelGiShaderRD, variant 1
+Loading cache for shader VoxelGiShaderRD, variant 2
+Loading cache for shader VoxelGiShaderRD, variant 3
+Loading cache for shader VoxelGiShaderRD, variant 4
+Loading cache for shader VoxelGiShaderRD, variant 5
+Loading cache for shader VoxelGiShaderRD, variant 6
+Loading cache for shader VoxelGiShaderRD, variant 7
+Shader 'VoxelGiDebugShaderRD' (group 0) SHA256: 9a34146b67b3016d20f7a43d89748fc6c5eb980a677a57e30e08f4db1bc9a2c6
+Loading cache for shader VoxelGiDebugShaderRD, variant 0
+Loading cache for shader VoxelGiDebugShaderRD, variant 1
+Loading cache for shader VoxelGiDebugShaderRD, variant 2
+Loading cache for shader VoxelGiDebugShaderRD, variant 3
+Shader 'SdfgiPreprocessShaderRD' (group 0) SHA256: 1df3f43771989a4c102242eeab16de469b18c89bbd7ff3866c4fd78a99d2e961
+Loading cache for shader SdfgiPreprocessShaderRD, variant 0
+Loading cache for shader SdfgiPreprocessShaderRD, variant 1
+Loading cache for shader SdfgiPreprocessShaderRD, variant 2
+Loading cache for shader SdfgiPreprocessShaderRD, variant 3
+Loading cache for shader SdfgiPreprocessShaderRD, variant 4
+Loading cache for shader SdfgiPreprocessShaderRD, variant 5
+Loading cache for shader SdfgiPreprocessShaderRD, variant 6
+Loading cache for shader SdfgiPreprocessShaderRD, variant 7
+Loading cache for shader SdfgiPreprocessShaderRD, variant 8
+Shader 'SdfgiDirectLightShaderRD' (group 0) SHA256: 60b8f559824902a3ba6f601c82ba13bb027a01cf114421e8b3e7f1577251f982
+Loading cache for shader SdfgiDirectLightShaderRD, variant 0
+Loading cache for shader SdfgiDirectLightShaderRD, variant 1
+Shader 'SdfgiIntegrateShaderRD' (group 0) SHA256: 8402e25fb473b17f05fd8134b61bac8272f9bb13ec37039e0f82a546918f3004
+Loading cache for shader SdfgiIntegrateShaderRD, variant 0
+Loading cache for shader SdfgiIntegrateShaderRD, variant 1
+Loading cache for shader SdfgiIntegrateShaderRD, variant 2
+Loading cache for shader SdfgiIntegrateShaderRD, variant 3
+Shader 'GiShaderRD' (group 0) SHA256: a60cccbead6fab980bf996289c17b9a77b68a540d44ab8a15ec477060a5862cf
+Shader 'GiShaderRD' (group 1) SHA256: 4b8662cdf9663cca618a7d8d793e816df7b2d7e775eefbb9eb5fbb0bdbe7d3d3
+Loading cache for shader GiShaderRD, variant 0
+Loading cache for shader GiShaderRD, variant 1
+Loading cache for shader GiShaderRD, variant 2
+Loading cache for shader GiShaderRD, variant 3
+Loading cache for shader GiShaderRD, variant 4
+Loading cache for shader GiShaderRD, variant 0
+Loading cache for shader GiShaderRD, variant 1
+Loading cache for shader GiShaderRD, variant 2
+Loading cache for shader GiShaderRD, variant 3
+Loading cache for shader GiShaderRD, variant 4
+Shader 'SdfgiDebugShaderRD' (group 0) SHA256: 6c94a7679fba279d983d32e141b6648229956762362a863275c13ba2608c7e4d
+Loading cache for shader SdfgiDebugShaderRD, variant 0
+Shader 'SdfgiDebugProbesShaderRD' (group 0) SHA256: 9067100a09ae2d21f3f325a69e660546baba568b663847a9ba75cbdc3ea337ee
+Loading cache for shader SdfgiDebugProbesShaderRD, variant 0
+Loading cache for shader SdfgiDebugProbesShaderRD, variant 1
+Loading cache for shader SdfgiDebugProbesShaderRD, variant 2
+Loading cache for shader SdfgiDebugProbesShaderRD, variant 3
+Shader 'VolumetricFogShaderRD' (group 0) SHA256: 4fcd7eea54024fa982593be8aed8c9df465d0c4f629d7d1d1dfdf887cdaca664
+Shader 'VolumetricFogShaderRD' (group 1) SHA256: ca7636fab5e9482809eef50fa6684b206f196dada5f05272cb6f04bab7b39ad4
+Shader 'VolumetricFogShaderRD' (group 2) SHA256: cb01070fac4570703f705033e78fe8f33ec0bc024a29f53170c0e593709e87ce
+Shader 'VolumetricFogShaderRD' (group 3) SHA256: c66c1f9d3ee29cfbd36a5292e40323598a914dddef06f93951451c87654fd3ca
+Loading cache for shader VolumetricFogShaderRD, variant 0
+Shader 'VolumetricFogProcessShaderRD' (group 0) SHA256: b3d8b51125b8cc82b65e91af793ad8427f49e486687dd0559cabc908674c4390
+Shader 'VolumetricFogProcessShaderRD' (group 1) SHA256: fb70f1d0cde8662299c3e8439861294b94192590612d199e70f0f2380126ce56
+Shader 'VolumetricFogProcessShaderRD' (group 2) SHA256: ea198e67c91d4d2ddf767049e2aede96f6c4a7ebb51ac9f6f9bbb89e28b083df
+Shader 'VolumetricFogProcessShaderRD' (group 3) SHA256: 89e722db621fadf587f712b1100bfe8ade1e7ad5051befa7e3c3bb7bae4a1c18
+Loading cache for shader VolumetricFogProcessShaderRD, variant 0
+Loading cache for shader VolumetricFogProcessShaderRD, variant 1
+Loading cache for shader VolumetricFogProcessShaderRD, variant 2
+Loading cache for shader VolumetricFogProcessShaderRD, variant 3
+Loading cache for shader VolumetricFogProcessShaderRD, variant 4
+Shader 'BokehDofShaderRD' (group 0) SHA256: 07a1c984a30f7beb4c3290c8d0216119327b1f6eb8b36e5c96cfb751f30742e6
+Loading cache for shader BokehDofShaderRD, variant 0
+Loading cache for shader BokehDofShaderRD, variant 1
+Loading cache for shader BokehDofShaderRD, variant 3
+Loading cache for shader BokehDofShaderRD, variant 5
+Loading cache for shader BokehDofShaderRD, variant 6
+Shader 'CopyShaderRD' (group 0) SHA256: 23f6cf7986b46c68792dfd3f087267f14eebc49382f0c0fd265b45462b58afcf
+Loading cache for shader CopyShaderRD, variant 0
+Loading cache for shader CopyShaderRD, variant 1
+Loading cache for shader CopyShaderRD, variant 2
+Loading cache for shader CopyShaderRD, variant 3
+Loading cache for shader CopyShaderRD, variant 4
+Loading cache for shader CopyShaderRD, variant 5
+Loading cache for shader CopyShaderRD, variant 6
+Loading cache for shader CopyShaderRD, variant 7
+Loading cache for shader CopyShaderRD, variant 8
+Loading cache for shader CopyShaderRD, variant 9
+Loading cache for shader CopyShaderRD, variant 10
+Loading cache for shader CopyShaderRD, variant 11
+Loading cache for shader CopyShaderRD, variant 12
+Shader 'CopyToFbShaderRD' (group 0) SHA256: d00e29e632391ed3791124b988da290d922da3d9e2083273523bd8173b24ff97
+Loading cache for shader CopyToFbShaderRD, variant 0
+Loading cache for shader CopyToFbShaderRD, variant 1
+Loading cache for shader CopyToFbShaderRD, variant 2
+Loading cache for shader CopyToFbShaderRD, variant 3
+Shader 'CubeToDpShaderRD' (group 0) SHA256: 9825f5ee942047b6912a1b6fe49935a8c928598f40d2cdfc64a0f61134deed27
+Loading cache for shader CubeToDpShaderRD, variant 0
+Shader 'CubeToOctmapShaderRD' (group 0) SHA256: 8bf32929c5b41445f085dd302ccba233028481a94d43ce1b531bc8e2e66677a4
+Loading cache for shader CubeToOctmapShaderRD, variant 0
+Shader 'OctmapDownsamplerShaderRD' (group 0) SHA256: c79c7ea0ebc9a0833c5f465f1c555216a15727d2c4e3a227e9d5cd1e80f0669e
+Loading cache for shader OctmapDownsamplerShaderRD, variant 0
+Loading cache for shader OctmapDownsamplerShaderRD, variant 1
+Shader 'OctmapFilterShaderRD' (group 0) SHA256: a511f5ad922f5d701a26f801b4f9c96406071103345fa83fd394f8954c1dd7ac
+Loading cache for shader OctmapFilterShaderRD, variant 0
+Loading cache for shader OctmapFilterShaderRD, variant 1
+Loading cache for shader OctmapFilterShaderRD, variant 2
+Loading cache for shader OctmapFilterShaderRD, variant 3
+Loading cache for shader OctmapFilterShaderRD, variant 4
+Loading cache for shader OctmapFilterShaderRD, variant 5
+Loading cache for shader OctmapFilterShaderRD, variant 6
+Loading cache for shader OctmapFilterShaderRD, variant 7
+Shader 'OctmapRoughnessShaderRD' (group 0) SHA256: 9f66b38742366834aef44d557fed0d0753432ffb2cf24eebb14792092fc26b83
+Loading cache for shader OctmapRoughnessShaderRD, variant 0
+Loading cache for shader OctmapRoughnessShaderRD, variant 1
+Shader 'SpecularMergeShaderRD' (group 0) SHA256: 38d1cf8969e8f223baa218cbcd7ad415e6e945247fdb8cefddabba66acaab0e4
+Loading cache for shader SpecularMergeShaderRD, variant 0
+Loading cache for shader SpecularMergeShaderRD, variant 1
+Loading cache for shader SpecularMergeShaderRD, variant 2
+Loading cache for shader SpecularMergeShaderRD, variant 3
+Shader 'ShadowFrustumShaderRD' (group 0) SHA256: 7aba7a73f7499f30591bb36c54f106926052cdc0048232d9054de723408b1ea2
+Loading cache for shader ShadowFrustumShaderRD, variant 0
+Shader 'MotionVectorsShaderRD' (group 0) SHA256: 21fe2ffffa991405f5c0b4bb35dd8789b4049f8e56d80a5aa61aa8233992e3c1
+Loading cache for shader MotionVectorsShaderRD, variant 0
+Shader 'LuminanceReduceShaderRD' (group 0) SHA256: 926f3544c80af9c002aea2fe9f66f19b40ec81e54f627608fc28573493ac5edb
+Loading cache for shader LuminanceReduceShaderRD, variant 0
+Loading cache for shader LuminanceReduceShaderRD, variant 1
+Loading cache for shader LuminanceReduceShaderRD, variant 2
+Shader 'SmaaEdgeDetectionShaderRD' (group 0) SHA256: 749ffc0281a6ab411cf5a66f2560a2f33f9a258f57c513c67047f363e5e7ab33
+Loading cache for shader SmaaEdgeDetectionShaderRD, variant 0
+Shader 'SmaaWeightCalculationShaderRD' (group 0) SHA256: 510ed0d4e978b1a21f4e459da4ee2516c38f4460931e2a5714dae17c8b5547c2
+Loading cache for shader SmaaWeightCalculationShaderRD, variant 0
+Shader 'SmaaBlendingShaderRD' (group 0) SHA256: daa696d3938d7aadbc85111a68936e774199a2ded78d364782d43ef580b5296d
+Loading cache for shader SmaaBlendingShaderRD, variant 0
+Shader 'TonemapShaderRD' (group 0) SHA256: 6d008fe28b8fd25f510d360d45c329659bbd6cc2a222dc519c18fea4a3c17a36
+Loading cache for shader TonemapShaderRD, variant 0
+Loading cache for shader TonemapShaderRD, variant 1
+Loading cache for shader TonemapShaderRD, variant 2
+Loading cache for shader TonemapShaderRD, variant 3
+Shader 'VrsShaderRD' (group 0) SHA256: 9df305f4045418de07830cd11c3be6abf40ea73a66b1fc87b5e04821ac4f402c
+Loading cache for shader VrsShaderRD, variant 0
+Loading cache for shader VrsShaderRD, variant 2
+Loading cache for shader VrsShaderRD, variant 3
+Shader 'FsrUpscaleShaderRD' (group 0) SHA256: de60781f9669b1455afc7507208cad7b3c71f8e59f4c894548899e482420e8dd
+Loading cache for shader FsrUpscaleShaderRD, variant 0
+Loading cache for shader FsrUpscaleShaderRD, variant 1
+Shader 'ResolveShaderRD' (group 0) SHA256: b92e1e567b3ce7b008af4819aa7a8f7848a6f4dd09e28737bcd07456b04c2c7e
+Loading cache for shader ResolveShaderRD, variant 0
+Loading cache for shader ResolveShaderRD, variant 1
+Loading cache for shader ResolveShaderRD, variant 2
+Shader 'BlitShaderRD' (group 0) SHA256: 29b32016e1c23e0db5906fbe9b87108e39e7f5965c0016eb53fc5e1c03293243
+
+Loading cache for shader BlitShaderRD, variant 0
+Loading cache for shader BlitShaderRD, variant 1
+Loading cache for shader BlitShaderRD, variant 2
+Loading cache for shader BlitShaderRD, variant 3
+TextServer: Primary interface set to: "ICU / HarfBuzz / Graphite (Built-in)".
+Loading cache for shader CanvasShaderRD, variant 0
+Loading cache for shader CanvasShaderRD, variant 1
+Loading cache for shader CanvasShaderRD, variant 2
+Loading cache for shader CanvasShaderRD, variant 3
+Loading cache for shader CanvasShaderRD, variant 4
+Loading cache for shader CanvasShaderRD, variant 5
+Loading resource: res://default_bus_layout.tres remapped: res://default_bus_layout.tres
+Completed load for: 'res://default_bus_layout.tres' remapped 'res://default_bus_layout.tres' at thread -1
+Loading resource: res://assets/textures/macro_noise.png remapped: res://assets/textures/macro_noise.png
+Loading resource: res://.godot/imported/macro_noise.png-e05eabaec1aca9d7c49092d25aa638bf.ctex remapped: res://.godot/imported/macro_noise.png-e05eabaec1aca9d7c49092d25aa638bf.ctex
+Completed load for: 'res://assets/textures/macro_noise.png' remapped 'res://assets/textures/macro_noise.png' at thread -1
+CORE API HASH: 3769296884
+EDITOR API HASH: 3146738256
+SceneTreeFTI: traversal method DEFAULT
+Loading resource: res://autoload/events.gd remapped: res://autoload/events.gd
+Completed load for: 'res://autoload/events.gd' remapped 'res://autoload/events.gd' at thread -1
+Loading resource: res://autoload/wind.gd remapped: res://autoload/wind.gd
+Completed load for: 'res://autoload/wind.gd' remapped 'res://autoload/wind.gd' at thread -1
+Loading resource: res://autoload/inventory.gd remapped: res://autoload/inventory.gd
+Completed load for: 'res://autoload/inventory.gd' remapped 'res://autoload/inventory.gd' at thread -1
+Loading resource: res://autoload/game.gd remapped: res://autoload/game.gd
+Loading resource: res://scenes/player/player.tscn remapped: res://scenes/player/player.tscn
+Loading resource: res://scenes/player/player.gd remapped: res://scenes/player/player.gd
+Loading resource: res://assets/audio/sfx/bow_draw.wav remapped: res://assets/audio/sfx/bow_draw.wav
+Loading resource: res://.godot/imported/bow_draw.wav-a2d43946f74957a562164b23abf8f9b5.sample remapped: res://.godot/imported/bow_draw.wav-a2d43946f74957a562164b23abf8f9b5.sample
+Completed load for: 'res://assets/audio/sfx/bow_draw.wav' remapped 'res://assets/audio/sfx/bow_draw.wav' at thread -1
+Loading resource: res://assets/audio/sfx/bow_release.wav remapped: res://assets/audio/sfx/bow_release.wav
+Loading resource: res://.godot/imported/bow_release.wav-7834e75c34409d5a3cccc86bd07d2d2d.sample remapped: res://.godot/imported/bow_release.wav-7834e75c34409d5a3cccc86bd07d2d2d.sample
+Completed load for: 'res://assets/audio/sfx/bow_release.wav' remapped 'res://assets/audio/sfx/bow_release.wav' at thread -1
+Loading resource: res://assets/audio/sfx/craft.wav remapped: res://assets/audio/sfx/craft.wav
+Loading resource: res://.godot/imported/craft.wav-4c605f9d411a2a2fd6332492e7466ac0.sample remapped: res://.godot/imported/craft.wav-4c605f9d411a2a2fd6332492e7466ac0.sample
+Completed load for: 'res://assets/audio/sfx/craft.wav' remapped 'res://assets/audio/sfx/craft.wav' at thread -1
+Loading resource: res://assets/textures/goblin_skin.png remapped: res://assets/textures/goblin_skin.png
+Loading resource: res://.godot/imported/goblin_skin.png-fa8ff11e623c679ec957a5f4f222d6e0.ctex remapped: res://.godot/imported/goblin_skin.png-fa8ff11e623c679ec957a5f4f222d6e0.ctex
+WARNING: Image format RGB8 not supported by hardware, converting to RGBA8.
+   at: _validate_texture_format (servers/rendering/renderer_rd/storage_rd/texture_storage.cpp:2855)
+Completed load for: 'res://assets/textures/goblin_skin.png' remapped 'res://assets/textures/goblin_skin.png' at thread -1
+Loading resource: res://assets/textures/goblin_cloth.png remapped: res://assets/textures/goblin_cloth.png
+Loading resource: res://.godot/imported/goblin_cloth.png-418c183da71e79aef72a733f1bdfea3e.ctex remapped: res://.godot/imported/goblin_cloth.png-418c183da71e79aef72a733f1bdfea3e.ctex
+WARNING: Image format RGB8 not supported by hardware, converting to RGBA8.
+   at: _validate_texture_format (servers/rendering/renderer_rd/storage_rd/texture_storage.cpp:2855)
+Completed load for: 'res://assets/textures/goblin_cloth.png' remapped 'res://assets/textures/goblin_cloth.png' at thread -1
+Loading resource: res://assets/textures/leather.png remapped: res://assets/textures/leather.png
+Loading resource: res://.godot/imported/leather.png-0094d0d84ebe0f1855071ead3f4d6dcc.ctex remapped: res://.godot/imported/leather.png-0094d0d84ebe0f1855071ead3f4d6dcc.ctex
+WARNING: Image format RGB8 not supported by hardware, converting to RGBA8.
+   at: _validate_texture_format (servers/rendering/renderer_rd/storage_rd/texture_storage.cpp:2855)
+Completed load for: 'res://assets/textures/leather.png' remapped 'res://assets/textures/leather.png' at thread -1
+Loading resource: res://assets/audio/sfx/arrow_hit_wood.wav remapped: res://assets/audio/sfx/arrow_hit_wood.wav
+Loading resource: res://.godot/imported/arrow_hit_wood.wav-532841c816a5b8f1fa11b4d6cd412f58.sample remapped: res://.godot/imported/arrow_hit_wood.wav-532841c816a5b8f1fa11b4d6cd412f58.sample
+Completed load for: 'res://assets/audio/sfx/arrow_hit_wood.wav' remapped 'res://assets/audio/sfx/arrow_hit_wood.wav' at thread -1
+Loading resource: res://assets/audio/sfx/arrow_hit_ground.wav remapped: res://assets/audio/sfx/arrow_hit_ground.wav
+Loading resource: res://.godot/imported/arrow_hit_ground.wav-06d7f51d72edf5b35af2ff59d332ef8d.sample remapped: res://.godot/imported/arrow_hit_ground.wav-06d7f51d72edf5b35af2ff59d332ef8d.sample
+Completed load for: 'res://assets/audio/sfx/arrow_hit_ground.wav' remapped 'res://assets/audio/sfx/arrow_hit_ground.wav' at thread -1
+Loading resource: res://assets/audio/sfx/arrow_hit_flesh.wav remapped: res://assets/audio/sfx/arrow_hit_flesh.wav
+Loading resource: res://.godot/imported/arrow_hit_flesh.wav-6a4da4af53926e3a108bd281be126dad.sample remapped: res://.godot/imported/arrow_hit_flesh.wav-6a4da4af53926e3a108bd281be126dad.sample
+Completed load for: 'res://assets/audio/sfx/arrow_hit_flesh.wav' remapped 'res://assets/audio/sfx/arrow_hit_flesh.wav' at thread -1
+Loading resource: res://assets/audio/sfx/pickup.wav remapped: res://assets/audio/sfx/pickup.wav
+Loading resource: res://.godot/imported/pickup.wav-ab250a1f66a2a1fa9405a9d94b827447.sample remapped: res://.godot/imported/pickup.wav-ab250a1f66a2a1fa9405a9d94b827447.sample
+Completed load for: 'res://assets/audio/sfx/pickup.wav' remapped 'res://assets/audio/sfx/pickup.wav' at thread -1
+Loading resource: res://assets/textures/wood.png remapped: res://assets/textures/wood.png
+Loading resource: res://.godot/imported/wood.png-eeb3ea6fc91501562e05b28492ed90b0.ctex remapped: res://.godot/imported/wood.png-eeb3ea6fc91501562e05b28492ed90b0.ctex
+WARNING: Image format RGB8 not supported by hardware, converting to RGBA8.
+   at: _validate_texture_format (servers/rendering/renderer_rd/storage_rd/texture_storage.cpp:2855)
+Completed load for: 'res://assets/textures/wood.png' remapped 'res://assets/textures/wood.png' at thread -1
+Loading resource: res://assets/audio/sfx/step_dirt_2.wav remapped: res://assets/audio/sfx/step_dirt_2.wav
+Loading resource: res://.godot/imported/step_dirt_2.wav-c141ca0d389d094c7401b594f0645f16.sample remapped: res://.godot/imported/step_dirt_2.wav-c141ca0d389d094c7401b594f0645f16.sample
+Completed load for: 'res://assets/audio/sfx/step_dirt_2.wav' remapped 'res://assets/audio/sfx/step_dirt_2.wav' at thread -1
+Loading resource: res://assets/textures/fur.png remapped: res://assets/textures/fur.png
+Loading resource: res://.godot/imported/fur.png-525754911b076dea1d501a7ba9ddd8eb.ctex remapped: res://.godot/imported/fur.png-525754911b076dea1d501a7ba9ddd8eb.ctex
+WARNING: Image format RGB8 not supported by hardware, converting to RGBA8.
+   at: _validate_texture_format (servers/rendering/renderer_rd/storage_rd/texture_storage.cpp:2855)
+Completed load for: 'res://assets/textures/fur.png' remapped 'res://assets/textures/fur.png' at thread -1
+Completed load for: 'res://scenes/player/player.gd' remapped 'res://scenes/player/player.gd' at thread -1
+Loading resource: res://assets/models/goblin/goblin.glb remapped: res://assets/models/goblin/goblin.glb
+Loading resource: res://.godot/imported/goblin.glb-c2d1e60d1ff8a0d7356eed1352bf5af7.scn remapped: res://.godot/imported/goblin.glb-c2d1e60d1ff8a0d7356eed1352bf5af7.scn
+Loading cache for shader SceneForwardClusteredShaderRD, variant 0
+Loading cache for shader SceneForwardClusteredShaderRD, variant 1
+Loading cache for shader SceneForwardClusteredShaderRD, variant 2
+Loading cache for shader SceneForwardClusteredShaderRD, variant 3
+Loading cache for shader SceneForwardClusteredShaderRD, variant 4
+Loading cache for shader SceneForwardClusteredShaderRD, variant 5
+Loading cache for shader SceneForwardClusteredShaderRD, variant 6
+Loading cache for shader SceneForwardClusteredShaderRD, variant 7
+Completed load for: 'res://assets/models/goblin/goblin.glb' remapped 'res://assets/models/goblin/goblin.glb' at thread -1
+Loading resource: res://components/footsteps.gd remapped: res://components/footsteps.gd
+Loading resource: res://assets/audio/sfx/step_grass_1.wav remapped: res://assets/audio/sfx/step_grass_1.wav
+Loading resource: res://.godot/imported/step_grass_1.wav-902eaf04b592fa5d2dc344fc1a0f5187.sample remapped: res://.godot/imported/step_grass_1.wav-902eaf04b592fa5d2dc344fc1a0f5187.sample
+Completed load for: 'res://assets/audio/sfx/step_grass_1.wav' remapped 'res://assets/audio/sfx/step_grass_1.wav' at thread -1
+Loading resource: res://assets/audio/sfx/step_grass_2.wav remapped: res://assets/audio/sfx/step_grass_2.wav
+Loading resource: res://.godot/imported/step_grass_2.wav-4bb0ca9d27667994fce833f3e1155ab2.sample remapped: res://.godot/imported/step_grass_2.wav-4bb0ca9d27667994fce833f3e1155ab2.sample
+Completed load for: 'res://assets/audio/sfx/step_grass_2.wav' remapped 'res://assets/audio/sfx/step_grass_2.wav' at thread -1
+Loading resource: res://assets/audio/sfx/step_grass_3.wav remapped: res://assets/audio/sfx/step_grass_3.wav
+Loading resource: res://.godot/imported/step_grass_3.wav-f70c800738eb3e36d9c6f7886294a18c.sample remapped: res://.godot/imported/step_grass_3.wav-f70c800738eb3e36d9c6f7886294a18c.sample
+Completed load for: 'res://assets/audio/sfx/step_grass_3.wav' remapped 'res://assets/audio/sfx/step_grass_3.wav' at thread -1
+Loading resource: res://assets/audio/sfx/step_grass_4.wav remapped: res://assets/audio/sfx/step_grass_4.wav
+Loading resource: res://.godot/imported/step_grass_4.wav-1609912b2c3d06eb2a5d2466ee39223d.sample remapped: res://.godot/imported/step_grass_4.wav-1609912b2c3d06eb2a5d2466ee39223d.sample
+Completed load for: 'res://assets/audio/sfx/step_grass_4.wav' remapped 'res://assets/audio/sfx/step_grass_4.wav' at thread -1
+Loading resource: res://assets/audio/sfx/step_dirt_1.wav remapped: res://assets/audio/sfx/step_dirt_1.wav
+Loading resource: res://.godot/imported/step_dirt_1.wav-93baac46b0edb0af8c447a6cc0e5b35c.sample remapped: res://.godot/imported/step_dirt_1.wav-93baac46b0edb0af8c447a6cc0e5b35c.sample
+Completed load for: 'res://assets/audio/sfx/step_dirt_1.wav' remapped 'res://assets/audio/sfx/step_dirt_1.wav' at thread -1
+Loading resource: res://assets/audio/sfx/step_dirt_3.wav remapped: res://assets/audio/sfx/step_dirt_3.wav
+Loading resource: res://.godot/imported/step_dirt_3.wav-689c7850e90fd4e99203891088cb987a.sample remapped: res://.godot/imported/step_dirt_3.wav-689c7850e90fd4e99203891088cb987a.sample
+Completed load for: 'res://assets/audio/sfx/step_dirt_3.wav' remapped 'res://assets/audio/sfx/step_dirt_3.wav' at thread -1
+Loading resource: res://assets/audio/sfx/step_dirt_4.wav remapped: res://assets/audio/sfx/step_dirt_4.wav
+Loading resource: res://.godot/imported/step_dirt_4.wav-c7982c64a271cb835d4d2dade5c26662.sample remapped: res://.godot/imported/step_dirt_4.wav-c7982c64a271cb835d4d2dade5c26662.sample
+Completed load for: 'res://assets/audio/sfx/step_dirt_4.wav' remapped 'res://assets/audio/sfx/step_dirt_4.wav' at thread -1
+Loading resource: res://assets/audio/sfx/step_stone_1.wav remapped: res://assets/audio/sfx/step_stone_1.wav
+Loading resource: res://.godot/imported/step_stone_1.wav-0ec432d62ee143b145c93c5b50c784ff.sample remapped: res://.godot/imported/step_stone_1.wav-0ec432d62ee143b145c93c5b50c784ff.sample
+Completed load for: 'res://assets/audio/sfx/step_stone_1.wav' remapped 'res://assets/audio/sfx/step_stone_1.wav' at thread -1
+Loading resource: res://assets/audio/sfx/step_stone_2.wav remapped: res://assets/audio/sfx/step_stone_2.wav
+Loading resource: res://.godot/imported/step_stone_2.wav-4de4be3dd13f6ce539ea9a8861e8e4ec.sample remapped: res://.godot/imported/step_stone_2.wav-4de4be3dd13f6ce539ea9a8861e8e4ec.sample
+Completed load for: 'res://assets/audio/sfx/step_stone_2.wav' remapped 'res://assets/audio/sfx/step_stone_2.wav' at thread -1
+Loading resource: res://assets/audio/sfx/step_stone_3.wav remapped: res://assets/audio/sfx/step_stone_3.wav
+Loading resource: res://.godot/imported/step_stone_3.wav-063e789d72d7fc46eb1b6e0f1a3782bd.sample remapped: res://.godot/imported/step_stone_3.wav-063e789d72d7fc46eb1b6e0f1a3782bd.sample
+Completed load for: 'res://assets/audio/sfx/step_stone_3.wav' remapped 'res://assets/audio/sfx/step_stone_3.wav' at thread -1
+Loading resource: res://assets/audio/sfx/step_stone_4.wav remapped: res://assets/audio/sfx/step_stone_4.wav
+Loading resource: res://.godot/imported/step_stone_4.wav-9f556fd338cefae871bb40ad87c0db6d.sample remapped: res://.godot/imported/step_stone_4.wav-9f556fd338cefae871bb40ad87c0db6d.sample
+Completed load for: 'res://assets/audio/sfx/step_stone_4.wav' remapped 'res://assets/audio/sfx/step_stone_4.wav' at thread -1
+Completed load for: 'res://components/footsteps.gd' remapped 'res://components/footsteps.gd' at thread -1
+Completed load for: 'res://scenes/player/player.tscn' remapped 'res://scenes/player/player.tscn' at thread -1
+Completed load for: 'res://autoload/game.gd' remapped 'res://autoload/game.gd' at thread -1
+Loading resource: res://autoload/save_system.gd remapped: res://autoload/save_system.gd
+Completed load for: 'res://autoload/save_system.gd' remapped 'res://autoload/save_system.gd' at thread -1
+Loading resource: res://autoload/dev_tools.gd remapped: res://autoload/dev_tools.gd
+Completed load for: 'res://autoload/dev_tools.gd' remapped 'res://autoload/dev_tools.gd' at thread -1
+Loaded system CA certificates
+Loading resource: res://scenes/main/main.tscn remapped: res://scenes/main/main.tscn
+Loading resource: res://scenes/main/main.gd remapped: res://scenes/main/main.gd
+Completed load for: 'res://scenes/main/main.gd' remapped 'res://scenes/main/main.gd' at thread -1
+Loading resource: res://scenes/ui/hud/hud.tscn remapped: res://scenes/ui/hud/hud.tscn
+Loading resource: res://scenes/ui/hud/hud.gd remapped: res://scenes/ui/hud/hud.gd
+Completed load for: 'res://scenes/ui/hud/hud.gd' remapped 'res://scenes/ui/hud/hud.gd' at thread -1
+Completed load for: 'res://scenes/ui/hud/hud.tscn' remapped 'res://scenes/ui/hud/hud.tscn' at thread -1
+Loading resource: res://scenes/ui/pause_menu/pause_menu.tscn remapped: res://scenes/ui/pause_menu/pause_menu.tscn
+Loading resource: res://scenes/ui/pause_menu/pause_menu.gd remapped: res://scenes/ui/pause_menu/pause_menu.gd
+Completed load for: 'res://scenes/ui/pause_menu/pause_menu.gd' remapped 'res://scenes/ui/pause_menu/pause_menu.gd' at thread -1
+Completed load for: 'res://scenes/ui/pause_menu/pause_menu.tscn' remapped 'res://scenes/ui/pause_menu/pause_menu.tscn' at thread -1
+Loading resource: res://scenes/ui/screen_fade/screen_fade.tscn remapped: res://scenes/ui/screen_fade/screen_fade.tscn
+Loading resource: res://scenes/ui/screen_fade/screen_fade.gd remapped: res://scenes/ui/screen_fade/screen_fade.gd
+Completed load for: 'res://scenes/ui/screen_fade/screen_fade.gd' remapped 'res://scenes/ui/screen_fade/screen_fade.gd' at thread -1
+Completed load for: 'res://scenes/ui/screen_fade/screen_fade.tscn' remapped 'res://scenes/ui/screen_fade/screen_fade.tscn' at thread -1
+Completed load for: 'res://scenes/main/main.tscn' remapped 'res://scenes/main/main.tscn' at thread -1
+Loading resource: res://scenes/levels/forest/forest.tscn remapped: res://scenes/levels/forest/forest.tscn
+Loading resource: res://scenes/levels/forest/forest.gd remapped: res://scenes/levels/forest/forest.gd
+Loading resource: res://assets/audio/sfx/drip_1.wav remapped: res://assets/audio/sfx/drip_1.wav
+Loading resource: res://.godot/imported/drip_1.wav-ff4dd3dd4fbdad9f848f29a54ff8a2cd.sample remapped: res://.godot/imported/drip_1.wav-ff4dd3dd4fbdad9f848f29a54ff8a2cd.sample
+Completed load for: 'res://assets/audio/sfx/drip_1.wav' remapped 'res://assets/audio/sfx/drip_1.wav' at thread -1
+Loading resource: res://assets/audio/sfx/drip_2.wav remapped: res://assets/audio/sfx/drip_2.wav
+Loading resource: res://.godot/imported/drip_2.wav-329b581594eccb27aac9ec99343a9562.sample remapped: res://.godot/imported/drip_2.wav-329b581594eccb27aac9ec99343a9562.sample
+Completed load for: 'res://assets/audio/sfx/drip_2.wav' remapped 'res://assets/audio/sfx/drip_2.wav' at thread -1
+Loading resource: res://assets/audio/sfx/drip_3.wav remapped: res://assets/audio/sfx/drip_3.wav
+Loading resource: res://.godot/imported/drip_3.wav-533afc403142a7a4a6de46ee0f58b68a.sample remapped: res://.godot/imported/drip_3.wav-533afc403142a7a4a6de46ee0f58b68a.sample
+Completed load for: 'res://assets/audio/sfx/drip_3.wav' remapped 'res://assets/audio/sfx/drip_3.wav' at thread -1
+Loading resource: res://scenes/world/props/falling_leaves.tscn remapped: res://scenes/world/props/falling_leaves.tscn
+Loading resource: res://scenes/world/props/falling_leaves.gd remapped: res://scenes/world/props/falling_leaves.gd
+Completed load for: 'res://scenes/world/props/falling_leaves.gd' remapped 'res://scenes/world/props/falling_leaves.gd' at thread -1
+Loading resource: res://assets/textures/leaf.png remapped: res://assets/textures/leaf.png
+Loading resource: res://.godot/imported/leaf.png-682ef9e7dee931cb5de3973dcf849b3a.ctex remapped: res://.godot/imported/leaf.png-682ef9e7dee931cb5de3973dcf849b3a.ctex
+Completed load for: 'res://assets/textures/leaf.png' remapped 'res://assets/textures/leaf.png' at thread -1
+Loading resource: res://assets/audio/ambience/leaves_loop.wav remapped: res://assets/audio/ambience/leaves_loop.wav
+Loading resource: res://.godot/imported/leaves_loop.wav-e1861c3681b3cbd3a0cdb09d5d5a769f.sample remapped: res://.godot/imported/leaves_loop.wav-e1861c3681b3cbd3a0cdb09d5d5a769f.sample
+Completed load for: 'res://assets/audio/ambience/leaves_loop.wav' remapped 'res://assets/audio/ambience/leaves_loop.wav' at thread -1
+WARNING: Image format RGBFloat not supported by hardware, converting to RGBAFloat.
+   at: _validate_texture_format (servers/rendering/renderer_rd/storage_rd/texture_storage.cpp:2855)
+   GDScript backtrace (most recent call first):
+       [0] change_level (res://autoload/game.gd:33)
+       [1] _ready (res://scenes/main/main.gd:9)
+Completed load for: 'res://scenes/world/props/falling_leaves.tscn' remapped 'res://scenes/world/props/falling_leaves.tscn' at thread -1
+Loading resource: res://assets/audio/sfx/tree_hit.wav remapped: res://assets/audio/sfx/tree_hit.wav
+Loading resource: res://.godot/imported/tree_hit.wav-8de33712696f41542d8e55c39dc9d69f.sample remapped: res://.godot/imported/tree_hit.wav-8de33712696f41542d8e55c39dc9d69f.sample
+Completed load for: 'res://assets/audio/sfx/tree_hit.wav' remapped 'res://assets/audio/sfx/tree_hit.wav' at thread -1
+Loading resource: res://assets/audio/sfx/tree_fall.wav remapped: res://assets/audio/sfx/tree_fall.wav
+Loading resource: res://.godot/imported/tree_fall.wav-5a2ea66b6544fd09ee4f38408728b6ae.sample remapped: res://.godot/imported/tree_fall.wav-5a2ea66b6544fd09ee4f38408728b6ae.sample
+Completed load for: 'res://assets/audio/sfx/tree_fall.wav' remapped 'res://assets/audio/sfx/tree_fall.wav' at thread -1
+Loading resource: res://assets/audio/ambience/wind_loop.wav remapped: res://assets/audio/ambience/wind_loop.wav
+Loading resource: res://.godot/imported/wind_loop.wav-a14cd44a531418eae92318a34831bc87.sample remapped: res://.godot/imported/wind_loop.wav-a14cd44a531418eae92318a34831bc87.sample
+Completed load for: 'res://assets/audio/ambience/wind_loop.wav' remapped 'res://assets/audio/ambience/wind_loop.wav' at thread -1
+Loading resource: res://assets/audio/animals/bird_1.wav remapped: res://assets/audio/animals/bird_1.wav
+Loading resource: res://.godot/imported/bird_1.wav-2314565311c334012d7c812a7698891c.sample remapped: res://.godot/imported/bird_1.wav-2314565311c334012d7c812a7698891c.sample
+Completed load for: 'res://assets/audio/animals/bird_1.wav' remapped 'res://assets/audio/animals/bird_1.wav' at thread -1
+Loading resource: res://assets/audio/animals/bird_2.wav remapped: res://assets/audio/animals/bird_2.wav
+Loading resource: res://.godot/imported/bird_2.wav-7666bab4d6244ccabf211539b81b67bd.sample remapped: res://.godot/imported/bird_2.wav-7666bab4d6244ccabf211539b81b67bd.sample
+Completed load for: 'res://assets/audio/animals/bird_2.wav' remapped 'res://assets/audio/animals/bird_2.wav' at thread -1
+Loading resource: res://assets/audio/animals/bird_3.wav remapped: res://assets/audio/animals/bird_3.wav
+Loading resource: res://.godot/imported/bird_3.wav-13466760f66d95ca60f803c0d0967b37.sample remapped: res://.godot/imported/bird_3.wav-13466760f66d95ca60f803c0d0967b37.sample
+Completed load for: 'res://assets/audio/animals/bird_3.wav' remapped 'res://assets/audio/animals/bird_3.wav' at thread -1
+Loading resource: res://assets/audio/animals/bird_4.wav remapped: res://assets/audio/animals/bird_4.wav
+Loading resource: res://.godot/imported/bird_4.wav-d16f9342fdf6cf57734df3d6c2a2da3a.sample remapped: res://.godot/imported/bird_4.wav-d16f9342fdf6cf57734df3d6c2a2da3a.sample
+Completed load for: 'res://assets/audio/animals/bird_4.wav' remapped 'res://assets/audio/animals/bird_4.wav' at thread -1
+Loading resource: res://assets/audio/animals/woodpecker.wav remapped: res://assets/audio/animals/woodpecker.wav
+Loading resource: res://.godot/imported/woodpecker.wav-3bcc4f034cb542777152d6d77520e7a4.sample remapped: res://.godot/imported/woodpecker.wav-3bcc4f034cb542777152d6d77520e7a4.sample
+Completed load for: 'res://assets/audio/animals/woodpecker.wav' remapped 'res://assets/audio/animals/woodpecker.wav' at thread -1
+Loading resource: res://assets/audio/animals/wolf_howl.wav remapped: res://assets/audio/animals/wolf_howl.wav
+Loading resource: res://.godot/imported/wolf_howl.wav-cf408632ef9bdc5369454fa69053b31f.sample remapped: res://.godot/imported/wolf_howl.wav-cf408632ef9bdc5369454fa69053b31f.sample
+Completed load for: 'res://assets/audio/animals/wolf_howl.wav' remapped 'res://assets/audio/animals/wolf_howl.wav' at thread -1
+Loading resource: res://assets/audio/ambience/grasshoppers_loop.wav remapped: res://assets/audio/ambience/grasshoppers_loop.wav
+Loading resource: res://.godot/imported/grasshoppers_loop.wav-aff59fbe492fa9f2b7843df93c6c7ba3.sample remapped: res://.godot/imported/grasshoppers_loop.wav-aff59fbe492fa9f2b7843df93c6c7ba3.sample
+Completed load for: 'res://assets/audio/ambience/grasshoppers_loop.wav' remapped 'res://assets/audio/ambience/grasshoppers_loop.wav' at thread -1
+Loading resource: res://assets/audio/ambience/cave_loop.wav remapped: res://assets/audio/ambience/cave_loop.wav
+Loading resource: res://.godot/imported/cave_loop.wav-e269bd7567def4050991fbd21d649ac1.sample remapped: res://.godot/imported/cave_loop.wav-e269bd7567def4050991fbd21d649ac1.sample
+Completed load for: 'res://assets/audio/ambience/cave_loop.wav' remapped 'res://assets/audio/ambience/cave_loop.wav' at thread -1
+Loading resource: res://assets/audio/animals/deer_snort.wav remapped: res://assets/audio/animals/deer_snort.wav
+Loading resource: res://.godot/imported/deer_snort.wav-97531367ddbf3fdfa6c8930a056778d9.sample remapped: res://.godot/imported/deer_snort.wav-97531367ddbf3fdfa6c8930a056778d9.sample
+Completed load for: 'res://assets/audio/animals/deer_snort.wav' remapped 'res://assets/audio/animals/deer_snort.wav' at thread -1
+Loading resource: res://assets/audio/animals/rabbit_squeal.wav remapped: res://assets/audio/animals/rabbit_squeal.wav
+Loading resource: res://.godot/imported/rabbit_squeal.wav-f6ea06f2b80c10b1896536625fcd9e54.sample remapped: res://.godot/imported/rabbit_squeal.wav-f6ea06f2b80c10b1896536625fcd9e54.sample
+Completed load for: 'res://assets/audio/animals/rabbit_squeal.wav' remapped 'res://assets/audio/animals/rabbit_squeal.wav' at thread -1
+Loading resource: res://assets/audio/animals/crow_1.wav remapped: res://assets/audio/animals/crow_1.wav
+Loading resource: res://.godot/imported/crow_1.wav-bf6caadb379deb64a64995d69e7a25fd.sample remapped: res://.godot/imported/crow_1.wav-bf6caadb379deb64a64995d69e7a25fd.sample
+Completed load for: 'res://assets/audio/animals/crow_1.wav' remapped 'res://assets/audio/animals/crow_1.wav' at thread -1
+Loading resource: res://assets/audio/animals/crow_2.wav remapped: res://assets/audio/animals/crow_2.wav
+Loading resource: res://.godot/imported/crow_2.wav-f8748deac4046bb3e6ffa04072a07aeb.sample remapped: res://.godot/imported/crow_2.wav-f8748deac4046bb3e6ffa04072a07aeb.sample
+Completed load for: 'res://assets/audio/animals/crow_2.wav' remapped 'res://assets/audio/animals/crow_2.wav' at thread -1
+Completed load for: 'res://scenes/levels/forest/forest.gd' remapped 'res://scenes/levels/forest/forest.gd' at thread -1
+Loading resource: res://assets/shaders/terrain.gdshader remapped: res://assets/shaders/terrain.gdshader
+Completed load for: 'res://assets/shaders/terrain.gdshader' remapped 'res://assets/shaders/terrain.gdshader' at thread -1
+Loading resource: res://assets/textures/ground_grass.png remapped: res://assets/textures/ground_grass.png
+Loading resource: res://.godot/imported/ground_grass.png-8d5c6a3d19fdb7e517057748f092fdb1.ctex remapped: res://.godot/imported/ground_grass.png-8d5c6a3d19fdb7e517057748f092fdb1.ctex
+WARNING: Image format RGB8 not supported by hardware, converting to RGBA8.
+   at: _validate_texture_format (servers/rendering/renderer_rd/storage_rd/texture_storage.cpp:2855)
+   GDScript backtrace (most recent call first):
+       [0] change_level (res://autoload/game.gd:33)
+       [1] _ready (res://scenes/main/main.gd:9)
+Completed load for: 'res://assets/textures/ground_grass.png' remapped 'res://assets/textures/ground_grass.png' at thread -1
+Loading resource: res://assets/textures/ground_forest.png remapped: res://assets/textures/ground_forest.png
+Loading resource: res://.godot/imported/ground_forest.png-b7de3d179dc853ba274b408ec16865f7.ctex remapped: res://.godot/imported/ground_forest.png-b7de3d179dc853ba274b408ec16865f7.ctex
+WARNING: Image format RGB8 not supported by hardware, converting to RGBA8.
+   at: _validate_texture_format (servers/rendering/renderer_rd/storage_rd/texture_storage.cpp:2855)
+   GDScript backtrace (most recent call first):
+       [0] change_level (res://autoload/game.gd:33)
+       [1] _ready (res://scenes/main/main.gd:9)
+Completed load for: 'res://assets/textures/ground_forest.png' remapped 'res://assets/textures/ground_forest.png' at thread -1
+Loading resource: res://assets/textures/ground_dirt.png remapped: res://assets/textures/ground_dirt.png
+Loading resource: res://.godot/imported/ground_dirt.png-7af82b8de4cac884545603ea02baa1fd.ctex remapped: res://.godot/imported/ground_dirt.png-7af82b8de4cac884545603ea02baa1fd.ctex
+WARNING: Image format RGB8 not supported by hardware, converting to RGBA8.
+   at: _validate_texture_format (servers/rendering/renderer_rd/storage_rd/texture_storage.cpp:2855)
+   GDScript backtrace (most recent call first):
+       [0] change_level (res://autoload/game.gd:33)
+       [1] _ready (res://scenes/main/main.gd:9)
+Completed load for: 'res://assets/textures/ground_dirt.png' remapped 'res://assets/textures/ground_dirt.png' at thread -1
+Loading resource: res://assets/textures/rock.png remapped: res://assets/textures/rock.png
+Loading resource: res://.godot/imported/rock.png-4414553b1441c7eab60f78bb4079c903.ctex remapped: res://.godot/imported/rock.png-4414553b1441c7eab60f78bb4079c903.ctex
+WARNING: Image format RGB8 not supported by hardware, converting to RGBA8.
+   at: _validate_texture_format (servers/rendering/renderer_rd/storage_rd/texture_storage.cpp:2855)
+   GDScript backtrace (most recent call first):
+       [0] change_level (res://autoload/game.gd:33)
+       [1] _ready (res://scenes/main/main.gd:9)
+Completed load for: 'res://assets/textures/rock.png' remapped 'res://assets/textures/rock.png' at thread -1
+Loading resource: res://assets/textures/dither_noise.png remapped: res://assets/textures/dither_noise.png
+Loading resource: res://.godot/imported/dither_noise.png-0b39bfa5ba46ad30466a4d5b3f36cc0a.ctex remapped: res://.godot/imported/dither_noise.png-0b39bfa5ba46ad30466a4d5b3f36cc0a.ctex
+Completed load for: 'res://assets/textures/dither_noise.png' remapped 'res://assets/textures/dither_noise.png' at thread -1
+Loading resource: res://scenes/world/cave/cave.tscn remapped: res://scenes/world/cave/cave.tscn
+Loading resource: res://assets/shaders/rock.gdshader remapped: res://assets/shaders/rock.gdshader
+Completed load for: 'res://assets/shaders/rock.gdshader' remapped 'res://assets/shaders/rock.gdshader' at thread -1
+Loading resource: res://scenes/world/props/campfire.tscn remapped: res://scenes/world/props/campfire.tscn
+Loading resource: res://scenes/world/props/campfire.gd remapped: res://scenes/world/props/campfire.gd
+Completed load for: 'res://scenes/world/props/campfire.gd' remapped 'res://scenes/world/props/campfire.gd' at thread -1
+Loading resource: res://assets/textures/bark.png remapped: res://assets/textures/bark.png
+Loading resource: res://.godot/imported/bark.png-a0f7faf5e7dedc59ce221772f48a5d04.ctex remapped: res://.godot/imported/bark.png-a0f7faf5e7dedc59ce221772f48a5d04.ctex
+WARNING: Image format RGB8 not supported by hardware, converting to RGBA8.
+   at: _validate_texture_format (servers/rendering/renderer_rd/storage_rd/texture_storage.cpp:2855)
+   GDScript backtrace (most recent call first):
+       [0] change_level (res://autoload/game.gd:33)
+       [1] _ready (res://scenes/main/main.gd:9)
+Completed load for: 'res://assets/textures/bark.png' remapped 'res://assets/textures/bark.png' at thread -1
+Loading resource: res://assets/audio/ambience/fire_loop.wav remapped: res://assets/audio/ambience/fire_loop.wav
+Loading resource: res://.godot/imported/fire_loop.wav-d3a7dd0f4cead8e237c8f44cfd80245f.sample remapped: res://.godot/imported/fire_loop.wav-d3a7dd0f4cead8e237c8f44cfd80245f.sample
+Completed load for: 'res://assets/audio/ambience/fire_loop.wav' remapped 'res://assets/audio/ambience/fire_loop.wav' at thread -1
+Shader cache miss for SceneForwardClusteredShaderRD/069fad9662d1c110a7284347f6822a7ae0bb9be399f57215e33231e68a6e4692/52e06f6ccd143b359412a5fa92e8820d9b635cf5
+WARNING: Image format RGBFloat not supported by hardware, converting to RGBAFloat.
+   at: _validate_texture_format (servers/rendering/renderer_rd/storage_rd/texture_storage.cpp:2855)
+   GDScript backtrace (most recent call first):
+       [0] change_level (res://autoload/game.gd:33)
+       [1] _ready (res://scenes/main/main.gd:9)
+WARNING: Image format RGBFloat not supported by hardware, converting to RGBAFloat.
+   at: _validate_texture_format (servers/rendering/renderer_rd/storage_rd/texture_storage.cpp:2855)
+   GDScript backtrace (most recent call first):
+       [0] change_level (res://autoload/game.gd:33)
+       [1] _ready (res://scenes/main/main.gd:9)
+Completed load for: 'res://scenes/world/props/campfire.tscn' remapped 'res://scenes/world/props/campfire.tscn' at thread -1
+Loading resource: res://scenes/items/bow_pickup.tscn remapped: res://scenes/items/bow_pickup.tscn
+Loading resource: res://scenes/items/bow_pickup.gd remapped: res://scenes/items/bow_pickup.gd
+Completed load for: 'res://scenes/items/bow_pickup.gd' remapped 'res://scenes/items/bow_pickup.gd' at thread -1
+Completed load for: 'res://scenes/items/bow_pickup.tscn' remapped 'res://scenes/items/bow_pickup.tscn' at thread -1
+Completed load for: 'res://scenes/world/cave/cave.tscn' remapped 'res://scenes/world/cave/cave.tscn' at thread -1
+Loading resource: res://assets/shaders/foliage.gdshader remapped: res://assets/shaders/foliage.gdshader
+Completed load for: 'res://assets/shaders/foliage.gdshader' remapped 'res://assets/shaders/foliage.gdshader' at thread -1
+Loading resource: res://assets/textures/pine_branch.png remapped: res://assets/textures/pine_branch.png
+Loading resource: res://.godot/imported/pine_branch.png-5342dfb556b6d222ff929f42552f9d41.ctex remapped: res://.godot/imported/pine_branch.png-5342dfb556b6d222ff929f42552f9d41.ctex
+Completed load for: 'res://assets/textures/pine_branch.png' remapped 'res://assets/textures/pine_branch.png' at thread -1
+Loading resource: res://assets/textures/leaves_card.png remapped: res://assets/textures/leaves_card.png
+Loading resource: res://.godot/imported/leaves_card.png-9b2d5792941ee0398cf786ad90a0df73.ctex remapped: res://.godot/imported/leaves_card.png-9b2d5792941ee0398cf786ad90a0df73.ctex
+Completed load for: 'res://assets/textures/leaves_card.png' remapped 'res://assets/textures/leaves_card.png' at thread -1
+Loading resource: res://assets/textures/grass_card.png remapped: res://assets/textures/grass_card.png
+Loading resource: res://.godot/imported/grass_card.png-293beffc2d04b73a26cc64909c3c14d7.ctex remapped: res://.godot/imported/grass_card.png-293beffc2d04b73a26cc64909c3c14d7.ctex
+Completed load for: 'res://assets/textures/grass_card.png' remapped 'res://assets/textures/grass_card.png' at thread -1
+Loading cache for shader SkyShaderRD, variant 0
+Loading cache for shader SkyShaderRD, variant 1
+Loading cache for shader SkyShaderRD, variant 2
+Loading cache for shader SkyShaderRD, variant 3
+Loading cache for shader SkyShaderRD, variant 4
+Loading cache for shader SkyShaderRD, variant 5
+Shader cache miss for SkyShaderRD/9be8c23dcd20154e4a1ab0bef919421f8c51853d47c2fe6dc91221f8cfc74997/4e0c6cd30f8ee2c7f50cd0c63a84a6bd9717c2b2
+Shader cache miss for SceneForwardClusteredShaderRD/069fad9662d1c110a7284347f6822a7ae0bb9be399f57215e33231e68a6e4692/b73c193871ed1cfdeb69f686a144269e5a5a0868
+Shader cache miss for SceneForwardClusteredShaderRD/069fad9662d1c110a7284347f6822a7ae0bb9be399f57215e33231e68a6e4692/9ff393c73a287532ce1675725f76c7c5f20e73b4
+Completed load for: 'res://scenes/levels/forest/forest.tscn' remapped 'res://scenes/levels/forest/forest.tscn' at thread -1
+Loading cache for shader SceneForwardClusteredShaderRD, variant 0
+Loading cache for shader SceneForwardClusteredShaderRD, variant 1
+Loading cache for shader SceneForwardClusteredShaderRD, variant 2
+Loading cache for shader SceneForwardClusteredShaderRD, variant 3
+Loading cache for shader SceneForwardClusteredShaderRD, variant 4
+Loading cache for shader SceneForwardClusteredShaderRD, variant 5
+Loading cache for shader SceneForwardClusteredShaderRD, variant 6
+Loading cache for shader SceneForwardClusteredShaderRD, variant 7
+Shader cache miss for SceneForwardClusteredShaderRD/069fad9662d1c110a7284347f6822a7ae0bb9be399f57215e33231e68a6e4692/ba0a1bac6b2366be73cbe7bb3ac9163ed420acf6
+Shader cache miss for ParticlesShaderRD/8f4c25caa97a2f74d5fa5f299aabdd514f57d9737b8642ed65c20e846dad5db0/3b0e8da7bb646eafceb4137013b6c3644b479dec
+Shader cache miss for SceneForwardClusteredShaderRD/069fad9662d1c110a7284347f6822a7ae0bb9be399f57215e33231e68a6e4692/b7d4747841c90ded3af70a375fd646eb3f8f7c42
+Shader cache miss for ParticlesShaderRD/8f4c25caa97a2f74d5fa5f299aabdd514f57d9737b8642ed65c20e846dad5db0/9216e0e997009b71057722cdd4d885cfade2ff32
+Shader cache miss for SceneForwardClusteredShaderRD/069fad9662d1c110a7284347f6822a7ae0bb9be399f57215e33231e68a6e4692/ad5343491dc1a6aa375ea49aabeed2f3c34c129c
+Shader cache miss for ParticlesShaderRD/8f4c25caa97a2f74d5fa5f299aabdd514f57d9737b8642ed65c20e846dad5db0/37082a2107bbb0e6749e34cbd8f498babe6e01f7
+Loading cache for shader SceneForwardClusteredShaderRD, variant 0
+Loading cache for shader SceneForwardClusteredShaderRD, variant 1
+Loading cache for shader SceneForwardClusteredShaderRD, variant 2
+Loading cache for shader SceneForwardClusteredShaderRD, variant 3
+Loading cache for shader SceneForwardClusteredShaderRD, variant 4
+Loading cache for shader SceneForwardClusteredShaderRD, variant 5
+Loading cache for shader SceneForwardClusteredShaderRD, variant 6
+Loading cache for shader SceneForwardClusteredShaderRD, variant 7
+Shader cache miss for ParticlesShaderRD/8f4c25caa97a2f74d5fa5f299aabdd514f57d9737b8642ed65c20e846dad5db0/81cdc5ba0044ab683993490f2e09fbefc6e1cf34
+Shader cache miss for SceneForwardClusteredShaderRD/069fad9662d1c110a7284347f6822a7ae0bb9be399f57215e33231e68a6e4692/0a36408b43dbae67fd32459b79bd9d7139f5662b
+Loading cache for shader SceneForwardClusteredShaderRD, variant 0
+Loading cache for shader SceneForwardClusteredShaderRD, variant 1
+Loading cache for shader SceneForwardClusteredShaderRD, variant 2
+Loading cache for shader SceneForwardClusteredShaderRD, variant 3
+Loading cache for shader SceneForwardClusteredShaderRD, variant 4
+Loading cache for shader SceneForwardClusteredShaderRD, variant 5
+Loading cache for shader SceneForwardClusteredShaderRD, variant 6
+Loading cache for shader SceneForwardClusteredShaderRD, variant 7
+Shader cache miss for ParticlesShaderRD/8f4c25caa97a2f74d5fa5f299aabdd514f57d9737b8642ed65c20e846dad5db0/9d54caad268813ae267fea43e949365134d7ac74
+Shader cache miss for SceneForwardClusteredShaderRD/069fad9662d1c110a7284347f6822a7ae0bb9be399f57215e33231e68a6e4692/83e3db52047490cd014d18201c89ca9a032b5241
+[Floresta] Mundo gerado em 652 ms.
+MultiUmaBuffer 'RENDER_LIST_SECONDARY' used a total of 0 buffers. A large number may indicate a waste of VRAM and can be brought down by tweaking MAX_EXTRA_BUFFERS for this buffer.
+MultiUmaBuffer 'RENDER_LIST_OPAQUE' used a total of 0 buffers. A large number may indicate a waste of VRAM and can be brought down by tweaking MAX_EXTRA_BUFFERS for this buffer.
+MultiUmaBuffer 'RENDER_LIST_ALPHA' used a total of 0 buffers. A large number may indicate a waste of VRAM and can be brought down by tweaking MAX_EXTRA_BUFFERS for this buffer.
+Updated PSO cache (10.7 MiB)
+[DevTools] FPS: 49 | draw calls: 445 | triângulos: 352154
+[DevTools] Jogador em (14.0, 6.626913, 12.0), chão: true
+[DevTools] Inventário: { &"bow": 1, &"arrow": 6 }
+[DevTools] Print salvo em C:/Users/emano/OneDrive/Desktop/Projetos Pessoais/Jogo pessoal/assets/models/goblin/source/in_game.png
+XR: Clearing primary interface
+XR: Removed interface "Native mobile"
+XR: Removed interface "OpenXR"
+Freeing Default Tex_Blit Shader
+MultiUmaBuffer 'RENDER_LIST_OPAQUE' used a total of 7 buffers. A large number may indicate a waste of VRAM and can be brought down by tweaking MAX_EXTRA_BUFFERS for this buffer.
+MultiUmaBuffer 'RENDER_LIST_MOTION' used a total of 0 buffers. A large number may indicate a waste of VRAM and can be brought down by tweaking MAX_EXTRA_BUFFERS for this buffer.
+MultiUmaBuffer 'RENDER_LIST_ALPHA' used a total of 7 buffers. A large number may indicate a waste of VRAM and can be brought down by tweaking MAX_EXTRA_BUFFERS for this buffer.
+MultiUmaBuffer 'RENDER_LIST_SECONDARY' used a total of 3 buffers. A large number may indicate a waste of VRAM and can be brought down by tweaking MAX_EXTRA_BUFFERS for this buffer.
+MultiUmaBuffer 'CANVAS_INSTANCE_DATA' used a total of 1 buffers. A large number may indicate a waste of VRAM and can be brought down by tweaking MAX_EXTRA_BUFFERS for this buffer.
+Accessibility: window 0 adapter destroyed.
+Updated PSO cache (13.6 MiB)
+WARNING: 7 RIDs of type "Texture" were leaked.
+   at: finalize (servers/rendering/rendering_device.cpp:8900)

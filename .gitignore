@@ -1,0 +1,14 @@
+# Cache e importações geradas pelo Godot
+.godot/
+
+# Builds exportados
+build/
+
+# Arquivos temporários
+*.tmp
+*.bak
+
+# Ruído de sistema
+.DS_Store
+Thumbs.db
+*.blend1
