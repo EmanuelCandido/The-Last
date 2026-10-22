@@ -60,7 +60,7 @@ scenes/
 components/          Footsteps (passos por chão), OccludedAudio (som 3D abafado atrás de rocha)
 assets/
   textures/ shaders/ gerados por tools/ (exceto shaders)
-  audio/             sintéticos gerados por tools/ (steps/ = passos descalços); audio/real/ = gravações reais CC0 (ver CREDITS.md)
+  audio/             sintéticos gerados por tools/; audio/real/ = gravações reais CC0 (ver CREDITS.md)
   models/goblin/     goblin.glb + source/ (goblin.blend, polish_goblin.py, export_goblin.py)
 tools/               geradores Python de texturas e sons (numpy + Pillow)
 ```
@@ -96,7 +96,8 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - Pés no chão (`_ground_feet`): um raio por pé acha a altura e a inclinação do chão embaixo dele (degrau, pedra, encosta). O quadril desce para o pé mais baixo com apoio; pé sem chão fica pendurado, e com só um pé apoiado o peso vai para ele. `foot_supported` é lido pelo Player.
   - Coluna: o giro do tronco se divide entre `tronco` (lombar) e `peito`; por cima entram `spine_arch` (costas redondas em cima, lombar arqueada), `spine_bend` (curva de lado em S) e `neck_fwd` (`pescoco`). A soma lombar + peito é o giro antigo + arch / 2, então as poses dos braços continuam calibradas.
   - Borda (`_balance_overlay`): com `teeter` > 0 abre e gira os braços, joga o corpo para longe do vazio e olha para baixo.
-  - Ações cronometradas com eventos: `wake` (acordar), `pickup`, `harvest` (coletar caça) e `punch`. O Player só pega o item ou acerta o golpe no evento, quando a mão chega.
+  - Ações cronometradas com eventos: `wake` (acordar), `pickup`, `harvest` (coletar caça) e `punch`. O Player só pega o item ou acerta o golpe no evento, quando a mão chega. Cada ação mexe o corpo todo (quadril, coluna, pescoço), com preparação e continuação: o soco arma girando quadril e ombro para trás e solta com o quadril na frente; pegar dobra no quadril com as costas curvas e sobe com o peito na frente.
+  - Mecânica do corpo (`_body_mechanics`, depois das ações e antes do equilíbrio): (1) dobradiça, em que a inclinação acima de 0,2 rad vai em parte para a bacia (`pelvis_pitch`), o quadril recua (`pelvis_z`) e as costas arredondam; (2) braços, em que esticar um traz o ombro (giro do peito) e erguer acima do ombro inclina o tronco; (3) molas, em que o tronco segue o quadril por uma mola (~2,4 Hz), comprimindo a coluna (`_squash`) nos passos e na aterrissagem, e a velocidade do peito segue a do corpo (~1,2 Hz), inclinando ao arrancar e ao frear. A cabeça compensa a mola. Sinal de giro: `torso_yaw`/`pelvis_yaw` positivos levam o ombro/quadril direito para a frente (vira para a esquerda, +X).
   - Precisa dos ossos `perna/canela/pe`, `braco/antebraco/mao`, `orelha`, `tronco`, `peito`, `pescoco`, `cabeca` e `quadril`. Sem eles o animador desliga sozinho.
 - **Equilíbrio (`Player._update_balance`):** no chão, se não há chão logo embaixo do centro do corpo, ele está na borda. O equilíbrio cai (mais rápido com um pé solto ou andando para o vazio; sem nenhum pé apoiado cai em ~0,25 s) e volta se ele andar para dentro ou se agachar. Se acabar, ele tomba para o lado do vazio (`_tipping`, sem `floor_snap`).
 - **Arco:** `Player` mira com o botão direito (a câmera aproxima). Ao erguer o arco, encaixa uma flecha. Segura e solta o esquerdo para atirar. `Arrow` voa com gravidade, testada por raio a cada frame de física, e finca no que acerta.
@@ -128,7 +129,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 - **Modelos:** frente em **+Z** (MODEL_FRONT). Unidades em metros.
 - **Malhas por código:** a face da frente é o sentido **horário** visto de fora (convenção do Godot).
 - **Colisão de pedras e formas irregulares:** malha exata (`create_trimesh_shape`). O casco convexo sobra nas reentrâncias e deixa o jogador "em pé no ar".
-- **Cartões de folhagem** usam `foliage.gdshader`, que é double-sided, já corrige a normal do verso e some perto da câmera.
+- **Cartões de folhagem** usam `foliage.gdshader`, que é double-sided, já corrige a normal do verso e some perto da câmera (dither Bayer 4×4; padrões feitos com `floor` viram listras diagonais). Com a câmera baixa, a grama (`follow_ground`) no raio `part_radius` se deita para longe da lente.
 - **Goblin:** `GoblinLook.apply()` troca os materiais pelo nome da paleta (`goblin.pele` etc.). Os com textura usam `goblin_skin.gdshader`: projeção dos três lados misturada pela normal, na pose de repouso (posição em UV/UV2, normal em COLOR). Sem emendas, e a textura não escorrega com os ossos.
   - Ossos (31): `raiz`, `quadril`, `tronco` (lombar), `peito`, `pescoco`, `cabeca`, `perna_*`, `canela_*`, `pe_*`, `braco_*`, `antebraco_*`, `mao_*`, `orelha_*` e partes do rosto. `_E` é o lado esquerdo (+X), `_D` o direito.
   - Sockets viram nós como `braco_E_mao`, presos ao osso `mao_E`.
@@ -147,9 +148,10 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 - **Texturas:** 100% procedurais (`tools/generate_textures.py`).
 - **Sons:**
   - Gravações reais CC0 em `assets/audio/real/`:
-    - passos em grama, pedra e tronco, casco do cervo, impactos de flecha, golpe na madeira, rangido, coleta e faca (Kenney). Pedra e tronco passaram por passa-baixa, porque o goblin anda descalço;
+    - passos em grama, terra, pedra e tronco, casco do cervo, impactos de flecha, golpe na madeira, rangido, coleta e faca (Kenney). Pedra e tronco passaram por passa-baixa, porque o goblin anda descalço;
     - puxar, encaixar e soltar o arco (Medieval SFX, OpenGameArt).
-  - O resto é sintético (`tools/generate_sounds.py`), inclusive os passos em terra e no chão da caverna (`barefoot_step`: baque do calcanhar, grãos de terra estalando, arrasto dos dedos; a caverna tem mais cascalho). As gravações de terra que havia eram de sapato, com o "toc-toc" de salto e ponta.
+  - Passos em terra (`step_dirt_*`): gravação real numa estrada de terra (Freesound, CC0), cortada passo a passo com um expansor para o ambiente da gravação não sobrar no fim. A caverna (`step_cave_*`) usa os mesmos cortes, com passa-baixa de 3 kHz e um tom abaixo. Já foram testados e rejeitados: as gravações de sapato do RPG Audio (o "toc-toc" de salto e ponta), passo sintético e passos de carpete ou neve abafados.
+  - O resto é sintético (`tools/generate_sounds.py`).
   - Uivo do lobo: o jogo usa `assets/audio/animals/wolf_howl_real_N.(ogg|wav|mp3)` se existir; senão, o sintético.
   - Origem de cada arquivo em `assets/CREDITS.md`.
 - **Goblin:**

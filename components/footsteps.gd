@@ -4,9 +4,9 @@ extends AudioStreamPlayer3D
 ## embaixo dele. Se o pé está numa colisão marcada com o meta `surface` (pedra, tronco),
 ## vale ela; senão a fase informa o chão por `surface_at(posição) -> StringName`.
 
-## O goblin anda descalço. Grama, pedra e madeira são gravações reais (Kenney, CC0); pedra e
-## madeira passaram por um passa-baixa, sem clique de sola. Terra e chão da caverna (terra
-## batida com cascalho) são sintéticos de pé descalço (tools/generate_sounds.py).
+## Grama, pedra e madeira são gravações reais (Kenney, CC0); pedra e madeira passaram por um
+## passa-baixa, sem clique de sola. Terra é gravação real numa estrada de terra (Freesound,
+## CC0); o chão da caverna usa os mesmos passos, mais graves e abafados (terra batida).
 const SOUNDS := {
 	&"grass": [
 		preload("res://assets/audio/real/step_grass_1.ogg"), preload("res://assets/audio/real/step_grass_2.ogg"),
@@ -14,8 +14,9 @@ const SOUNDS := {
 		preload("res://assets/audio/real/step_grass_5.ogg"),
 	],
 	&"dirt": [
-		preload("res://assets/audio/steps/barefoot_dirt_1.wav"), preload("res://assets/audio/steps/barefoot_dirt_2.wav"), preload("res://assets/audio/steps/barefoot_dirt_3.wav"),
-		preload("res://assets/audio/steps/barefoot_dirt_4.wav"), preload("res://assets/audio/steps/barefoot_dirt_5.wav"), preload("res://assets/audio/steps/barefoot_dirt_6.wav"),
+		preload("res://assets/audio/real/step_dirt_1.ogg"), preload("res://assets/audio/real/step_dirt_2.ogg"),
+		preload("res://assets/audio/real/step_dirt_3.ogg"), preload("res://assets/audio/real/step_dirt_4.ogg"),
+		preload("res://assets/audio/real/step_dirt_5.ogg"), preload("res://assets/audio/real/step_dirt_6.ogg"),
 	],
 	&"stone": [
 		preload("res://assets/audio/real/step_stone_1.ogg"), preload("res://assets/audio/real/step_stone_2.ogg"),
@@ -23,8 +24,9 @@ const SOUNDS := {
 		preload("res://assets/audio/real/step_stone_5.ogg"),
 	],
 	&"cave": [
-		preload("res://assets/audio/steps/barefoot_cave_1.wav"), preload("res://assets/audio/steps/barefoot_cave_2.wav"), preload("res://assets/audio/steps/barefoot_cave_3.wav"),
-		preload("res://assets/audio/steps/barefoot_cave_4.wav"), preload("res://assets/audio/steps/barefoot_cave_5.wav"), preload("res://assets/audio/steps/barefoot_cave_6.wav"),
+		preload("res://assets/audio/real/step_cave_1.ogg"), preload("res://assets/audio/real/step_cave_2.ogg"),
+		preload("res://assets/audio/real/step_cave_3.ogg"), preload("res://assets/audio/real/step_cave_4.ogg"),
+		preload("res://assets/audio/real/step_cave_5.ogg"), preload("res://assets/audio/real/step_cave_6.ogg"),
 	],
 	&"wood": [
 		preload("res://assets/audio/real/step_wood_1.ogg"), preload("res://assets/audio/real/step_wood_2.ogg"),
@@ -32,8 +34,9 @@ const SOUNDS := {
 		preload("res://assets/audio/real/step_wood_5.ogg"),
 	],
 }
-## Ajuste de volume por chão: o cascalho da caverna estala um pouco mais que a terra.
-const SURFACE_DB := {&"dirt": 1.0, &"cave": -1.0, &"stone": -2.0, &"wood": -1.0}
+## Ajuste de volume por chão, para os passos soarem parecidos com os da grama: terra e
+## caverna saem ~2,5 dB mais altas.
+const SURFACE_DB := {&"dirt": -2.0, &"cave": -2.5, &"stone": -2.0, &"wood": -1.0}
 
 ## Distância andada entre um passo e outro (metros).
 @export var stride := 0.65

@@ -21,6 +21,9 @@ uniform float translucency = 0.3;
 uniform float near_fade = 0.6;
 // 1: cada vértice sobe/desce com o relevo sob ele (grama e samambaia em encosta).
 uniform float follow_ground : hint_range(0.0, 1.0) = 0.0;
+// Com a câmera baixa (encostada no chão), a grama deste raio em volta dela se deita para
+// longe da lente, em vez de virar uma parede de cartões na frente do goblin.
+uniform float part_radius = 0.75;
 
 global uniform sampler2D terrain_height;
 global uniform vec4 terrain_height_rect;
@@ -36,6 +39,14 @@ varying float instance_variation;
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+// Limiar de dither ordenado (Bayer 4x4) do pixel: os pontos se espalham por igual, sem
+// formar listras, e o cartão parece ficar transparente aos poucos.
+float bayer(vec2 frag) {
+	const float m[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+	ivec2 p = ivec2(frag) & ivec2(3);
+	return (m[p.y * 4 + p.x] + 0.5) / 16.0;
 }
 
 // Mesma conta de Wind.strength_at(): abrigo * clima * rajada que viaja com o vento.
@@ -68,6 +79,15 @@ void vertex() {
 	offset += vec2(sin(TIME * 5.7 + phase * 3.1), cos(TIME * 4.9 + phase * 2.3)) * 0.12 * strength;
 	VERTEX.xz += offset * weight * sway;
 	VERTEX.y -= length(offset) * weight * sway * 0.25;
+	if (follow_ground > 0.0) {
+		// A lente abre caminho: o pé fica plantado e a ponta deita para fora do raio.
+		vec2 away = VERTEX.xz - CAMERA_POSITION_WORLD.xz;
+		float d = max(length(away), 0.001);
+		float low = 1.0 - smoothstep(1.0, 1.6, CAMERA_POSITION_WORLD.y - origin.y);
+		float push = max(part_radius - d, 0.0) * low * sqrt(weight);
+		VERTEX.xz += away / d * push;
+		VERTEX.y -= push * 0.6;
+	}
 	NORMAL = normalize(mix(NORMAL, vec3(0.0, 1.0, 0.0), up_normal));
 	instance_variation = (hash(floor(origin.xz * 10.0)) - 0.5) * variation;
 }
@@ -77,8 +97,7 @@ void fragment() {
 	ALBEDO = tex.rgb * tint * (1.0 + instance_variation);
 	// Dissolve com padrão de tela (dither) quando o cartão encosta na câmera.
 	float camera_distance = length(VERTEX);
-	float dither = fract(dot(floor(FRAGCOORD.xy), vec2(0.5, 0.25)) + fract(FRAGCOORD.y * 0.5) * 0.5);
-	if (camera_distance < near_fade * (0.6 + 0.4 * dither)) {
+	if (camera_distance < near_fade * (0.6 + 0.4 * bayer(FRAGCOORD.xy))) {
 		discard;
 	}
 	// Com cull desligado o Godot inverte a normal do verso; desfaz para os dois lados

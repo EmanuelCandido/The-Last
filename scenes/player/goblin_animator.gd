@@ -13,7 +13,11 @@ extends Node
 ## - Estados: agachar, no ar, aterrissar, mirar com o arco.
 ## - Mira: os braços são resolvidos com IK. A mão do arco estica até a empunhadura ficar na
 ##   linha que sai de baixo do queixo para o alvo; a da corda vai até onde a corda está puxada.
-## - Ações cronometradas: acordar, pegar algo do chão, coletar a caça, golpear.
+## - Ações cronometradas: acordar, pegar algo do chão, coletar a caça, golpear. Cada uma
+##   usa o corpo todo, com preparação, ação e continuação (o tronco não é um bloco).
+## - Mecânica do corpo (_body_mechanics), por cima de tudo: dobradiça no quadril ao inclinar,
+##   braços puxando o tronco e molas que comprimem e esticam a coluna (passos, aterrissagem,
+##   arrancar e frear).
 ## - Jeito de goblin: postura curvada e torta (nada é simétrico), micro-movimentos o tempo
 ##   todo, passadas que variam, apoio que troca de perna, cansaço depois de correr e
 ##   manias quando fica parado (coçar a orelha, farejar, olhar para trás, olhar as garras).
@@ -89,6 +93,7 @@ var _phase := 0.0
 var _weights := {"move": 0.0, "run": 0.0, "crouch": 0.0, "aim": 0.0, "air": 0.0}
 var _planted := [true, true]
 var _land := 0.0
+var _land_eased := 0.0
 var _last_pelvis_y := 0.36
 var _ears := [0.0, 0.0]
 var _ear_speed := [0.0, 0.0]
@@ -134,6 +139,15 @@ var _bow_shake := Vector3.ZERO
 var _quiver_reach := 0.0
 ## Inclinação na curva, suavizada (o giro do corpo chega em degraus da física).
 var _lean := 0.0
+## Mecânica do corpo (_body_mechanics): o tronco é uma massa presa ao quadril por molas.
+## Altura do tronco que segue o quadril (comprime e estica a coluna) e velocidade que
+## segue a do corpo (o peito atrasa ao arrancar e continua indo ao frear).
+var _torso_y := 0.36
+var _torso_vy := 0.0
+var _vel_lag := Vector2.ZERO
+var _vel_lag_speed := Vector2.ZERO
+## Quanto a coluna está comprimida agora (+) ou esticada (-); as orelhas acompanham.
+var _squash := 0.0
 
 
 ## Liga no esqueleto. Devolve false se o modelo não tiver os ossos articulados.
@@ -158,6 +172,7 @@ func setup(target: Skeleton3D) -> bool:
 	_rest_leg = _leg_angles(ankle.z - hip.z, hip.y - ankle.y)
 	_anchor = skeleton.get_bone_global_rest(_bones.cabeca).affine_inverse() * ANCHOR_REST
 	_last_pelvis_y = _hip_height
+	_torso_y = _hip_height
 	skeleton.reset_bone_poses()
 	return true
 
@@ -178,6 +193,8 @@ func is_busy() -> bool:
 
 func notify_landing(impact_speed: float) -> void:
 	_land = maxf(_land, clampf(impact_speed / 7.0, 0.15, 1.0))
+	# O tronco vinha caindo junto: os pés param e ele continua, comprimindo a coluna.
+	_torso_vy -= clampf(impact_speed, 0.0, 8.0) * 0.2
 
 
 func update(delta: float) -> void:
@@ -188,6 +205,8 @@ func update(delta: float) -> void:
 	_update_look(delta)
 	_update_bow_state(delta)
 	_land = move_toward(_land, 0.0, delta * 2.5)
+	# Os joelhos levam um instante para dobrar: o corpo afunda suave, não num degrau.
+	_land_eased = lerpf(_land_eased, _land, 1.0 - exp(-25.0 * delta))
 
 	var pose := _locomotion(delta)
 	pose = _idle_overlay(delta, pose)
@@ -206,6 +225,7 @@ func update(delta: float) -> void:
 			var finished := _action
 			_action = &""
 			action_finished.emit(finished)
+	_body_mechanics(delta, pose)
 	_balance_overlay(pose)
 	_ground_feet(delta, pose)
 	_update_ears(delta, pose)
@@ -385,9 +405,9 @@ func _locomotion(delta: float) -> Dictionary:
 		pose["arm_%s_fwd" % key] += 0.25 * air
 
 	# Aterrissagem: o corpo afunda e volta.
-	pose.pelvis_y -= _land * 0.09
-	pose.torso_pitch += _land * 0.25
-	pose.head_pitch -= _land * 0.1
+	pose.pelvis_y -= _land_eased * 0.09
+	pose.torso_pitch += _land_eased * 0.25
+	pose.head_pitch -= _land_eased * 0.1
 	return pose
 
 
@@ -445,44 +465,79 @@ func _action_pose(action: StringName, t: float, base: Dictionary) -> Dictionary:
 	var p := base.duplicate()
 	match action:
 		&"punch":
+			# Arma (quadril e ombro direito para trás, peso no pé de trás, costas fechadas),
+			# solta (o quadril vira primeiro, o ombro vem atrás e leva o braço; o corpo vai para
+			# a frente sobre o pé que pisa) e continua um pouco além antes de voltar. A cabeça
+			# segura o olhar no alvo enquanto o corpo gira.
 			var force := 1.0 + 0.2 * _action_var
-			p.arm_r_fwd = _curve(t, [[0.0, base.arm_r_fwd], [0.14, -0.5 * force], [0.24, 1.65], [0.34, 1.5], [0.5, base.arm_r_fwd]])
-			p.elbow_r = _curve(t, [[0.0, base.elbow_r], [0.14, 1.7], [0.24, 0.1], [0.34, 0.2], [0.5, base.elbow_r]])
-			p.arm_r_out = _curve(t, [[0.0, 0.06], [0.14, 0.3], [0.24, -0.15], [0.5, 0.06]])
-			p.torso_yaw = _curve(t, [[0.0, base.torso_yaw], [0.14, 0.4 * force], [0.24, -0.45 * force], [0.5, base.torso_yaw]])
+			p.pelvis_yaw = _curve(t, [[0.0, 0.0], [0.13, -0.18], [0.24, 0.22 * force], [0.31, 0.26 * force], [0.5, 0.0]])
+			p.torso_yaw = base.torso_yaw + _curve(t, [[0.0, 0.0], [0.13, -0.35 * force], [0.24, 0.45 * force], [0.31, 0.55 * force], [0.5, 0.0]])
+			p.pelvis_z = base.pelvis_z + _curve(t, [[0.0, 0.0], [0.13, -0.02], [0.24, 0.04], [0.34, 0.035], [0.5, 0.0]])
+			p.pelvis_y = base.pelvis_y + _curve(t, [[0.0, 0.0], [0.13, -0.02], [0.24, -0.035], [0.34, -0.03], [0.5, 0.0]])
+			p.torso_pitch = base.torso_pitch + _curve(t, [[0.0, 0.0], [0.13, 0.04], [0.24, 0.2], [0.31, 0.24], [0.5, 0.0]])
+			p.spine_arch = base.spine_arch + _curve(t, [[0.0, 0.0], [0.13, 0.1], [0.24, -0.06], [0.34, 0.0], [0.5, 0.0]])
+			p.spine_bend = base.spine_bend + _curve(t, [[0.0, 0.0], [0.13, -0.06], [0.24, 0.05], [0.5, 0.0]])
+			p.torso_roll = base.torso_roll + _curve(t, [[0.0, 0.0], [0.13, 0.05], [0.24, -0.06], [0.5, 0.0]])
+			p.arm_r_fwd = _curve(t, [[0.0, base.arm_r_fwd], [0.13, -0.5 * force], [0.24, 1.65], [0.31, 1.55], [0.5, base.arm_r_fwd]])
+			p.elbow_r = _curve(t, [[0.0, base.elbow_r], [0.13, 1.8], [0.24, 0.1], [0.31, 0.2], [0.5, base.elbow_r]])
+			p.arm_r_out = _curve(t, [[0.0, 0.06], [0.13, 0.3], [0.24, -0.12], [0.5, 0.06]])
+			# A outra mão vem à frente para guardar e volta para trás no golpe.
+			p.arm_l_fwd = _curve(t, [[0.0, base.arm_l_fwd], [0.13, 0.6], [0.24, -0.3], [0.34, -0.25], [0.5, base.arm_l_fwd]])
+			p.elbow_l = _curve(t, [[0.0, base.elbow_l], [0.13, 1.3], [0.24, 1.1], [0.5, base.elbow_l]])
+			p.foot_l_z = base.foot_l_z + _curve(t, [[0.0, 0.0], [0.2, 0.12], [0.4, 0.12], [0.5, 0.0]])
+			# O pé de trás gira na ponta quando o quadril vira.
+			p.foot_r_toe = base.foot_r_toe + _curve(t, [[0.0, 0.0], [0.24, 0.3], [0.4, 0.2], [0.5, 0.0]])
+			p.head_yaw = base.head_yaw - (p.pelvis_yaw + p.torso_yaw - base.torso_yaw) * 0.8
+			p.head_pitch = base.head_pitch + _curve(t, [[0.0, 0.0], [0.13, -0.05], [0.24, 0.08], [0.5, 0.0]])
 			p.head_roll = base.head_roll + _curve(t, [[0.0, 0.0], [0.2, 0.1 * _action_var], [0.5, 0.0]])
 			p.ear_l = base.ear_l + _curve(t, [[0.0, 0.0], [0.24, 0.3], [0.5, 0.0]])
 			p.ear_r = base.ear_r + _curve(t, [[0.0, 0.0], [0.24, 0.3], [0.5, 0.0]])
-			p.pelvis_yaw = _curve(t, [[0.0, 0.0], [0.14, 0.15], [0.24, -0.2], [0.5, 0.0]])
-			p.torso_pitch = base.torso_pitch + _curve(t, [[0.0, 0.0], [0.24, 0.2], [0.5, 0.0]])
-			p.arm_l_fwd = _curve(t, [[0.0, base.arm_l_fwd], [0.24, -0.4], [0.5, base.arm_l_fwd]])
-			p.foot_l_z = base.foot_l_z + _curve(t, [[0.0, 0.0], [0.2, 0.12], [0.4, 0.12], [0.5, 0.0]])
 		&"pickup":
-			p.pelvis_y = _curve(t, [[0.0, base.pelvis_y], [0.4, 0.2], [0.65, 0.2], [1.1, base.pelvis_y]])
+			# Olha primeiro, desce dobrando quadril e joelhos com as costas curvadas, o ombro
+			# da mão que pega cai e vai à frente; pega, e sobe com a cabeça e o peito na frente,
+			# esticando as costas um pouco além do normal antes de assentar.
+			p.pelvis_y = _curve(t, [[0.0, base.pelvis_y], [0.12, base.pelvis_y + 0.005], [0.42, 0.2], [0.6, 0.2], [0.95, base.pelvis_y + 0.008], [1.1, base.pelvis_y]])
+			p.pelvis_x = base.pelvis_x + _curve(t, [[0.0, 0.0], [0.42, -0.015], [0.8, 0.0]])
 			p.foot_l_z = _curve(t, [[0.0, base.foot_l_z], [0.3, 0.12], [0.8, 0.12], [1.1, 0.0]])
 			p.foot_r_z = _curve(t, [[0.0, base.foot_r_z], [0.3, -0.08], [0.8, -0.08], [1.1, 0.0]])
-			p.torso_pitch = _curve(t, [[0.0, base.torso_pitch], [0.4, 0.75], [0.65, 0.75], [1.1, base.torso_pitch]])
-			p.head_pitch = _curve(t, [[0.0, base.head_pitch], [0.4, 0.35], [0.65, 0.35], [1.1, base.head_pitch]])
+			p.torso_pitch = _curve(t, [[0.0, base.torso_pitch], [0.12, base.torso_pitch + 0.03], [0.42, 0.85], [0.6, 0.8], [0.9, base.torso_pitch - 0.06], [1.1, base.torso_pitch]])
+			p.spine_arch = _curve(t, [[0.0, base.spine_arch], [0.42, 0.33], [0.6, 0.3], [0.9, -0.06], [1.1, base.spine_arch]])
+			p.neck_fwd = _curve(t, [[0.0, base.neck_fwd], [0.42, 0.2], [0.65, 0.2], [1.1, base.neck_fwd]])
+			p.head_pitch = _curve(t, [[0.0, base.head_pitch], [0.12, 0.25], [0.42, 0.2], [0.6, 0.15], [0.8, -0.15], [1.1, base.head_pitch]])
 			p.head_yaw = _curve(t, [[0.0, base.head_yaw], [0.4, 0.15 * _action_var], [1.1, base.head_yaw]])
-			p.torso_roll = base.torso_roll + _curve(t, [[0.0, 0.0], [0.4, -0.08], [1.1, 0.0]])
-			p.arm_r_fwd = _curve(t, [[0.0, 0.0], [0.4, 0.75], [0.55, 0.8], [0.75, 0.55], [1.1, 0.0]])
-			p.elbow_r = _curve(t, [[0.0, 0.15], [0.4, 0.25], [0.55, 0.6], [1.1, 0.15]])
-			p.arm_l_fwd = _curve(t, [[0.0, 0.0], [0.4, 0.35], [1.1, 0.0]])
-			p.elbow_l = _curve(t, [[0.0, 0.15], [0.4, 0.6], [1.1, 0.15]])
+			p.torso_roll = base.torso_roll + _curve(t, [[0.0, 0.0], [0.42, 0.1], [0.6, 0.08], [0.9, -0.02], [1.1, 0.0]])
+			p.torso_yaw = base.torso_yaw + _curve(t, [[0.0, 0.0], [0.42, 0.12], [0.6, 0.1], [1.1, 0.0]])
+			p.arm_r_fwd = _curve(t, [[0.0, 0.0], [0.42, 0.8], [0.52, 0.85], [0.75, 0.6], [0.9, 0.45], [1.1, 0.0]])
+			p.elbow_r = _curve(t, [[0.0, 0.15], [0.42, 0.2], [0.52, 0.5], [0.75, 1.1], [0.9, 0.9], [1.1, 0.15]])
+			p.hand_r = _curve(t, [[0.0, base.hand_r], [0.45, -0.2], [0.52, 0.6], [1.1, base.hand_r]])
+			# A outra mão desce até perto do joelho, como apoio.
+			p.arm_l_fwd = _curve(t, [[0.0, 0.0], [0.42, 0.4], [0.7, 0.3], [1.1, 0.0]])
+			p.elbow_l = _curve(t, [[0.0, 0.15], [0.42, 0.7], [1.1, 0.15]])
+			p.ear_l = base.ear_l + _curve(t, [[0.0, 0.0], [0.42, 0.25], [0.7, 0.2], [1.1, 0.0]])
+			p.ear_r = base.ear_r + _curve(t, [[0.0, 0.0], [0.42, 0.2], [0.7, 0.15], [1.1, 0.0]])
 		&"harvest":
-			# Para no meio, levanta a cabeça e escuta (orelhas em pé), depois volta ao trabalho.
+			# Ajoelhado e curvado sobre a caça: cada puxada da faca balança o tronco e o
+			# quadril. Para no meio, ergue o peito e a cabeça e escuta (orelhas em pé), depois
+			# volta; no fim levanta esticando as costas.
 			var listen := smoothstep(1.1, 1.25, t) * (1.0 - smoothstep(1.45, 1.6, t))
 			var work := smoothstep(0.6, 0.8, t) * (1.0 - smoothstep(1.8, 2.0, t)) * (1.0 - listen)
+			var stroke := sin(t * 14.0)
 			p.pelvis_y = _curve(t, [[0.0, base.pelvis_y], [0.5, 0.17], [2.0, 0.17], [2.4, base.pelvis_y]])
+			p.pelvis_x = base.pelvis_x + stroke * 0.006 * work
 			p.foot_l_z = _curve(t, [[0.0, 0.0], [0.4, 0.15], [2.0, 0.15], [2.4, 0.0]])
 			p.foot_r_z = _curve(t, [[0.0, 0.0], [0.4, -0.12], [2.0, -0.12], [2.4, 0.0]])
-			p.torso_pitch = _curve(t, [[0.0, base.torso_pitch], [0.5, 0.7], [2.0, 0.7], [2.4, base.torso_pitch]])
-			p.head_pitch = _curve(t, [[0.0, base.head_pitch], [0.5, 0.4], [2.0, 0.4], [2.4, base.head_pitch]]) - 0.45 * listen
-			p.head_yaw = (0.25 + 0.2 * _action_var) * listen
+			p.torso_pitch = _curve(t, [[0.0, base.torso_pitch], [0.5, 0.85], [2.0, 0.85], [2.25, base.torso_pitch - 0.05], [2.4, base.torso_pitch]]) - 0.45 * listen
+			p.spine_arch = _curve(t, [[0.0, base.spine_arch], [0.5, 0.35], [2.0, 0.35], [2.25, -0.05], [2.4, base.spine_arch]]) - 0.3 * listen
+			p.neck_fwd = _curve(t, [[0.0, base.neck_fwd], [0.5, 0.2], [2.0, 0.2], [2.4, base.neck_fwd]]) - 0.1 * listen
+			p.torso_yaw = base.torso_yaw + stroke * 0.08 * work
+			p.torso_roll = base.torso_roll + sin(t * 14.0 + 0.7) * 0.05 * work
+			p.spine_bend = base.spine_bend + cos(t * 14.0) * 0.03 * work
+			p.head_pitch = _curve(t, [[0.0, base.head_pitch], [0.5, 0.4], [2.0, 0.4], [2.4, base.head_pitch]]) - 0.25 * listen
+			p.head_yaw = (0.25 + 0.2 * _action_var) * listen - stroke * 0.05 * work
 			p.ear_l = base.ear_l - 0.3 * listen
 			p.ear_r = base.ear_r - 0.3 * listen
-			p.arm_r_fwd = _curve(t, [[0.0, 0.0], [0.5, 0.9], [2.0, 0.9], [2.4, 0.0]]) + sin(t * 14.0) * 0.25 * work
-			p.arm_l_fwd = _curve(t, [[0.0, 0.0], [0.5, 0.8], [2.0, 0.8], [2.4, 0.0]]) - sin(t * 14.0) * 0.15 * work
+			p.arm_r_fwd = _curve(t, [[0.0, 0.0], [0.5, 0.9], [2.0, 0.9], [2.4, 0.0]]) + stroke * 0.25 * work
+			p.arm_l_fwd = _curve(t, [[0.0, 0.0], [0.5, 0.8], [2.0, 0.8], [2.4, 0.0]]) - stroke * 0.15 * work
 			p.elbow_r = _curve(t, [[0.0, 0.15], [0.5, 0.7], [2.0, 0.7], [2.4, 0.15]])
 			p.elbow_l = _curve(t, [[0.0, 0.15], [0.5, 0.5], [2.0, 0.5], [2.4, 0.15]])
 		&"wake":
@@ -497,7 +552,11 @@ func _action_pose(action: StringName, t: float, base: Dictionary) -> Dictionary:
 			p.foot_r_y = _ankle_height + 0.01
 			p.foot_flat = 1.0 - lying
 			p.torso_pitch = _curve(t, [[0.0, 0.0], [2.4, 0.0], [3.3, 0.35], [4.3, 0.3], [4.9, 0.55], [5.6, base.torso_pitch]]) + sin(t * 1.6) * 0.04 * lying
-			p.head_pitch = _curve(t, [[0.0, -0.15], [2.4, -0.15], [2.9, 0.2], [3.4, 0.35], [4.3, 0.3], [5.0, 0.0]])
+			# Sentar enrola a coluna (barriga contrai); esfregando os olhos fica corcunda;
+			# ao ficar de pé, espreguiça: costas e pescoço esticam para trás e assentam.
+			p.spine_arch = _curve(t, [[0.0, 0.0], [2.4, 0.0], [2.9, 0.42], [3.3, 0.3], [3.6, 0.38], [4.2, 0.38], [4.3, 0.3], [4.9, 0.35], [5.25, -0.14], [5.6, base.spine_arch]])
+			p.neck_fwd = _curve(t, [[0.0, 0.0], [2.4, 0.0], [3.0, 0.2], [4.2, 0.22], [4.9, 0.15], [5.25, -0.05], [5.6, base.neck_fwd]])
+			p.head_pitch = _curve(t, [[0.0, -0.15], [2.4, -0.15], [2.9, 0.2], [3.4, 0.35], [4.3, 0.3], [5.0, 0.0], [5.25, -0.2], [5.6, base.head_pitch]])
 			p.head_yaw = _curve(t, [[0.0, 0.35], [2.0, 0.35], [2.6, 0.0]])
 			p.arm_l_fwd = _curve(t, [[0.0, 0.05], [2.4, 0.05], [2.8, -0.6], [3.3, -0.3], [4.3, 0.2], [4.9, 0.9], [5.6, 0.0]])
 			# Mão direita sobe até os olhos (cotovelo dobra na horizontal) e esfrega.
@@ -573,19 +632,34 @@ func _idle_overlay(delta: float, pose: Dictionary) -> Dictionary:
 			p.head_roll = pose.head_roll + 0.25
 			p.head_pitch = pose.head_pitch + 0.12
 			p.ear_r = 0.3 * scratch
+			# O corpo vai junto: tronco dobra de lado para a mão, ombros sobem e o peso passa
+			# para a outra perna.
 			p.torso_roll = pose.torso_roll + 0.05
+			p.spine_bend = pose.spine_bend + 0.07
+			p.spine_arch = pose.spine_arch + 0.06
+			p.pelvis_x = pose.pelvis_x + 0.012
 		&"sniff":
 			# Ergue o focinho, fareja em golpes curtos e fica com as orelhas em pé.
 			var sniffing := smoothstep(0.4, 0.6, t) * (1.0 - smoothstep(1.6, 1.8, t))
 			p.head_pitch = pose.head_pitch - 0.38 + sin(t * 17.0) * 0.035 * sniffing * absf(sin(t * 3.0))
 			p.head_yaw = pose.head_yaw + 0.25 * _fidget_side * smoothstep(0.9, 1.4, t)
-			p.torso_pitch = pose.torso_pitch - 0.08
+			# O corpo todo se estica para cima e para a frente atrás do cheiro; o peito enche
+			# a cada fungada.
+			p.torso_pitch = pose.torso_pitch - 0.08 + sin(t * 17.0) * 0.012 * sniffing
+			p.spine_arch = pose.spine_arch - 0.12 - absf(sin(t * 3.0)) * 0.03 * sniffing
+			p.neck_fwd = pose.neck_fwd + 0.14
+			p.pelvis_y = pose.pelvis_y + 0.008
 			p.ear_l = -0.3
 			p.ear_r = -0.28
 		&"look_back":
 			# Olha por cima do ombro, como se tivesse ouvido algo atrás.
-			p.pelvis_yaw = pose.pelvis_yaw + 0.12 * _fidget_side
-			p.torso_yaw = pose.torso_yaw + 0.45 * _fidget_side
+			# O giro passa por todo o corpo (quadril, lombar, peito, pescoço), o peso vai para
+			# o pé do lado em que olha e o tronco dobra um pouco para lá.
+			p.pelvis_yaw = pose.pelvis_yaw + 0.16 * _fidget_side
+			p.torso_yaw = pose.torso_yaw + 0.5 * _fidget_side
+			p.spine_bend = pose.spine_bend - 0.05 * _fidget_side
+			p.pelvis_x = pose.pelvis_x + 0.015 * _fidget_side
+			p.torso_roll = pose.torso_roll - 0.04 * _fidget_side
 			p.head_yaw = 0.75 * _fidget_side
 			p.head_pitch = pose.head_pitch + 0.06
 			p.arm_l_fwd = pose.arm_l_fwd + 0.15
@@ -598,7 +672,10 @@ func _idle_overlay(delta: float, pose: Dictionary) -> Dictionary:
 			p.arm_r_twist = 0.9 + sin(t * 4.0) * 0.35 * turning
 			p.elbow_r = 1.35
 			p.hand_r = -0.35 + sin(t * 4.0 + 0.5) * 0.25 * turning
-			p.torso_pitch = pose.torso_pitch + 0.08
+			# Encolhido sobre a mão: costas redondas, pescoço à frente.
+			p.torso_pitch = pose.torso_pitch + 0.1
+			p.spine_arch = pose.spine_arch + 0.16
+			p.neck_fwd = pose.neck_fwd + 0.1
 			p.head_pitch = pose.head_pitch + 0.55
 			p.head_yaw = -0.25
 			p.head_roll = pose.head_roll + 0.1
@@ -608,6 +685,69 @@ func _idle_overlay(delta: float, pose: Dictionary) -> Dictionary:
 		_idle_time = 0.0
 		_next_fidget = randf_range(5.0, 11.0)
 	return pose
+
+
+## Mecânica do corpo, por cima de qualquer pose (andar, ação, mania, mira): o tronco reage
+## ao que o resto do corpo faz, em vez de ser um bloco duro entre pernas e braços.
+## - Dobradiça: inclinar para a frente dobra no quadril, que recua para o peso ficar sobre
+##   os pés, e as costas arredondam.
+## - Braços: esticar um braço traz o ombro junto (o peito gira); erguer um braço acima do
+##   ombro inclina o tronco para o outro lado; os dois à frente fecham os ombros.
+## - Molas: o tronco é uma massa presa ao quadril. Quando o quadril afunda (passo, agachar,
+##   aterrissar), a coluna primeiro estica e depois comprime, passa do ponto e volta; ao
+##   arrancar, o corpo inclina para a frente e, ao frear, o peito continua indo e assenta.
+##   A cabeça compensa a mola para o olhar ficar firme.
+func _body_mechanics(delta: float, pose: Dictionary) -> void:
+	var aim: float = _weights.aim
+	var lying := _action == &"wake"
+	# Braços puxando o tronco (a mira já tem o corpo montado para os braços do IK).
+	var couple := (1.0 - aim) * (1.0 - 0.5 * float(_weights.move))
+	var reach_l: float = pose.arm_l_fwd - 0.1
+	var reach_r: float = pose.arm_r_fwd - 0.05
+	pose.torso_yaw += clampf(reach_r - reach_l, -2.0, 2.0) * 0.08 * couple
+	pose.torso_roll += (maxf(pose.arm_l_fwd - 1.1, 0.0) - maxf(pose.arm_r_fwd - 1.1, 0.0)) * 0.07 * couple
+	pose.spine_arch += clampf(reach_l + reach_r, 0.0, 2.0) * 0.04 * couple
+
+	# Dobradiça no quadril: o que passa de uma leve inclinação vai em parte para a bacia.
+	if not lying:
+		var bend := maxf(float(pose.torso_pitch) - 0.2, 0.0)
+		var hinge := bend * 0.55
+		pose.pelvis_pitch += hinge
+		pose.torso_pitch -= hinge
+		pose.pelvis_z -= sin(minf(bend, 1.2)) * 0.07
+		pose.pelvis_y -= bend * 0.02
+		pose.spine_arch += bend * 0.3
+
+	# Molas (passos curtos para ficarem estáveis com qualquer taxa de quadros).
+	var steps := maxi(1, ceili(delta / (1.0 / 120.0)))
+	var dt := delta / steps
+	var speed := Vector2(velocity_local.x, velocity_local.z)
+	for i in steps:
+		# Coluna: ~2,4 Hz, pouco amortecida (quica uma vez e assenta).
+		_torso_vy += (220.0 * (float(pose.pelvis_y) - _torso_y) - 10.0 * _torso_vy) * dt
+		_torso_y += _torso_vy * dt
+		# Velocidade do peito atrás da do corpo: ~1,2 Hz.
+		_vel_lag_speed += ((speed - _vel_lag) * 60.0 - _vel_lag_speed * 8.0) * dt
+		_vel_lag += _vel_lag_speed * dt
+	var springy := (1.0 - 0.6 * aim) * (0.0 if lying else 1.0)
+	# + = comprimida (o tronco desceu mais que o quadril e empurra a coluna).
+	var squash := clampf((float(pose.pelvis_y) - _torso_y) * 5.0, -0.3, 0.3) * springy
+	_squash = squash
+	pose.spine_arch += squash * 0.8
+	pose.torso_pitch += squash * 0.5
+	pose.neck_fwd += squash * 0.3
+	pose.head_pitch -= squash * 0.75
+	pose.arm_l_fwd += squash * 0.3
+	pose.arm_r_fwd += squash * 0.3
+	pose.elbow_l += squash * 0.4
+	pose.elbow_r += squash * 0.4
+	# Arrancar: inclina para a frente (empurra o chão). Frear: o peito continua para a frente.
+	var surge := speed.y - _vel_lag.y
+	var lean := (clampf(surge, 0.0, 3.0) * 0.05 + clampf(-surge, 0.0, 3.0) * 0.07) * springy
+	pose.torso_pitch += lean
+	pose.head_pitch -= lean * 0.6
+	pose.arm_l_fwd += lean * 0.6
+	pose.arm_r_fwd += lean * 0.5
 
 
 ## Na borda: braços abertos girando, corpo jogado para longe do vazio, olhar para baixo
@@ -755,7 +895,7 @@ func _update_ears(delta: float, pose: Dictionary) -> void:
 	var vertical: float = (pose.pelvis_y - _last_pelvis_y) / maxf(delta, 0.001)
 	_last_pelvis_y = pose.pelvis_y
 	for i in 2:
-		var target: float = pose["ear_l" if i == 0 else "ear_r"] + _land * 0.5 - vertical * 0.12
+		var target: float = pose["ear_l" if i == 0 else "ear_r"] + _land * 0.5 - vertical * 0.12 + _squash * 0.6
 		_ear_speed[i] += ((target - _ears[i]) * 160.0 - _ear_speed[i] * 11.0) * delta
 		_ears[i] += _ear_speed[i] * delta
 		if randf() < delta * 0.15:
