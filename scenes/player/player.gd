@@ -33,6 +33,12 @@ const CAMERA_RADIUS := 0.22
 const ARROWS_PER_WOOD := 3
 ## Segundos para tirar outra flecha da aljava e encaixar na corda depois de atirar.
 const RELOAD_TIME := 0.75
+## Arco carregado: deitado para a frente, a ponta de cima CARRY_RISE (rad) acima da
+## horizontal; balança com o antebraço (CARRY_SWING da diferença), como um pau no punho.
+const CARRY_RISE := 0.45
+const CARRY_SWING := 0.4
+## Mirando, o arco deita um pouco (topo para a direita), como o de um arqueiro destro.
+const BOW_CANT := 0.15
 ## Raio em volta do corpo onde se procura o vazio na borda (m).
 const EDGE_PROBE := 0.32
 
@@ -80,12 +86,15 @@ var _was_aiming := false
 var _was_on_floor := true
 var _fall_speed := 0.0
 var _last_yaw := 0.0
+## Para onde o corpo vira. O giro é feito em _process (a cada frame desenhado), não na
+## física: a 60 Hz de física e 120 de tela o corpo girava em degraus e a inclinação da
+## curva piscava entre dois valores, desenhando o goblin "duplo".
+var _target_yaw := 0.0
 var _interaction: Node3D
 var _tree_target := -1
 var _prompt := ""
 var _pine_warning_cooldown := 0.0
 var _bow: Node3D
-var _right_hand: Node3D
 ## Tempo que falta para a próxima flecha estar na corda.
 var _reload := 0.0
 ## Equilíbrio na borda (1 firme .. 0 cai) e quanto tempo ainda tomba para fora.
@@ -134,6 +143,7 @@ func _ready() -> void:
 		_animator.foot_planted.connect(func(_side: int) -> void: _footsteps.play_step())
 		_footsteps.driven_by_animation = true
 	_last_yaw = _visual.rotation.y
+	_target_yaw = _visual.rotation.y
 	_camera_rest = {"fov": _camera.fov, "pivot": _camera_pivot.position.y}
 	_draw_sound = AudioStreamPlayer3D.new()
 	_draw_sound.bus = &"World"
@@ -194,12 +204,8 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_update_balance(delta, direction)
 
-	if aiming:
-		# Mirando, o goblin olha para onde a câmera aponta.
-		_visual.rotation.y = lerp_angle(_visual.rotation.y, _camera_pivot.rotation.y + PI, 1.0 - exp(-14.0 * delta))
-	elif direction.length_squared() > 0.01:
-		var target_yaw := atan2(direction.x, direction.z)
-		_visual.rotation.y = lerp_angle(_visual.rotation.y, target_yaw, 1.0 - exp(-turn_speed * delta))
+	if not aiming and direction.length_squared() > 0.01:
+		_target_yaw = atan2(direction.x, direction.z)
 
 	if is_on_floor() and not _was_on_floor and _animator != null:
 		_animator.notify_landing(_fall_speed)
@@ -216,6 +222,10 @@ func _physics_process(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	_pine_warning_cooldown -= delta
+	if aiming:
+		# Mirando, o goblin olha para onde a câmera aponta.
+		_target_yaw = _camera_pivot.rotation.y + PI
+	_visual.rotation.y = lerp_angle(_visual.rotation.y, _target_yaw, 1.0 - exp(-(14.0 if aiming else turn_speed) * delta))
 	_update_camera(delta)
 	if _animator != null:
 		_animator.velocity_local = _visual.global_basis.inverse() * Vector3(velocity.x, 0.0, velocity.z)
@@ -225,6 +235,10 @@ func _process(delta: float) -> void:
 		_animator.draw = draw
 		_animator.reload = clampf(_reload / RELOAD_TIME, 0.0, 1.0)
 		_animator.aim_pitch = _camera_arm.rotation.x
+		_animator.aim_point = _aim_point() if aiming or _animator.aim_weight() > 0.001 else Vector3.INF
+		_animator.nock_depth = HeldBow.nock_depth(draw)
+		if _quiver != null:
+			_animator.quiver_top = _skeleton.global_transform.affine_inverse() * (_quiver.global_transform * Vector3(0.0, 0.22, 0.0))
 		_animator.turn_rate = angle_difference(_last_yaw, _visual.rotation.y) / maxf(delta, 0.001)
 		_last_yaw = _visual.rotation.y
 		_animator.update(delta)
@@ -289,6 +303,7 @@ func load_data(data: Dictionary) -> void:
 		global_position = Vector3(position_data[0], position_data[1], position_data[2])
 		velocity = Vector3.ZERO
 	_visual.rotation.y = data.get("yaw", _visual.rotation.y)
+	_target_yaw = _visual.rotation.y
 
 
 ## Equilíbrio na borda. Com o centro do corpo além da borda (sem chão logo embaixo),
@@ -403,7 +418,8 @@ func _shoot() -> void:
 	if not Inventory.remove(&"arrow"):
 		return
 	_reload = RELOAD_TIME
-	var origin := _visual.global_position + Vector3.UP * 0.75 + _camera.global_basis.x * 0.15
+	# A flecha sai de onde está na corda, no arco, e vai para o centro da tela.
+	var origin := _bow.global_position
 	var arrow := Arrow.new()
 	Game.current_level.add_child(arrow)
 	arrow.launch(origin, _aim_point() - origin, draw, [get_rid()])
@@ -430,28 +446,43 @@ func _on_inventory_changed(item: StringName, _amount: int) -> void:
 func _update_gear() -> void:
 	var has_bow := Inventory.has(&"bow")
 	if has_bow and _bow == null:
-		_bow = _attach_node(HeldBow.new(), "braco_E*mao")
+		# O arco é posto na mão por código a cada frame (_orient_gear), sem socket: a mão da
+		# corda é levada até ele no mesmo frame, então não pode haver atraso de um frame.
+		_bow = HeldBow.new()
+		_visual.add_child(_bow)
 		_quiver = _attach(BowMesh.build_quiver(), "tronco*tras")
-		_right_hand = _model.find_child("braco_D*mao", true, false) as Node3D
+		# Na diagonal das costas (boca sobre o ombro direito); acompanha o giro do tronco.
+		_quiver.basis = Basis(Vector3.BACK, 0.35) * Basis(Vector3.RIGHT, -0.2)
+		if _animator != null:
+			var grip := _model.find_child("braco_E*mao", true, false) as Node3D
+			if grip != null:
+				_animator.bow_grip = grip.transform.origin
 	if _bow != null:
 		_bow.visible = has_bow
 		_quiver.visible = has_bow
 
 
-## Arco em pé na mão (mirando, a barriga aponta para o alvo); aljava na diagonal das costas.
+## Arco na mão esquerda: carregado, passa pelo punho como um pau e balança com o braço;
+## mirando, fica em pé (um pouco deitado) com a barriga para o alvo. A corda vai até onde o
+## animador levou a mão direita.
 func _orient_gear() -> void:
 	if _bow == null or not _bow.visible:
 		return
-	if aiming:
-		_bow.global_basis = _camera.global_basis * Basis(Vector3.UP, PI)
-	else:
-		_bow.global_basis = _visual.global_basis * Basis(Vector3.RIGHT, -0.25)
-	# A corda vai até a mão direita enquanto há flecha encaixada; senão, fica reta.
-	if _bow is HeldBow:
-		var nocked := aiming and _arrow_nocked()
-		var hand := _right_hand.global_position if nocked and _right_hand != null else Vector3.INF
-		(_bow as HeldBow).pose_string(hand, draw, nocked)
-	_quiver.global_basis = _visual.global_basis * Basis(Vector3.BACK, 0.35) * Basis(Vector3.RIGHT, -0.2)
+	if _bow is HeldBow and _animator != null:
+		var side := _visual.global_basis.x
+		var level := _visual.global_basis.z.rotated(side, -CARRY_RISE)
+		var swung := (-_animator.forearm_direction(true)).rotated(side, PI * 0.5)
+		var up := level.lerp(swung, CARRY_SWING).normalized()
+		var belly := side.cross(up).normalized()
+		up = belly.cross(side).normalized()
+		var held := Basis(up.cross(belly), up, belly).get_rotation_quaternion()
+		var grip := _animator.bow_grip_position()
+		var weight := _animator.aim_weight()
+		if weight > 0.001 and _animator.aim_point != Vector3.INF:
+			var aimed := Basis.looking_at(_animator.aim_point - grip, Vector3.UP, true) * Basis(Vector3.BACK, BOW_CANT)
+			held = held.slerp(aimed.get_rotation_quaternion(), weight)
+		_bow.global_transform = Transform3D(Basis(held), grip)
+		(_bow as HeldBow).pose_string(draw, aiming and _arrow_nocked())
 
 
 func _attach(mesh: Mesh, socket_pattern: String) -> Node3D:
@@ -497,6 +528,7 @@ func _update_interaction() -> void:
 func _start_interaction(item: Node3D) -> void:
 	var to_item := item.global_position - global_position
 	_visual.rotation.y = atan2(to_item.x, to_item.z)
+	_target_yaw = _visual.rotation.y
 	velocity = Vector3(0.0, velocity.y, 0.0)
 	if _animator == null:
 		item.interact(self)

@@ -5,10 +5,12 @@ extends RefCounted
 ## Arco: em pé no eixo Y, empunhadura na origem, barriga para +Z e corda atrás.
 ## Flecha: ao longo de -Z (ponta em -Z), centro na origem.
 
-const ARROW_LENGTH := 0.7
-## O arco é um trecho de círculo deste raio, de -LIMB_ANGLE a +LIMB_ANGLE graus.
-const LIMB_RADIUS := 0.5
-const LIMB_ANGLE := 52.0
+## Tudo na escala do goblin (0,98 m, braço de 32 cm): arco de 60 cm, flecha de 38 cm.
+const ARROW_LENGTH := 0.38
+## O arco é um trecho de círculo deste raio, de -LIMB_ANGLE a +LIMB_ANGLE graus: com a
+## corda armada, ela fica 8 cm atrás da empunhadura.
+const LIMB_RADIUS := 0.6
+const LIMB_ANGLE := 30.0
 
 static var _arrow: ArrayMesh
 
@@ -56,25 +58,25 @@ static func _add_limb(builder: TreeBuilder.Builder, side: float) -> void:
 	for i in 4:
 		var t0 := i / 4.0
 		var t1 := (i + 1) / 4.0
-		TreeBuilder.add_branch(wood, _limb_point(side, t0), _limb_point(side, t1), lerpf(0.017, 0.008, t0), lerpf(0.017, 0.008, t1), 5)
+		TreeBuilder.add_branch(wood, _limb_point(side, t0), _limb_point(side, t1), lerpf(0.014, 0.007, t0), lerpf(0.014, 0.007, t1), 5)
 
 
 static func _add_grip(builder: TreeBuilder.Builder) -> void:
 	var grip := builder.tool_for(_material(preload("res://assets/textures/leather.png"), Color.WHITE))
-	TreeBuilder.add_branch(grip, Vector3(0.0, -0.06, 0.0), Vector3(0.0, 0.06, 0.0), 0.021, 0.021, 6)
+	TreeBuilder.add_branch(grip, Vector3(0.0, -0.045, 0.0), Vector3(0.0, 0.045, 0.0), 0.018, 0.018, 6)
 
 
 static func build_quiver() -> ArrayMesh:
 	var builder := TreeBuilder.Builder.new()
 	var leather := builder.tool_for(_material(preload("res://assets/textures/leather.png"), Color.WHITE))
-	TreeBuilder.add_branch(leather, Vector3(0.0, -0.22, 0.0), Vector3(0.0, 0.2, 0.0), 0.05, 0.055, 7)
+	TreeBuilder.add_branch(leather, Vector3(0.0, -0.15, 0.0), Vector3(0.0, 0.12, 0.0), 0.04, 0.045, 7)
 	var shafts := builder.tool_for(_material(preload("res://assets/textures/wood.png"), Color.WHITE))
 	var feathers := builder.tool_for(_flat(Color(0.7, 0.68, 0.62)))
 	for i in 5:
-		var offset := Vector3(cos(i * 1.3) * 0.025, 0.0, sin(i * 1.3) * 0.025)
-		var top := Vector3(0.0, 0.3 + (i % 2) * 0.03, 0.0) + offset
-		TreeBuilder.add_branch(shafts, offset + Vector3(0.0, 0.15, 0.0), top, 0.005, 0.005, 3)
-		_add_fletching(feathers, top + Vector3(0.0, -0.08, 0.0), top, 0.018)
+		var offset := Vector3(cos(i * 1.3) * 0.02, 0.0, sin(i * 1.3) * 0.02)
+		var top := Vector3(0.0, 0.2 + (i % 2) * 0.025, 0.0) + offset
+		TreeBuilder.add_branch(shafts, offset + Vector3(0.0, 0.08, 0.0), top, 0.004, 0.004, 3)
+		_add_fletching(feathers, top + Vector3(0.0, -0.06, 0.0), top, 0.014)
 	return builder.commit()
 
 
@@ -85,11 +87,11 @@ static func arrow() -> ArrayMesh:
 	var builder := TreeBuilder.Builder.new()
 	var half := ARROW_LENGTH * 0.5
 	var shaft := builder.tool_for(_material(preload("res://assets/textures/wood.png"), Color.WHITE))
-	TreeBuilder.add_branch(shaft, Vector3(0.0, 0.0, half), Vector3(0.0, 0.0, -half), 0.006, 0.006, 4)
+	TreeBuilder.add_branch(shaft, Vector3(0.0, 0.0, half), Vector3(0.0, 0.0, -half), 0.005, 0.005, 4)
 	var flint := builder.tool_for(_flat(Color(0.2, 0.2, 0.22)))
-	TreeBuilder.add_branch(flint, Vector3(0.0, 0.0, -half), Vector3(0.0, 0.0, -half - 0.07), 0.013, 0.001, 4)
+	TreeBuilder.add_branch(flint, Vector3(0.0, 0.0, -half), Vector3(0.0, 0.0, -half - 0.05), 0.011, 0.001, 4)
 	var feathers := builder.tool_for(_flat(Color(0.7, 0.68, 0.62)))
-	_add_fletching(feathers, Vector3(0.0, 0.0, half - 0.12), Vector3(0.0, 0.0, half - 0.01), 0.022)
+	_add_fletching(feathers, Vector3(0.0, 0.0, half - 0.09), Vector3(0.0, 0.0, half - 0.01), 0.017)
 	_arrow = builder.commit()
 	return _arrow
 

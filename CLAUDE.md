@@ -60,7 +60,7 @@ scenes/
 components/          Footsteps (passos por chão), OccludedAudio (som 3D abafado atrás de rocha)
 assets/
   textures/ shaders/ gerados por tools/ (exceto shaders)
-  audio/             sintéticos gerados por tools/; audio/real/ = gravações reais CC0 (ver CREDITS.md)
+  audio/             sintéticos gerados por tools/ (steps/ = passos descalços); audio/real/ = gravações reais CC0 (ver CREDITS.md)
   models/goblin/     goblin.glb + source/ (goblin.blend, polish_goblin.py, export_goblin.py)
 tools/               geradores Python de texturas e sons (numpy + Pillow)
 ```
@@ -87,10 +87,11 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 - **Animação do goblin (`GoblinAnimator`):** 100% procedural, direto no esqueleto; as animações do glb ficam paradas.
   - Cada frame monta uma *pose* (dicionário: altura do quadril, alvo de cada pé, ângulos de tronco, cabeça, braços e orelhas) e só no fim converte em rotações de osso (`_rotate`: eixos do modelo em repouso, carregados pelo pai).
   - Pernas com IK de duas juntas: o pé segue uma trajetória (apoio no chão + arco no ar), então não escorrega e o joelho dobra. O sinal `foot_planted` toca o passo na hora em que o pé encosta.
-  - Camadas: andar/correr, respirar e olhar em volta parado, curva, agachar, no ar, aterrissar, mira (braço da corda torce e dobra na horizontal até o queixo) e orelhas com mola.
+  - Camadas: andar/correr, respirar e olhar em volta parado, curva, agachar, no ar, aterrissar, mira e orelhas com mola.
   - **Nada perfeito:** a pose neutra (`_neutral`) já é a postura do goblin, curvada e assimétrica (ombro caído, cabeça torta, pés abertos para fora, braços pendurados). Por cima entram oscilações lentas (`_wave`) em cada parte, passadas com altura e abertura sorteadas, ritmo manco (pé direito atrasado), apoio que troca de perna parado e fôlego (ofega e apoia as mãos nos joelhos depois de correr).
   - Manias parado (`_idle_overlay`): coçar a orelha, farejar, olhar para trás, examinar as garras. Não travam o jogador; qualquer movimento corta.
-  - Arco: base de arqueiro (quadril de lado, pés afastados), braço treme se segurar a corda puxada por mais de 1 s e coice ao soltar.
+  - Arco: base de arqueiro (quadril e peito de lado, ombro do arco para o alvo, cabeça de volta olhando pela flecha, pés afastados), braço treme se segurar a corda puxada por mais de 1 s e coice ao soltar.
+  - Mira com IK (`_aim_arms`, depois de toda a pose): a empunhadura vai para a linha que sai do canto da boca (`ANCHOR_REST`) até `aim_point`, um `draw_length` à frente; a mão da corda vai até `nock_depth` atrás da empunhadura real. `_reach` é IK de duas juntas por giros (braço até o cotovelo com `pole`, torção para o antebraço ficar no plano da dobra, antebraço até o punho), partindo dos ângulos da pose.
   - Pés: `_orient` deixa o pé paralelo ao chão no espaço do esqueleto, girado por `foot_*_yaw`; a perna abre com `leg_*_out`.
   - Pés no chão (`_ground_feet`): um raio por pé acha a altura e a inclinação do chão embaixo dele (degrau, pedra, encosta). O quadril desce para o pé mais baixo com apoio; pé sem chão fica pendurado, e com só um pé apoiado o peso vai para ele. `foot_supported` é lido pelo Player.
   - Coluna: o giro do tronco se divide entre `tronco` (lombar) e `peito`; por cima entram `spine_arch` (costas redondas em cima, lombar arqueada), `spine_bend` (curva de lado em S) e `neck_fwd` (`pescoco`). A soma lombar + peito é o giro antigo + arch / 2, então as poses dos braços continuam calibradas.
@@ -99,7 +100,8 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - Precisa dos ossos `perna/canela/pe`, `braco/antebraco/mao`, `orelha`, `tronco`, `peito`, `pescoco`, `cabeca` e `quadril`. Sem eles o animador desliga sozinho.
 - **Equilíbrio (`Player._update_balance`):** no chão, se não há chão logo embaixo do centro do corpo, ele está na borda. O equilíbrio cai (mais rápido com um pé solto ou andando para o vazio; sem nenhum pé apoiado cai em ~0,25 s) e volta se ele andar para dentro ou se agachar. Se acabar, ele tomba para o lado do vazio (`_tipping`, sem `floor_snap`).
 - **Arco:** `Player` mira com o botão direito (a câmera aproxima). Ao erguer o arco, encaixa uma flecha. Segura e solta o esquerdo para atirar. `Arrow` voa com gravidade, testada por raio a cada frame de física, e finca no que acerta.
-  - `HeldBow` (na mão esquerda): braços que dobram com `draw`, corda em dois segmentos até a mão direita (só a profundidade da mão vale, limitada por `draw`, então a corda volta reta ao soltar) e a flecha encaixada nela.
+  - Escala do goblin (braço de 32 cm): arco de 60 cm, corda a 8 cm da empunhadura, puxada de mais 21 cm, flecha de 38 cm.
+  - `HeldBow` (filho do `Visual`, sem socket): o Player o põe todo frame em `GoblinAnimator.bow_grip_position()`, a pose do mesmo frame, porque um socket atrasaria um frame em relação à mão da corda. Carregado, fica deitado para a frente (`CARRY_RISE`) e balança com o antebraço; mirando, barriga para o alvo e um pouco deitado (`BOW_CANT`). Braços que dobram com `draw`, corda até `nock_depth(draw)` (volta reta ao soltar) e a flecha encaixada. A flecha sai da empunhadura para o ponto no centro da tela.
   - Depois do tiro, `RELOAD_TIME` (0,75 s): a mão vai até a aljava (`GoblinAnimator.reload`) e só então a próxima flecha aparece na corda, com o som de encaixe.
 - **Grama no relevo:** `Terrain.publish_height_texture()` publica as alturas como global `terrain_height`. Com `follow_ground = 1` (grama e samambaia), o `foliage.gdshader` sobe ou desce cada vértice com o chão embaixo dele.
 - **Bichos** (`Animal`):
@@ -145,9 +147,9 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 - **Texturas:** 100% procedurais (`tools/generate_textures.py`).
 - **Sons:**
   - Gravações reais CC0 em `assets/audio/real/`:
-    - passos em grama, terra, chão da caverna, pedra e tronco, impactos de flecha, golpe na madeira, rangido, coleta e faca (Kenney). Caverna, pedra e tronco passaram por passa-baixa, porque o goblin anda descalço;
+    - passos em grama, pedra e tronco, casco do cervo, impactos de flecha, golpe na madeira, rangido, coleta e faca (Kenney). Pedra e tronco passaram por passa-baixa, porque o goblin anda descalço;
     - puxar, encaixar e soltar o arco (Medieval SFX, OpenGameArt).
-  - O resto é sintético (`tools/generate_sounds.py`).
+  - O resto é sintético (`tools/generate_sounds.py`), inclusive os passos em terra e no chão da caverna (`barefoot_step`: baque do calcanhar, grãos de terra estalando, arrasto dos dedos; a caverna tem mais cascalho). As gravações de terra que havia eram de sapato, com o "toc-toc" de salto e ponta.
   - Uivo do lobo: o jogo usa `assets/audio/animals/wolf_howl_real_N.(ogg|wav|mp3)` se existir; senão, o sintético.
   - Origem de cada arquivo em `assets/CREDITS.md`.
 - **Goblin:**

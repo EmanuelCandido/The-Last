@@ -11,6 +11,8 @@ extends Node
 ## - Equilíbrio: na borda, o Player informa o desequilíbrio (teeter) e o goblin abre e gira
 ##   os braços, joga o corpo para longe do vazio e olha para baixo.
 ## - Estados: agachar, no ar, aterrissar, mirar com o arco.
+## - Mira: os braços são resolvidos com IK. A mão do arco estica até a empunhadura ficar na
+##   linha que sai de baixo do queixo para o alvo; a da corda vai até onde a corda está puxada.
 ## - Ações cronometradas: acordar, pegar algo do chão, coletar a caça, golpear.
 ## - Jeito de goblin: postura curvada e torta (nada é simétrico), micro-movimentos o tempo
 ##   todo, passadas que variam, apoio que troca de perna, cansaço depois de correr e
@@ -48,11 +50,29 @@ var teeter := 0.0
 var teeter_dir := Vector2.ZERO
 ## Chão alcançado por cada pé (lido pelo Player para medir o apoio).
 var foot_supported := [true, true]
+## Mira com IK (preenchidos pelo Player): ponto do mundo para onde a flecha vai (INF = sem
+## alvo), distância da empunhadura até a corda agora e onde a empunhadura fica no espaço do
+## osso da mão esquerda.
+var aim_point := Vector3.INF
+var nock_depth := 0.08
+var bow_grip := Vector3(0.0, 0.036, -0.008)
+## Topo da aljava (penas das flechas), no espaço do esqueleto: aonde a mão vai recarregar.
+var quiver_top := Vector3(-0.08, 0.8, -0.15)
 
 ## Quanto o pé desce abaixo da base do corpo procurando chão (m).
 const FOOT_REACH := 0.3
 ## Pé sem chão: fica pendurado um pouco abaixo da borda, com o joelho solto.
 const FOOT_HANG := -0.1
+## Onde a corda encosta ao puxar: embaixo do queixo, à direita (esqueleto em repouso).
+## A cabeça do goblin é enorme (10 cm de meia-largura na boca, queixo até z = 0,14): a
+## mão da corda tem de ficar fora dela, e o braço do arco (32 cm) tem de alcançar a linha.
+const ANCHOR_REST := Vector3(-0.05, 0.7, 0.16)
+## Do punho até onde os dedos seguram a corda (m).
+const STRING_FINGERS := 0.045
+## Com a corda solta, a corda fica esta distância à frente da ancoragem: o arco começa perto
+## do rosto e o braço estica enquanto a outra mão puxa (o braço da corda, com o peito de
+## perfil, não alcança mais longe).
+const PREDRAW := 0.05
 
 var skeleton: Skeleton3D
 var _bones := {}
@@ -108,6 +128,12 @@ var _last_draw := 0.0
 var _foot_ground := [0.0, 0.0]
 var _foot_tilt := [Basis.IDENTITY, Basis.IDENTITY]
 var _ground_weight := 0.0
+## Ponto de ancoragem no espaço do osso da cabeça; tremor do braço do arco e mão na aljava.
+var _anchor := Vector3.ZERO
+var _bow_shake := Vector3.ZERO
+var _quiver_reach := 0.0
+## Inclinação na curva, suavizada (o giro do corpo chega em degraus da física).
+var _lean := 0.0
 
 
 ## Liga no esqueleto. Devolve false se o modelo não tiver os ossos articulados.
@@ -130,6 +156,7 @@ func setup(target: Skeleton3D) -> bool:
 	_thigh = hip.distance_to(knee)
 	_shin = knee.distance_to(ankle)
 	_rest_leg = _leg_angles(ankle.z - hip.z, hip.y - ankle.y)
+	_anchor = skeleton.get_bone_global_rest(_bones.cabeca).affine_inverse() * ANCHOR_REST
 	_last_pelvis_y = _hip_height
 	skeleton.reset_bone_poses()
 	return true
@@ -327,9 +354,9 @@ func _locomotion(delta: float) -> Dictionary:
 	pose.hand_r += _wave(11, 1.3) * 0.12
 
 	# Curva: o corpo inclina para dentro.
-	var lean := clampf(-turn_rate * speed * 0.035, -0.25, 0.25)
-	pose.pelvis_roll += lean * 0.5
-	pose.torso_roll += lean
+	_lean = lerpf(_lean, clampf(-turn_rate * speed * 0.035, -0.25, 0.25), 1.0 - exp(-8.0 * delta))
+	pose.pelvis_roll += _lean * 0.5
+	pose.torso_roll += _lean
 
 	# Agachado: quadril baixo, tronco curvado, cabeça erguida para olhar adiante e mãos
 	# à frente como garras, uma mais alta que a outra.
@@ -372,13 +399,15 @@ func _aim_overlay(pose: Dictionary) -> void:
 	var pitch := aim_pitch
 	# Braço do arco aponta para o centro, à frente do rosto; o da corda abre o cotovelo para
 	# fora e dobra na horizontal, trazendo a mão até o queixo conforme puxa.
-	# O quadril vira de lado (ombro do arco para o alvo) e o tronco gira de volta: a soma
-	# continua 0.12, então os braços apontam para o mesmo lugar.
-	var hips := -0.3
+	# Para baixo, o goblin dobra o tronco (não a cabeça, que cairia sobre a mão da corda).
+	# O quadril vira de lado e o peito vai junto até ficar quase de perfil (ombro do arco na
+	# linha do alvo, senão o braço curto não alcança); a cabeça gira de volta e olha pela
+	# flecha. Os braços são acertados depois, por IK (_aim_arms).
+	var hips := -0.45
 	var aimed := {
 		"pelvis_yaw": hips, "feet_yaw": hips * 0.8, "spine_arch": 0.04, "spine_bend": 0.0, "neck_fwd": 0.06,
-		"torso_pitch": 0.1 - pitch * 0.35 - 0.05 * draw, "torso_yaw": 0.12 - hips + 0.05 * draw, "torso_roll": 0.03,
-		"head_pitch": -pitch * 0.6, "head_yaw": -0.08, "head_roll": 0.06 + 0.1 * draw,
+		"torso_pitch": 0.1 - pitch * (0.35 if pitch > 0.0 else 0.8) - 0.05 * draw, "torso_yaw": -1.1 - hips - 0.05 * draw, "torso_roll": 0.03,
+		"head_pitch": -pitch * (0.6 if pitch > 0.0 else 0.15), "head_yaw": 1.0 + 0.05 * draw, "head_roll": 0.06 + 0.1 * draw,
 		"arm_l_fwd": 1.5 + pitch * 0.9, "arm_l_out": 0.0, "arm_l_yaw": -0.4, "arm_l_twist": 0.0, "elbow_l": 0.06, "hand_l": 0.0,
 		"arm_r_fwd": 1.45 + pitch * 0.9, "arm_r_out": 0.0, "arm_r_yaw": 0.15 + 0.75 * draw, "arm_r_twist": 1.5,
 		"elbow_r": 0.7 + 1.7 * draw, "hand_r": 0.2,
@@ -397,22 +426,18 @@ func _aim_overlay(pose: Dictionary) -> void:
 	pose.foot_r_yaw += 0.25 * stance
 	# Segurando a corda no fim, o braço cansa e treme cada vez mais.
 	var tired := 0.004 + 0.03 * smoothstep(1.0, 4.0, _hold_time)
-	var shake := (_wave(20, 9.0) * 0.6 + _wave(21, 14.0) * 0.4) * tired * draw * weight
-	pose.arm_l_fwd += shake
-	pose.arm_l_yaw += _wave(22, 11.0) * tired * draw * weight
-	pose.elbow_r += shake * 0.7
+	var shake := (_wave(20, 9.0) * 0.6 + _wave(21, 14.0) * 0.4) * tired * draw
+	_bow_shake = Vector3(_wave(22, 11.0) * tired * draw, shake, 0.0) * 0.35
 	# Depois do tiro a mão da corda sobe por cima do ombro até a aljava e volta com a flecha.
 	var reach := sin(PI * (1.0 - reload)) * weight if reload > 0.0 else 0.0
+	_quiver_reach = reach
 	pose.arm_r_fwd = lerpf(pose.arm_r_fwd, 2.55, reach)
 	pose.arm_r_yaw = lerpf(pose.arm_r_yaw, 0.35, reach)
 	pose.arm_r_twist = lerpf(pose.arm_r_twist, 0.4, reach)
 	pose.elbow_r = lerpf(pose.elbow_r, 2.1, reach)
 	pose.head_roll -= 0.08 * reach
-	# Coice da soltura: a mão da corda voa para trás e o arco cai um pouco.
-	pose.arm_r_yaw += 0.45 * _release * weight
-	pose.elbow_r -= 0.5 * _release * weight
+	# Coice da soltura: a mão da corda voa para trás (no IK) e o corpo sente o tranco.
 	pose.hand_r -= 0.4 * _release * weight
-	pose.arm_l_fwd -= 0.12 * _release * weight
 	pose.torso_yaw += 0.06 * _release * weight
 
 
@@ -788,6 +813,113 @@ func _apply(pose: Dictionary) -> void:
 	_rotate(_bones.cabeca, Basis.from_euler(Vector3(pose.head_pitch * 0.65 - neck - arch * 0.5, pose.head_yaw * 0.6, pose.head_roll * 0.7 + bend * 0.4)))
 	_rotate(_bones.orelha_E, Basis(Vector3.BACK, -pose.ear_l))
 	_rotate(_bones.orelha_D, Basis(Vector3.BACK, pose.ear_r))
+	_aim_arms()
+
+
+## Mirando: a empunhadura vai para a linha que sai da ancoragem (queixo) até o alvo, à frente
+## dela o quanto a corda está puxada; a mão da corda pega a corda onde ela está agora.
+## Se o braço não alcança, o arco fica onde a mão chega e a corda vai até ele do mesmo jeito.
+func _aim_arms() -> void:
+	var weight: float = _weights.aim
+	if weight < 0.001 or aim_point == Vector3.INF:
+		return
+	var target := skeleton.global_transform.affine_inverse() * aim_point
+	var anchor := skeleton.get_bone_global_pose(_bones.cabeca) * _anchor
+	var aim := (target - anchor).normalized()
+	var right := aim.cross(Vector3.UP).normalized()
+	var grip_goal := anchor + aim * (nock_depth + PREDRAW * (1.0 - draw)) + _bow_shake - Vector3.UP * 0.03 * _release
+	var shoulder_l := skeleton.get_bone_global_pose(_bones.braco_E).origin
+	# O cotovelo do arco fica quase reto, virado para fora e para baixo.
+	_reach("E", grip_goal - aim * bow_grip.length(), shoulder_l - right * 0.5 + Vector3.DOWN * 0.4, weight)
+
+	var grip := skeleton.get_bone_global_pose(_bones.mao_E) * bow_grip
+	var line := (target - grip).normalized()
+	var nock := grip - line * nock_depth
+	var wrist := nock - line * STRING_FINGERS + (right * 0.05 - line * 0.07) * _release
+	var shoulder_r := skeleton.get_bone_global_pose(_bones.braco_D).origin
+	# O cotovelo da corda vai para trás e para fora, na altura do ombro, mesmo mirando para
+	# baixo (seguindo a linha inclinada ele subiria e o antebraço passaria rente ao queixo).
+	var flat := Vector3(line.x, 0.0, line.z).normalized()
+	var pole := shoulder_r - flat * 0.6 + right * 0.35
+	# Recarga: a mão sai da corda por fora, passa ao lado do ombro (longe da cabeça) e
+	# chega às penas da aljava; depois volta pelo mesmo caminho com a flecha.
+	if _quiver_reach > 0.0:
+		var t := _quiver_reach
+		var side := shoulder_r + right * 0.22 + Vector3.UP * 0.12
+		wrist = wrist * (1.0 - t) * (1.0 - t) + side * 2.0 * (1.0 - t) * t + (quiver_top + right * 0.03 + Vector3.UP * 0.04) * t * t
+		pole = pole.lerp(shoulder_r + right * 0.4 + Vector3.UP * 0.3, t)
+	_reach("D", wrist, pole, weight)
+	# Os dedos apontam para a corda.
+	var hand_r: int = _bones.mao_D
+	var fingers := skeleton.get_bone_global_pose(hand_r).basis.y.normalized()
+	_swing(hand_r, fingers, line, weight * 0.7 * (1.0 - _quiver_reach))
+
+
+## IK de duas juntas por giros, no espaço do esqueleto: o braço gira até o cotovelo ficar
+## no lugar (dobrando para o lado de `pole`), torce no próprio eixo para o antebraço já
+## estar no plano da dobra e o antebraço gira até o punho chegar em `target`.
+func _reach(side: String, target: Vector3, pole: Vector3, weight: float) -> void:
+	if weight < 0.001:
+		return
+	var upper: int = _bones["braco_" + side]
+	var lower: int = _bones["antebraco_" + side]
+	var hand: int = _bones["mao_" + side]
+	var shoulder := skeleton.get_bone_global_pose(upper).origin
+	var elbow := skeleton.get_bone_global_pose(lower).origin
+	var wrist := skeleton.get_bone_global_pose(hand).origin
+	var a := shoulder.distance_to(elbow)
+	var b := elbow.distance_to(wrist)
+	var to_target := target - shoulder
+	var distance := clampf(to_target.length(), absf(a - b) + 0.01, (a + b) * 0.995)
+	var along := to_target.normalized()
+	var bend := pole - shoulder
+	bend = (bend - along * bend.dot(along)).normalized()
+	var cos_shoulder := clampf((a * a + distance * distance - b * b) / (2.0 * a * distance), -1.0, 1.0)
+	var elbow_goal := shoulder + along * (a * cos_shoulder) + bend * (a * sqrt(1.0 - cos_shoulder * cos_shoulder))
+	var wrist_goal := shoulder + along * distance
+	_swing(upper, elbow - shoulder, elbow_goal - shoulder, weight)
+
+	elbow = skeleton.get_bone_global_pose(lower).origin
+	wrist = skeleton.get_bone_global_pose(hand).origin
+	var axis := (elbow - shoulder).normalized()
+	var now := (wrist - elbow) - axis * (wrist - elbow).dot(axis)
+	var want := (wrist_goal - elbow) - axis * (wrist_goal - elbow).dot(axis)
+	if now.length() > 0.05 * b and want.length() > 0.05 * b:
+		_turn(upper, Quaternion(axis, now.signed_angle_to(want, axis) * weight))
+		wrist = skeleton.get_bone_global_pose(hand).origin
+	_swing(lower, wrist - elbow, wrist_goal - elbow, weight)
+
+
+## Gira o osso (no espaço do esqueleto, em volta da própria junta) levando `from` até `to`.
+func _swing(bone: int, from: Vector3, to: Vector3, weight: float) -> void:
+	if from.length_squared() < 1e-8 or to.length_squared() < 1e-8:
+		return
+	_turn(bone, Quaternion.IDENTITY.slerp(Quaternion(from.normalized(), to.normalized()), weight))
+
+
+func _turn(bone: int, rotation: Quaternion) -> void:
+	var parent_now := skeleton.get_bone_global_pose(skeleton.get_bone_parent(bone)).basis
+	var now := skeleton.get_bone_global_pose(bone).basis.orthonormalized()
+	skeleton.set_bone_pose_rotation(bone, (parent_now.inverse() * (Basis(rotation) * now)).get_rotation_quaternion())
+
+
+# --- Consultas do Player ---------------------------------------------------------
+
+func aim_weight() -> float:
+	return _weights.aim
+
+
+## Direção global do antebraço (cotovelo -> punho).
+func forearm_direction(left: bool) -> Vector3:
+	var side := "E" if left else "D"
+	var elbow := skeleton.get_bone_global_pose(_bones["antebraco_" + side]).origin
+	var wrist := skeleton.get_bone_global_pose(_bones["mao_" + side]).origin
+	return (skeleton.global_basis * (wrist - elbow)).normalized()
+
+
+## Posição global da empunhadura do arco na mão esquerda, já com a pose deste frame.
+func bow_grip_position() -> Vector3:
+	return skeleton.global_transform * (skeleton.get_bone_global_pose(_bones.mao_E) * bow_grip)
 
 
 ## Gira o osso por `rotation` (eixos do modelo em repouso), carregado pelo que o pai já girou.

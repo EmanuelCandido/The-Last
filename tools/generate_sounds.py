@@ -1,7 +1,9 @@
 """Gera os sons sintéticos do jogo em assets/audio/ por síntese procedural.
 
-Passos, arco, impactos de flecha, golpe na madeira, coleta e faca são gravações reais
-(CC0) em assets/audio/real/ — ver assets/CREDITS.md; este script não mexe nelas.
+Passos em grama, pedra e tronco, arco, impactos de flecha, golpe na madeira, coleta e faca
+são gravações reais (CC0) em assets/audio/real/ — ver assets/CREDITS.md; este script não
+mexe nelas. Os passos em terra e no chão da caverna são sintéticos (pé descalço; as gravações
+que havia eram de sapato, com o "toc-toc" de salto e ponta).
 
 Loops (vento, folhas, fogo, caverna, insetos) são feitos no domínio da frequência,
 então o fim emenda perfeitamente no começo; o arquivo WAV leva um chunk "smpl"
@@ -295,6 +297,44 @@ def drip(variant):
     return x
 
 
+# --- Passos descalços ---------------------------------------------------------------
+
+def barefoot_step(variant, gravel):
+    """Pé descalço de goblin (leve) em terra batida. gravel (0..1) = quanto cascalho tem.
+
+    Calcanhar: baque surdo e o tapa da pele. O peso rola para a frente e a terra cede,
+    estalando grãos soltos. Os dedos empurram e arrastam um pouco de terra ao sair.
+    """
+    rng = np.random.default_rng(400 + variant + int(gravel * 100))
+    n = int(0.42 * SR)
+    t = np.arange(n) / SR
+    # Baque: o chão macio abafa tudo acima de ~300 Hz; o corpo pequeno dá um grave curto.
+    thump = band_oneshot(rng.standard_normal(n), 35, rng.uniform(260, 340)) * np.minimum(t / 0.003, 1.0) * np.exp(-t / rng.uniform(0.016, 0.024))
+    thump = peak_norm(thump) + 0.35 * tone(np.full(n, rng.uniform(70, 95))) * np.minimum(t / 0.004, 1.0) * np.exp(-t / 0.03)
+    # Tapa da pele na terra: médio, curtíssimo e sem estalo.
+    pat = band_oneshot(rng.standard_normal(n), 350, 1700) * np.minimum(t / 0.0015, 1.0) * np.exp(-t / 0.007)
+    # Rolagem do peso: a terra assenta (grave longo) e grãos estalam soltos, mais no meio.
+    settle = band_oneshot(rng.standard_normal(n), 120, 900) * smoothstep(0.005, 0.03, t) * np.exp(-t / 0.06)
+    grain_env = np.exp(-0.5 * ((t - rng.uniform(0.05, 0.08)) / 0.035) ** 2)
+    grain_env += 0.6 * np.exp(-0.5 * ((t - rng.uniform(0.15, 0.2)) / 0.025) ** 2)
+    count = int(rng.uniform(12, 20) * (1.0 + 2.5 * gravel))
+    times = thinned_times(rng, n, count / (n / SR) * 2.5, grain_env / grain_env.max())
+
+    def grain():
+        g = burst(rng, 0.004, rng.uniform(0.0002, 0.0007 + 0.0008 * gravel), 0.00005)
+        return g * np.exp(rng.uniform(np.log(0.15), 0.0))
+
+    grains = band_oneshot(place_events(n, times, grain), 1400 - 500 * gravel, 6500)
+    # Saída dos dedos: um arrasto curto de terra.
+    toe_at = rng.uniform(0.15, 0.2)
+    toe_t = np.maximum(t - toe_at, 0.0)
+    scuff = band_oneshot(rng.standard_normal(n), 700, 4500) * (t >= toe_at) * smoothstep(0.0, 0.012, toe_t) * np.exp(-toe_t / 0.03)
+    x = (1.0 * peak_norm(thump) + 0.35 * peak_norm(pat) + 0.3 * peak_norm(settle)
+         + (0.16 + 0.3 * gravel) * peak_norm(grains) + rng.uniform(0.1, 0.18) * peak_norm(scuff))
+    # Sem clique no fim do arquivo.
+    return x * (1.0 - smoothstep(0.34, 0.42, t))
+
+
 # --- Árvore caindo e vozes de bichos (caça) -----------------------------------------
 
 def tree_fall():
@@ -348,6 +388,9 @@ def main():
     write_wav(ROOT / "sfx" / "tree_fall.wav", tree_fall())
     write_wav(ROOT / "animals" / "deer_snort.wav", deer_snort())
     write_wav(ROOT / "animals" / "rabbit_squeal.wav", rabbit_squeal())
+    for v in range(1, 7):
+        write_wav(ROOT / "steps" / f"barefoot_dirt_{v}.wav", barefoot_step(v, 0.15))
+        write_wav(ROOT / "steps" / f"barefoot_cave_{v}.wav", barefoot_step(v, 0.7))
 
 
 if __name__ == "__main__":

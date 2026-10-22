@@ -24,7 +24,7 @@ const FLEE := 0.8
 const HIT_LAYER := 8
 const PICKUP_SOUND := preload("res://assets/audio/real/pickup_5.ogg")
 ## Passo em terra, mais agudo: batida de casco correndo.
-const HOOF_SOUND := preload("res://assets/audio/real/step_dirt_2.ogg")
+const HOOF_SOUND := preload("res://assets/audio/real/hoof_dirt.ogg")
 
 @export_group("Movimento")
 @export var walk_speed := 1.2

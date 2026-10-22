@@ -1,15 +1,19 @@
 class_name HeldBow
 extends Node3D
-## Arco na mão do goblin: dois braços que dobram, a corda que vai até a mão que puxa e a
+## Arco na mão do goblin: dois braços que dobram, a corda puxada até onde está a mão e a
 ## flecha encaixada nela. Mesmas coordenadas do BowMesh: empunhadura na origem, Y para
 ## cima, barriga para +Z (para o alvo) e corda atrás (-Z).
+##
+## Quem segura posiciona o arco e leva a mão da corda até `nock_depth(draw)` atrás da
+## empunhadura (o GoblinAnimator faz isso com IK); aqui a corda só vai até lá.
 
 ## Quanto as pontas dobram para trás com a corda toda puxada (rad).
-const MAX_BEND := 0.2
-## Até onde a corda vai atrás da posição solta (m).
-const MAX_DRAW := 0.42
+const MAX_BEND := 0.15
+## Até onde a corda vai atrás da posição solta (m). Com a dobra dos braços, a corda toda
+## puxada fica a ~27 cm da empunhadura: o que o braço de 32 cm do goblin alcança.
+const MAX_DRAW := 0.15
 ## A flecha passa pelo lado da empunhadura, não por dentro dela.
-const ARROW_REST := Vector3(0.014, 0.01, 0.0)
+const ARROW_REST := Vector3(0.012, 0.008, 0.0)
 
 var _upper: MeshInstance3D
 var _lower: MeshInstance3D
@@ -23,8 +27,8 @@ func _init() -> void:
 	_lower = _part(BowMesh.build_limb(-1.0))
 	_part(BowMesh.build_grip())
 	var string_mesh := CylinderMesh.new()
-	string_mesh.top_radius = 0.003
-	string_mesh.bottom_radius = 0.003
+	string_mesh.top_radius = 0.0025
+	string_mesh.bottom_radius = 0.0025
 	string_mesh.height = 1.0
 	string_mesh.radial_segments = 4
 	string_mesh.rings = 1
@@ -32,24 +36,24 @@ func _init() -> void:
 	_string_top = _part(string_mesh)
 	_string_bottom = _part(string_mesh)
 	_arrow = _part(BowMesh.arrow())
-	pose_string(Vector3.INF, 0.0, false)
+	pose_string(0.0, false)
 
 
-## Monta a corda. `hand` é a mão que puxa (global; INF = corda solta); `draw` (0..1) é
-## quanto ela está puxada: os braços dobram com ele e a corda só acompanha a mão até
-## essa distância, então ela volta reta na hora em que a flecha sai.
-func pose_string(hand: Vector3, draw: float, arrow_on: bool) -> void:
+## Distância da empunhadura até o ponto de encaixe da corda, com a corda `draw` (0..1) puxada.
+static func nock_depth(draw: float) -> float:
+	var amount := clampf(draw, 0.0, 1.0)
+	return -(Basis(Vector3.RIGHT, -MAX_BEND * amount) * BowMesh.tip(1.0)).z + MAX_DRAW * amount
+
+
+## Monta a corda puxada `draw` (0..1): os braços dobram e o meio da corda vai para trás.
+## Ao soltar (draw volta a 0), a corda fica reta na hora.
+func pose_string(draw: float, arrow_on: bool) -> void:
 	var bend := MAX_BEND * clampf(draw, 0.0, 1.0)
 	_upper.basis = Basis(Vector3.RIGHT, -bend)
 	_lower.basis = Basis(Vector3.RIGHT, bend)
 	var top := _upper.basis * BowMesh.tip(1.0)
 	var bottom := _lower.basis * BowMesh.tip(-1.0)
-	var nock := (top + bottom) * 0.5
-	if hand != Vector3.INF:
-		# A corda fica no plano do arco; da mão só vale a profundidade.
-		var local := to_local(hand)
-		var pull := clampf(nock.z - local.z, 0.0, MAX_DRAW * draw + 0.02)
-		nock += Vector3(clampf(local.x, -0.03, 0.03), clampf(local.y - nock.y, -0.05, 0.05), -pull)
+	var nock := Vector3(0.0, 0.0, -nock_depth(draw))
 	_segment(_string_top, top, nock)
 	_segment(_string_bottom, nock, bottom)
 	_arrow.visible = arrow_on
