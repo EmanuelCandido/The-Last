@@ -6,26 +6,62 @@ extends RefCounted
 ## Flecha: ao longo de -Z (ponta em -Z), centro na origem.
 
 const ARROW_LENGTH := 0.7
+## O arco é um trecho de círculo deste raio, de -LIMB_ANGLE a +LIMB_ANGLE graus.
+const LIMB_RADIUS := 0.5
+const LIMB_ANGLE := 52.0
 
 static var _arrow: ArrayMesh
 
 
+## Arco inteiro com a corda reta (no chão da caverna). Na mão, o HeldBow monta as partes.
 static func build_bow() -> ArrayMesh:
 	var builder := TreeBuilder.Builder.new()
+	_add_limb(builder, 1.0)
+	_add_limb(builder, -1.0)
+	_add_grip(builder)
+	TreeBuilder.add_branch(builder.tool_for(string_material()), tip(1.0), tip(-1.0), 0.003, 0.003, 3)
+	return builder.commit()
+
+
+## Um braço do arco (1 = de cima, -1 = de baixo), da empunhadura até a ponta.
+static func build_limb(side: float) -> ArrayMesh:
+	var builder := TreeBuilder.Builder.new()
+	_add_limb(builder, side)
+	return builder.commit()
+
+
+static func build_grip() -> ArrayMesh:
+	var builder := TreeBuilder.Builder.new()
+	_add_grip(builder)
+	return builder.commit()
+
+
+## Ponta do braço em repouso, onde a corda prende.
+static func tip(side: float) -> Vector3:
+	return _limb_point(side, 1.0)
+
+
+static func string_material() -> StandardMaterial3D:
+	return _flat(Color(0.75, 0.72, 0.65))
+
+
+## Ponto do arco: t = 0 na empunhadura, 1 na ponta. O arco é um trecho de círculo.
+static func _limb_point(side: float, t: float) -> Vector3:
+	var angle := deg_to_rad(LIMB_ANGLE) * t * side
+	return Vector3(0.0, LIMB_RADIUS * sin(angle), LIMB_RADIUS * (cos(angle) - 1.0))
+
+
+static func _add_limb(builder: TreeBuilder.Builder, side: float) -> void:
 	var wood := builder.tool_for(_material(preload("res://assets/textures/wood.png"), Color(0.85, 0.75, 0.65)))
-	var radius := 0.5
-	var points := []
-	for i in 9:
-		var angle := deg_to_rad(lerpf(-52.0, 52.0, i / 8.0))
-		points.append(Vector3(0.0, radius * sin(angle), radius * (cos(angle) - 1.0)))
-	for i in points.size() - 1:
-		var from_center := absf(i - 3.5) / 3.5
-		TreeBuilder.add_branch(wood, points[i], points[i + 1], lerpf(0.017, 0.008, from_center), lerpf(0.017, 0.008, absf(i + 1 - 3.5) / 3.5), 5)
+	for i in 4:
+		var t0 := i / 4.0
+		var t1 := (i + 1) / 4.0
+		TreeBuilder.add_branch(wood, _limb_point(side, t0), _limb_point(side, t1), lerpf(0.017, 0.008, t0), lerpf(0.017, 0.008, t1), 5)
+
+
+static func _add_grip(builder: TreeBuilder.Builder) -> void:
 	var grip := builder.tool_for(_material(preload("res://assets/textures/leather.png"), Color.WHITE))
 	TreeBuilder.add_branch(grip, Vector3(0.0, -0.06, 0.0), Vector3(0.0, 0.06, 0.0), 0.021, 0.021, 6)
-	var string := builder.tool_for(_flat(Color(0.75, 0.72, 0.65)))
-	TreeBuilder.add_branch(string, points[0], points[-1], 0.003, 0.003, 3)
-	return builder.commit()
 
 
 static func build_quiver() -> ArrayMesh:

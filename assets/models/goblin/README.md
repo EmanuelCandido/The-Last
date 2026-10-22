@@ -27,6 +27,11 @@ A fonte editável atual é **`source/goblin.blend`**. `goblin_blueprint.json` re
   - orelha em concha, com um corte na borda e a ponta levemente caída.
 - **Compatibilidade com o Blender 5:** o gerador cria o nó Principled quando o material novo vem sem ele.
 
+### Polimento 3
+
+- **Coluna articulada:** `peito` (peito e costas de cima, carrega os braços) e `pescoco` (entre peito e cabeça) foram acrescentados ao `tronco`, que fica com a lombar. Os pesos fazem a transição em poucos centímetros, e o socket da aljava passou para o peito.
+- **Pele lisa:** o corpo, os olhos e os dentes têm sombreamento suave; com as facetas, cada borda de polígono aparecia como uma linha na pele. Trapo e couro continuam facetados, para marcar as dobras.
+
 ## Fonte e exportação
 
 A forma recomendada de mudar o modelo é editar `source/polish_goblin.py` e rodar, na raiz do projeto:
@@ -45,6 +50,6 @@ Os originais estão preservados em `source/goblin_before_polish.blend`, `source/
 
 ## Verificação
 
-`source/validation.json` registra a validação de topologia, pesos e sockets. A versão atual tem 21.118 triângulos, 29 ossos e 0,977 m de altura. O corpo é um único componente fechado; não há bordas abertas, normais invertidas nem vértices sem peso.
+`source/validation.json` registra a validação de topologia, pesos e sockets. A versão atual tem 21.118 triângulos, 31 ossos e 0,977 m de altura. O corpo é um único componente fechado; não há bordas abertas, normais invertidas nem vértices sem peso.
 
 A cena `source/inspect_goblin.tscn` instancia o Player real em três vistas, com `GoblinLook`, e verifica repouso, caminhada, mira com arco e soco. Essas poses saem do `GoblinAnimator`, avançado à mão. Rode-a pelo Godot com `--path . --scene res://assets/models/goblin/source/inspect_goblin.tscn`. Ela grava `source/godot_*.png`; com `--headless`, executa apenas a verificação de integração. As imagens devem ser inspecionadas após mudanças na geometria ou nos pesos.

@@ -2,13 +2,16 @@ class_name GoblinLook
 extends RefCounted
 ## Veste o modelo do goblin no estilo do jogo: texturas pixeladas de pele, trapo e couro.
 ##
-## O modelo vem do kit do blender-agent sem UV e com cores chapadas. Aqui cada malha
-## ganha UV por projeção em caixa (no espaço de repouso, então a textura acompanha os
-## ossos) e os materiais são trocados pelo nome da cor da paleta ("goblin.pele" etc.).
+## O modelo vem com cores chapadas por nome da paleta ("goblin.pele" etc.). Aqui os
+## materiais com textura viram o goblin_skin.gdshader, que projeta a textura dos três
+## lados e mistura pela normal: sem as emendas que a projeção em caixa por face deixava
+## como linhas na pele. Posição e normal de repouso vão nos atributos do vértice, então
+## a textura acompanha os ossos.
 
 ## Metros cobertos por uma repetição das texturas.
 const TEXEL_SPAN := 0.32
 
+const SHADER := preload("res://assets/shaders/goblin_skin.gdshader")
 const SKIN := preload("res://assets/textures/goblin_skin.png")
 const CLOTH := preload("res://assets/textures/goblin_cloth.png")
 const LEATHER := preload("res://assets/textures/leather.png")
@@ -27,29 +30,31 @@ static func apply(model: Node) -> void:
 	}
 	for node in model.find_children("*", "MeshInstance3D", true, false):
 		var instance := node as MeshInstance3D
-		instance.mesh = _with_box_uvs(instance.mesh as ArrayMesh, materials)
+		instance.mesh = _with_rest_attributes(instance.mesh as ArrayMesh, materials)
 
 
-static func _with_box_uvs(source: ArrayMesh, materials: Dictionary) -> ArrayMesh:
+static func _with_rest_attributes(source: ArrayMesh, materials: Dictionary) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	for surface in source.get_surface_count():
 		var arrays := source.surface_get_arrays(surface)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		# UV = (x, y) e UV2 = (z, 0) da posição de repouso; COLOR = normal de repouso.
 		var uvs := PackedVector2Array()
+		var uvs2 := PackedVector2Array()
+		var colors := PackedColorArray()
 		uvs.resize(vertices.size())
-		# O kit é facetado (vértices separados por face), então a normal do vértice
-		# já diz de qual lado projetar.
+		uvs2.resize(vertices.size())
+		colors.resize(vertices.size())
 		for i in vertices.size():
-			var v := vertices[i] / TEXEL_SPAN
-			var n := normals[i].abs()
-			if n.x >= n.y and n.x >= n.z:
-				uvs[i] = Vector2(v.z, -v.y)
-			elif n.y >= n.z:
-				uvs[i] = Vector2(v.x, v.z)
-			else:
-				uvs[i] = Vector2(v.x, -v.y)
+			var v := vertices[i]
+			var n := normals[i] * 0.5 + Vector3(0.5, 0.5, 0.5)
+			uvs[i] = Vector2(v.x, v.y)
+			uvs2[i] = Vector2(v.z, 0.0)
+			colors[i] = Color(n.x, n.y, n.z)
 		arrays[Mesh.ARRAY_TEX_UV] = uvs
+		arrays[Mesh.ARRAY_TEX_UV2] = uvs2
+		arrays[Mesh.ARRAY_COLOR] = colors
 		var flags := 0
 		var weights = arrays[Mesh.ARRAY_WEIGHTS]
 		if weights != null and weights.size() == vertices.size() * 8:
@@ -61,12 +66,12 @@ static func _with_box_uvs(source: ArrayMesh, materials: Dictionary) -> ArrayMesh
 	return mesh
 
 
-static func _textured(texture: Texture2D, tint: Color) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_texture = texture
-	material.albedo_color = tint
-	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
-	material.roughness = 0.9
+static func _textured(texture: Texture2D, tint: Color) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = SHADER
+	material.set_shader_parameter(&"albedo_texture", texture)
+	material.set_shader_parameter(&"tint", tint)
+	material.set_shader_parameter(&"texel_span", TEXEL_SPAN)
 	return material
 
 

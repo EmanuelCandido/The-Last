@@ -67,11 +67,12 @@ func _ready() -> void:
 		source.unit_size = 14.0
 		source.max_distance = 80.0
 		add_child(source)
-		source.play(randf() * 20.0)
+		source.play(randf() * WIND_LOOP.get_length())
 		_wind_ring.append(source)
-	_ear_wind = _loop(WIND_LOOP, &"Ambience", 7.0)
-	_insects = _loop(preload("res://assets/audio/ambience/grasshoppers_loop.wav"), &"Ambience", 0.0)
-	_cave_tone = _loop(preload("res://assets/audio/ambience/cave_loop.wav"), &"World", 0.0)
+	# Cada loop começa num ponto sorteado: nada soa como faixa dando play junto.
+	_ear_wind = _loop(WIND_LOOP, &"Ambience")
+	_insects = _loop(preload("res://assets/audio/ambience/grasshoppers_loop.wav"), &"Ambience")
+	_cave_tone = _loop(preload("res://assets/audio/ambience/cave_loop.wav"), &"World")
 	for i in RUSTLE_SOURCES:
 		var rustle := OccludedAudio.new()
 		rustle.stream = LEAVES_LOOP
@@ -80,7 +81,7 @@ func _ready() -> void:
 		rustle.max_distance = 45.0
 		rustle.volume_db = -80.0
 		add_child(rustle)
-		rustle.play(randf() * 15.0)
+		rustle.play(randf() * LEAVES_LOOP.get_length())
 		_rustles.append(rustle)
 		_rustle_tree.append(-1)
 	for i in 4:
@@ -219,10 +220,10 @@ func _point_near(ear: Vector3, min_distance: float, max_distance: float, height:
 	return Vector3(here.x + offset.x, ear.y + height, here.y + offset.y)
 
 
-func _loop(stream: AudioStream, bus: StringName, from_position: float) -> AudioStreamPlayer:
+func _loop(stream: AudioStream, bus: StringName) -> AudioStreamPlayer:
 	var player := AudioStreamPlayer.new()
 	player.stream = stream
 	player.bus = bus
 	add_child(player)
-	player.play(from_position)
+	player.play(randf() * stream.get_length())
 	return player

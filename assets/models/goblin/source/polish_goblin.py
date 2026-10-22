@@ -59,6 +59,18 @@ for s, side in [(-1, 'D'), (1, 'E')]:
     set_bone('braco_'+side, (s*.150, .060, .655), elbow)
     set_bone('antebraco_'+side, elbow, wrist, 'braco_'+side)
     set_bone('mao_'+side, wrist, (s*.242, -.050, .280), 'antebraco_'+side)
+# Spine: the kit's single torso bone made the back a rigid board. The torso keeps the
+# lumbar region, a chest bone carries the arms and the upper back, and a neck bone sits
+# between chest and head, so the back can round, arch and bend sideways.
+SPINE_BASE = edit_bones['tronco'].head.copy()
+NECK_TOP = edit_bones['cabeca'].head.copy()
+CHEST_Z = SPINE_BASE.lerp(NECK_TOP, .40).z
+NECK_Z = SPINE_BASE.lerp(NECK_TOP, .88).z
+set_bone('peito', SPINE_BASE.lerp(NECK_TOP, .40), SPINE_BASE.lerp(NECK_TOP, .88), 'tronco')
+set_bone('pescoco', SPINE_BASE.lerp(NECK_TOP, .88), NECK_TOP, 'peito')
+for name in ['braco_D', 'braco_E', 'trapo']:
+    edit_bones[name].parent = edit_bones['peito']
+edit_bones['cabeca'].parent = edit_bones['pescoco']
 bpy.ops.object.mode_set(mode='OBJECT')
 moved = {'.mao': 'mao_', '.punho': 'antebraco_', '.pe': 'pe_', '.tornozelo': 'canela_'}
 for name, world in sockets.items():
@@ -66,6 +78,9 @@ for name, world in sockets.items():
     for suffix, bone in moved.items():
         if name.endswith(suffix) and name.split('.')[0][-1] in 'DE':
             ob.parent_bone = bone + name.split('.')[0][-1]
+    # Torso sockets on the upper back (quiver) now ride on the chest.
+    if ob.parent_bone == 'tronco' and world.translation.z > CHEST_Z - .02:
+        ob.parent_bone = 'peito'
     ob.matrix_world = world
 bpy.context.view_layer.update()
 
@@ -196,7 +211,11 @@ def body_weights(p):
     leg=(1-smoothstep(.305,.393,z)) if abs(x)>.015 else 0
     torso=smoothstep(.412,.535,z)
     remainder=(1-arm)*(1-head)
-    values={'tronco':torso*(1-leg)*remainder,'quadril':(1-torso)*(1-leg)*remainder}
+    # The back blends lumbar -> chest -> neck over a few centimetres at each vertebra group.
+    chest=smoothstep(CHEST_Z-.045,CHEST_Z+.045,z); neck=smoothstep(NECK_Z-.025,NECK_Z+.02,z)
+    trunk=torso*(1-leg)*remainder
+    values={'tronco':trunk*(1-chest),'peito':trunk*chest*(1-neck),'pescoco':trunk*chest*neck,
+            'quadril':(1-torso)*(1-leg)*remainder}
     # Limbs blend across each joint over a few centimetres, like skin over a knee.
     fore=smoothstep(ELBOW_Z+.025,ELBOW_Z-.025,z); hand=smoothstep(WRIST_Z+.012,WRIST_Z-.018,z)
     values['braco_'+side]=arm*(1-fore)
@@ -295,7 +314,8 @@ bm.to_mesh(body.data); bm.free()
 for v in body.data.vertices:
     # Broad, stable soles; no toe or heel floating above the floor.
     if v.co.z < .015: v.co.z=0.0
-for p in body.data.polygons: p.use_smooth=False
+# Smooth skin: flat facets showed every polygon edge as a line on the back and arms.
+for p in body.data.polygons: p.use_smooth=True
 skin_bvh=BVHTree.FromPolygons([v.co for v in body.data.vertices],[tuple(p.vertices) for p in body.data.polygons])
 
 def conform_y(ob, back=False, offset=.008, cuts=1):
@@ -345,8 +365,8 @@ def solidify(ob, thickness=.004):
     return ob
 
 def cloth_weights(p):
-    t=smoothstep(.43,.58,p.z)
-    return {'quadril':1-t,'tronco':t}
+    t=smoothstep(.43,.58,p.z); c=smoothstep(CHEST_Z-.045,CHEST_Z+.045,p.z)
+    return {'quadril':1-t,'tronco':t*(1-c),'peito':t*c}
 
 # Fitted sleeveless rag: open armholes, a V neckline, actual thickness and an uneven hem.
 xs=[-1,-.72,-.40,0,.40,.72,1]
@@ -465,6 +485,11 @@ for ob in collection.objects:
     bm=bmesh.new(); bm.from_mesh(ob.data)
     bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces))
     bm.to_mesh(ob.data); bm.free()
+    # Skin, eyes and teeth are smooth; cloth and leather keep crisp folds.
+    for poly in ob.data.polygons:
+        slot=ob.material_slots[poly.material_index].material if ob.material_slots else None
+        if slot and any(k in slot.name for k in ('pele','olho','pupila','dente')):
+            poly.use_smooth=True
     # Explicit loop UVs remain useful when the model is used outside GoblinLook.
     uv=ob.data.uv_layers.new(name='BoxUV')
     for face in ob.data.polygons:
@@ -473,7 +498,7 @@ for ob in collection.objects:
             v=ob.data.vertices[ob.data.loops[li].vertex_index].co/.32
             uv.data[li].uv=(v.y,v.z) if axis==0 else (v.x,v.z) if axis==1 else (v.x,v.y)
 
-root['polish_version']=2
+root['polish_version']=3
 root['source_of_truth']='source/goblin.blend; source/polish_goblin.py'
 root['style']='realista retro; malha continua; materiais pixelados do jogo'
 bpy.context.scene.frame_set(1)

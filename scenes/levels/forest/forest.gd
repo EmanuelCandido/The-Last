@@ -78,6 +78,8 @@ func _on_level_loaded(level: Node3D) -> void:
 		return
 	Events.screen_fade_requested.emit(1.0, 0.0)
 	Events.screen_fade_requested.emit(0.0, 5.0)
+	# Dormindo, quase não se ouve nada; o som abre enquanto ele senta e levanta.
+	Game.open_ears(7.5, -42.0, 160.0)
 	Game.player.wake_up()
 
 

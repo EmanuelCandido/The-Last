@@ -47,7 +47,7 @@ scenes/
   main/              cena raiz: LevelRoot + UI (HUD, ScreenFade, PauseMenu)
   player/            goblin: player.gd (movimento, arco, soco, interação), goblin_animator.gd
                      (animação procedural no esqueleto) e goblin_look.gd (texturas)
-  items/             arco (pickup na caverna), flecha (projétil), BowMesh (malhas)
+  items/             arco (pickup na caverna), HeldBow (arco na mão, corda que puxa), flecha (projétil), BowMesh (malhas)
   levels/forest/     fase da floresta: forest.tscn/gd e ForestLayout (pontos-chave do mapa)
   levels/test_level/ fase de teste antiga (blocos CSG)
   world/terrain/     Terrain: relevo, malha em blocos, HeightMapShape3D, mapa de abrigo do vento
@@ -80,15 +80,27 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - O abrigo vem do mapa `Terrain.build_wind_exposure()`: mata fechada, vales e caverna abrigam.
   - CPU (`Wind.strength_at`) e GPU (`foliage.gdshader`, globais `wind_*`) fazem a mesma conta.
   - O som, as folhas caindo e a poeira no ar usam `strength_at`.
+- **Câmera:** braço próprio (`CameraPivot/CameraArm`), sem SpringArm. Em `_place_camera`, uma esfera de 0,22 m vai da nuca até o ombro (deslocamento lateral real, não `h_offset`) e de lá para trás, só contra a camada 1. Ao bater, encolhe na hora; quando abre, volta devagar. Colada no goblin, ele fica transparente e some abaixo de 0,6 m. A casca da caverna tem `backface_collision` para a esfera não passar pelo verso dos triângulos.
+- **Passos:** `Footsteps.surface_under()` lança um raio curto para baixo; se acertar uma colisão com meta `surface` (pedras `stone`, troncos `wood`, de `Vegetation._add_shape_collider`), vale ela, senão o `surface_at` do terreno (`cave` no salão da caverna, `stone`, `dirt`, `grass`).
 - **Interação:** nós no grupo `interactable` implementam `interaction_prompt() -> String` e `interact(player)`. São o arco no chão, flecha fincada e bicho abatido. O Player pega o mais próximo dentro de 1,8 m.
 - **Árvores:** `Vegetation.trees` registra cada árvore em pé (posição, raio do tronco, seca ou não, instância no MultiMesh e colisão). `hit_tree()` derruba as secas depois de 4 golpes: a instância some, a colisão sai e uma cópia tomba.
 - **Animação do goblin (`GoblinAnimator`):** 100% procedural, direto no esqueleto; as animações do glb ficam paradas.
   - Cada frame monta uma *pose* (dicionário: altura do quadril, alvo de cada pé, ângulos de tronco, cabeça, braços e orelhas) e só no fim converte em rotações de osso (`_rotate`: eixos do modelo em repouso, carregados pelo pai).
   - Pernas com IK de duas juntas: o pé segue uma trajetória (apoio no chão + arco no ar), então não escorrega e o joelho dobra. O sinal `foot_planted` toca o passo na hora em que o pé encosta.
   - Camadas: andar/correr, respirar e olhar em volta parado, curva, agachar, no ar, aterrissar, mira (braço da corda torce e dobra na horizontal até o queixo) e orelhas com mola.
+  - **Nada perfeito:** a pose neutra (`_neutral`) já é a postura do goblin, curvada e assimétrica (ombro caído, cabeça torta, pés abertos para fora, braços pendurados). Por cima entram oscilações lentas (`_wave`) em cada parte, passadas com altura e abertura sorteadas, ritmo manco (pé direito atrasado), apoio que troca de perna parado e fôlego (ofega e apoia as mãos nos joelhos depois de correr).
+  - Manias parado (`_idle_overlay`): coçar a orelha, farejar, olhar para trás, examinar as garras. Não travam o jogador; qualquer movimento corta.
+  - Arco: base de arqueiro (quadril de lado, pés afastados), braço treme se segurar a corda puxada por mais de 1 s e coice ao soltar.
+  - Pés: `_orient` deixa o pé paralelo ao chão no espaço do esqueleto, girado por `foot_*_yaw`; a perna abre com `leg_*_out`.
+  - Pés no chão (`_ground_feet`): um raio por pé acha a altura e a inclinação do chão embaixo dele (degrau, pedra, encosta). O quadril desce para o pé mais baixo com apoio; pé sem chão fica pendurado, e com só um pé apoiado o peso vai para ele. `foot_supported` é lido pelo Player.
+  - Coluna: o giro do tronco se divide entre `tronco` (lombar) e `peito`; por cima entram `spine_arch` (costas redondas em cima, lombar arqueada), `spine_bend` (curva de lado em S) e `neck_fwd` (`pescoco`). A soma lombar + peito é o giro antigo + arch / 2, então as poses dos braços continuam calibradas.
+  - Borda (`_balance_overlay`): com `teeter` > 0 abre e gira os braços, joga o corpo para longe do vazio e olha para baixo.
   - Ações cronometradas com eventos: `wake` (acordar), `pickup`, `harvest` (coletar caça) e `punch`. O Player só pega o item ou acerta o golpe no evento, quando a mão chega.
-  - Precisa dos ossos `perna/canela/pe`, `braco/antebraco/mao`, `orelha`, `tronco`, `cabeca` e `quadril`. Sem eles o animador desliga sozinho.
+  - Precisa dos ossos `perna/canela/pe`, `braco/antebraco/mao`, `orelha`, `tronco`, `peito`, `pescoco`, `cabeca` e `quadril`. Sem eles o animador desliga sozinho.
+- **Equilíbrio (`Player._update_balance`):** no chão, se não há chão logo embaixo do centro do corpo, ele está na borda. O equilíbrio cai (mais rápido com um pé solto ou andando para o vazio; sem nenhum pé apoiado cai em ~0,25 s) e volta se ele andar para dentro ou se agachar. Se acabar, ele tomba para o lado do vazio (`_tipping`, sem `floor_snap`).
 - **Arco:** `Player` mira com o botão direito (a câmera aproxima). Ao erguer o arco, encaixa uma flecha. Segura e solta o esquerdo para atirar. `Arrow` voa com gravidade, testada por raio a cada frame de física, e finca no que acerta.
+  - `HeldBow` (na mão esquerda): braços que dobram com `draw`, corda em dois segmentos até a mão direita (só a profundidade da mão vale, limitada por `draw`, então a corda volta reta ao soltar) e a flecha encaixada nela.
+  - Depois do tiro, `RELOAD_TIME` (0,75 s): a mão vai até a aljava (`GoblinAnimator.reload`) e só então a próxima flecha aparece na corda, com o som de encaixe.
 - **Grama no relevo:** `Terrain.publish_height_texture()` publica as alturas como global `terrain_height`. Com `follow_ground = 1` (grama e samambaia), o `foliage.gdshader` sobe ou desce cada vértice com o chão embaixo dele.
 - **Bichos** (`Animal`):
   - visão em cone com linha de visada e movimento pesando mais que forma parada; pastando enxergam mal;
@@ -99,6 +111,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 
   O jogador expõe `noise_level()` e `visibility()` (agachado, parado e coberto por capim ou mata).
 - **Física, camadas:** 1 `world` (terreno, caverna, pedras, troncos caídos), 2 `trees`, 3 `player`, 4 `animals` (Area3D de acerto). Raios de som só testam a camada 1. Visão dos bichos: 1 e 2. Flechas: 1, 2 e 4.
+- **Ouvido (`Game.open_ears`):** passa-baixa no Master. Toda troca de fase abre o som em 2,5 s (quem chega a um lugar); o despertar da floresta abre em 7,5 s, de -42 dB e 160 Hz: o volume sobe primeiro e os agudos chegam por último. Loops de ambiente e `OccludedAudio` com autoplay começam num ponto sorteado.
 - **Áudio, buses:**
   - `Ambience`: sons de fora. Passa-baixa que fecha dentro da caverna e eco de vale.
   - `World`: fogo, passos, flechas. Reverb que abre dentro da caverna.
@@ -114,8 +127,8 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 - **Malhas por código:** a face da frente é o sentido **horário** visto de fora (convenção do Godot).
 - **Colisão de pedras e formas irregulares:** malha exata (`create_trimesh_shape`). O casco convexo sobra nas reentrâncias e deixa o jogador "em pé no ar".
 - **Cartões de folhagem** usam `foliage.gdshader`, que é double-sided, já corrige a normal do verso e some perto da câmera.
-- **Goblin:** `GoblinLook.apply()` gera UV por projeção em caixa e troca os materiais pelo nome da paleta (`goblin.pele` etc.).
-  - Ossos (29): `raiz`, `quadril`, `tronco`, `cabeca`, `perna_*`, `canela_*`, `pe_*`, `braco_*`, `antebraco_*`, `mao_*`, `orelha_*` e partes do rosto. `_E` é o lado esquerdo (+X), `_D` o direito.
+- **Goblin:** `GoblinLook.apply()` troca os materiais pelo nome da paleta (`goblin.pele` etc.). Os com textura usam `goblin_skin.gdshader`: projeção dos três lados misturada pela normal, na pose de repouso (posição em UV/UV2, normal em COLOR). Sem emendas, e a textura não escorrega com os ossos.
+  - Ossos (31): `raiz`, `quadril`, `tronco` (lombar), `peito`, `pescoco`, `cabeca`, `perna_*`, `canela_*`, `pe_*`, `braco_*`, `antebraco_*`, `mao_*`, `orelha_*` e partes do rosto. `_E` é o lado esquerdo (+X), `_D` o direito.
   - Sockets viram nós como `braco_E_mao`, presos ao osso `mao_E`.
   - Espaço do esqueleto: Y para cima, +Z frente.
 - **Serialização em `.tscn`:** Transform3D grava as **linhas** da base e depois a origem.
@@ -132,7 +145,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 - **Texturas:** 100% procedurais (`tools/generate_textures.py`).
 - **Sons:**
   - Gravações reais CC0 em `assets/audio/real/`:
-    - passos em grama, terra e pedra, impactos de flecha, golpe na madeira, rangido, coleta e faca (Kenney);
+    - passos em grama, terra, chão da caverna, pedra e tronco, impactos de flecha, golpe na madeira, rangido, coleta e faca (Kenney). Caverna, pedra e tronco passaram por passa-baixa, porque o goblin anda descalço;
     - puxar, encaixar e soltar o arco (Medieval SFX, OpenGameArt).
   - O resto é sintético (`tools/generate_sounds.py`).
   - Uivo do lobo: o jogo usa `assets/audio/animals/wolf_howl_real_N.(ogg|wav|mp3)` se existir; senão, o sintético.
@@ -154,6 +167,5 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 - Comer, fome e vida do goblin.
 - Combate corpo a corpo de verdade, diálogos, missões, atributos.
 - Menu principal e configurações (vídeo, áudio e controles).
-- IK dos pés no relevo: em encosta, os pés seguem a base do modelo e não o chão.
 - Subir degraus (step-up), água, ciclo de dia e noite.
 - A ruína medieval (`ForestLayout.RUINS`).

@@ -41,6 +41,9 @@ func _ready() -> void:
 	_base_volume_db = volume_db
 	_timer = randf() * check_interval
 	bus = clear_bus
+	# Loop que já toca ao entrar na cena (fogueira, folhas): começa num ponto sorteado.
+	if autoplay and stream != null:
+		play(randf() * stream.get_length())
 
 
 func _physics_process(delta: float) -> void:

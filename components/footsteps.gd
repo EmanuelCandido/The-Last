@@ -1,9 +1,11 @@
 class_name Footsteps
 extends AudioStreamPlayer3D
 ## Toca passos conforme o corpo (pai, CharacterBody3D) anda, com o som do chão
-## embaixo dele. A fase informa o chão por `surface_at(posição) -> StringName`.
+## embaixo dele. Se o pé está numa colisão marcada com o meta `surface` (pedra, tronco),
+## vale ela; senão a fase informa o chão por `surface_at(posição) -> StringName`.
 
-## Gravações reais (Kenney, CC0): grama, terra batida e pedra.
+## Gravações reais (Kenney, CC0): grama, terra batida, chão da caverna, pedra e madeira.
+## Pedra, madeira e caverna passaram por um passa-baixa: o goblin anda descalço, sem clique de sola.
 const SOUNDS := {
 	&"grass": [
 		preload("res://assets/audio/real/step_grass_1.ogg"), preload("res://assets/audio/real/step_grass_2.ogg"),
@@ -20,7 +22,19 @@ const SOUNDS := {
 		preload("res://assets/audio/real/step_stone_3.ogg"), preload("res://assets/audio/real/step_stone_4.ogg"),
 		preload("res://assets/audio/real/step_stone_5.ogg"),
 	],
+	&"cave": [
+		preload("res://assets/audio/real/step_cave_1.ogg"), preload("res://assets/audio/real/step_cave_2.ogg"),
+		preload("res://assets/audio/real/step_cave_3.ogg"), preload("res://assets/audio/real/step_cave_4.ogg"),
+		preload("res://assets/audio/real/step_cave_5.ogg"),
+	],
+	&"wood": [
+		preload("res://assets/audio/real/step_wood_1.ogg"), preload("res://assets/audio/real/step_wood_2.ogg"),
+		preload("res://assets/audio/real/step_wood_3.ogg"), preload("res://assets/audio/real/step_wood_4.ogg"),
+		preload("res://assets/audio/real/step_wood_5.ogg"),
+	],
 }
+## Ajuste de volume por chão: a terra da caverna é macia, a pedra estala um pouco.
+const SURFACE_DB := {&"cave": -3.0, &"stone": -2.0, &"wood": -1.0}
 
 ## Distância andada entre um passo e outro (metros).
 @export var stride := 0.65
@@ -50,14 +64,27 @@ func _physics_process(delta: float) -> void:
 
 
 func play_step(extra_db := 0.0) -> void:
-	var surface := &"grass"
-	var level := Game.current_level
-	if level != null and level.has_method("surface_at"):
-		surface = level.surface_at(_body.global_position)
+	var surface := surface_under()
 	var options: Array = SOUNDS.get(surface, SOUNDS[&"grass"])
 	stream = options.pick_random()
 	pitch_scale = randf_range(0.9, 1.1)
 	# Agachado, o goblin pisa devagar e quase não faz barulho.
 	var sneaking: bool = _body.has_method("is_crouching") and _body.is_crouching()
-	volume_db = base_volume_db + extra_db + randf_range(-2.0, 0.0) - (10.0 if sneaking else 0.0)
+	volume_db = base_volume_db + extra_db + float(SURFACE_DB.get(surface, 0.0)) + randf_range(-2.0, 0.0) - (10.0 if sneaking else 0.0)
 	play()
+
+
+## Chão embaixo do corpo: primeiro a colisão em que ele pisa (pedra, tronco), depois o terreno.
+func surface_under() -> StringName:
+	var from := _body.global_position + Vector3.UP * 0.2
+	var query := PhysicsRayQueryParameters3D.create(from, from + Vector3.DOWN * 0.5, 1, [_body.get_rid()])
+	var hit := _body.get_world_3d().direct_space_state.intersect_ray(query)
+	var collider := hit.get("collider") as CollisionObject3D
+	if collider != null:
+		var shape := collider.shape_owner_get_owner(collider.shape_find_owner(hit.shape)) as Node
+		if shape != null and shape.has_meta(&"surface"):
+			return shape.get_meta(&"surface")
+	var level := Game.current_level
+	if level != null and level.has_method("surface_at"):
+		return level.surface_at(_body.global_position)
+	return &"grass"

@@ -25,8 +25,16 @@ const CRAFT_SOUNDS := [
 ]
 ## Camadas que a mira e as flechas enxergam: mundo, árvores e bichos.
 const AIM_MASK := 1 | 2 | 8
+## A câmera só bate no mundo (terreno, caverna, pedras): tronco fino na frente não a empurra.
+const CAMERA_MASK := 1
+## Raio da esfera que testa o caminho da câmera (folga entre a lente e a rocha).
+const CAMERA_RADIUS := 0.22
 ## Flechas feitas com 1 madeira.
 const ARROWS_PER_WOOD := 3
+## Segundos para tirar outra flecha da aljava e encaixar na corda depois de atirar.
+const RELOAD_TIME := 0.75
+## Raio em volta do corpo onde se procura o vazio na borda (m).
+const EDGE_PROBE := 0.32
 
 @export_group("Movimento")
 @export var walk_speed := 2.6
@@ -47,6 +55,10 @@ const ARROWS_PER_WOOD := 3
 @export var gamepad_look_speed := 3.0
 @export var min_pitch_deg := -70.0
 @export var max_pitch_deg := 35.0
+## Distância da câmera atrás do ombro.
+@export var camera_distance := 3.0
+## Deslocamento para a direita (câmera sobre o ombro).
+@export var shoulder_offset := 0.45
 
 @export_group("Arco")
 ## Segundos para puxar a corda até o fim.
@@ -73,21 +85,39 @@ var _tree_target := -1
 var _prompt := ""
 var _pine_warning_cooldown := 0.0
 var _bow: Node3D
+var _right_hand: Node3D
+## Tempo que falta para a próxima flecha estar na corda.
+var _reload := 0.0
+## Equilíbrio na borda (1 firme .. 0 cai) e quanto tempo ainda tomba para fora.
+var _balance := 1.0
+var _tipping := 0.0
+var _edge_dir := Vector3.ZERO
+var _floor_snap := 0.0
 var _quiver: Node3D
 var _draw_sound: AudioStreamPlayer3D
 var _camera_rest := {}
+var _camera_length := 0.0
+var _camera_shoulder := 0.0
+## Comprimento real do braço depois das colisões (encolhe na hora, volta devagar).
+var _arm_length := 0.0
+var _camera_probe := SphereShape3D.new()
+var _model_fade := 0.0
 
 @onready var _visual: Node3D = $Visual
 @onready var _model: Node3D = $Visual/Goblin
 @onready var _camera_pivot: Node3D = $CameraPivot
-@onready var _spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
-@onready var _camera: Camera3D = $CameraPivot/SpringArm3D/Camera3D
+@onready var _camera_arm: Node3D = $CameraPivot/CameraArm
+@onready var _camera: Camera3D = $CameraPivot/CameraArm/Camera3D
 @onready var _footsteps: Footsteps = $Footsteps
 
 
 func _ready() -> void:
 	_spawn_transform = global_transform
-	_spring_arm.add_excluded_object(get_rid())
+	_floor_snap = floor_snap_length
+	_camera_probe.radius = CAMERA_RADIUS
+	_camera_length = camera_distance
+	_camera_shoulder = shoulder_offset
+	_arm_length = camera_distance
 	GoblinLook.apply(_model)
 	# As animações do kit ficam paradas: o corpo é animado por código.
 	var player := _model.find_child("AnimationPlayer") as AnimationPlayer
@@ -100,10 +130,11 @@ func _ready() -> void:
 		_animator.queue_free()
 		_animator = null
 	else:
+		_animator.body = self
 		_animator.foot_planted.connect(func(_side: int) -> void: _footsteps.play_step())
 		_footsteps.driven_by_animation = true
 	_last_yaw = _visual.rotation.y
-	_camera_rest = {"length": _spring_arm.spring_length, "offset": _camera.h_offset, "fov": _camera.fov, "pivot": _camera_pivot.position.y}
+	_camera_rest = {"fov": _camera.fov, "pivot": _camera_pivot.position.y}
 	_draw_sound = AudioStreamPlayer3D.new()
 	_draw_sound.bus = &"World"
 	_draw_sound.unit_size = 3.0
@@ -150,12 +181,18 @@ func _physics_process(delta: float) -> void:
 	# O pivô só gira em Y, então a direção já sai no plano horizontal.
 	var direction := _camera_pivot.global_basis * Vector3(input.x, 0.0, input.y)
 	var target := direction * _current_speed()
+	if _tipping > 0.0:
+		# Perdeu o equilíbrio: o corpo vai para o vazio e o controle não segura.
+		_tipping -= delta
+		target = _edge_dir * 1.8
+		direction = Vector3.ZERO
 	var accel := acceleration if is_on_floor() else acceleration * air_control
 	var weight := 1.0 - exp(-accel * delta)
 	velocity.x = lerpf(velocity.x, target.x, weight)
 	velocity.z = lerpf(velocity.z, target.z, weight)
 
 	move_and_slide()
+	_update_balance(delta, direction)
 
 	if aiming:
 		# Mirando, o goblin olha para onde a câmera aponta.
@@ -186,7 +223,8 @@ func _process(delta: float) -> void:
 		_animator.crouching = _crouching
 		_animator.aiming = aiming
 		_animator.draw = draw
-		_animator.aim_pitch = _spring_arm.rotation.x
+		_animator.reload = clampf(_reload / RELOAD_TIME, 0.0, 1.0)
+		_animator.aim_pitch = _camera_arm.rotation.x
 		_animator.turn_rate = angle_difference(_last_yaw, _visual.rotation.y) / maxf(delta, 0.001)
 		_last_yaw = _visual.rotation.y
 		_animator.update(delta)
@@ -235,7 +273,7 @@ func visibility() -> float:
 ## Aponta a câmera (graus). Yaw 0 olha para -Z.
 func set_camera_angles(yaw_deg: float, pitch_deg: float) -> void:
 	_camera_pivot.rotation.y = deg_to_rad(yaw_deg)
-	_spring_arm.rotation.x = clampf(deg_to_rad(pitch_deg), deg_to_rad(min_pitch_deg), deg_to_rad(max_pitch_deg))
+	_camera_arm.rotation.x = clampf(deg_to_rad(pitch_deg), deg_to_rad(min_pitch_deg), deg_to_rad(max_pitch_deg))
 
 
 func save_data() -> Dictionary:
@@ -251,6 +289,63 @@ func load_data(data: Dictionary) -> void:
 		global_position = Vector3(position_data[0], position_data[1], position_data[2])
 		velocity = Vector3.ZERO
 	_visual.rotation.y = data.get("yaw", _visual.rotation.y)
+
+
+## Equilíbrio na borda. Com o centro do corpo além da borda (sem chão logo embaixo),
+## o goblin se desequilibra: o equilíbrio cai mais rápido se ele anda para o vazio ou
+## está com um pé solto, e volta se ele andar para dentro ou se agachar. Se acabar,
+## ele tomba para o lado do vazio.
+func _update_balance(delta: float, direction: Vector3) -> void:
+	var space := get_world_3d().direct_space_state
+	var over_edge := false
+	if is_on_floor() and _tipping <= 0.0:
+		over_edge = _ground_below(space, global_position, 0.25) == false
+	if not over_edge:
+		_balance = move_toward(_balance, 1.0, delta * 0.8)
+		if is_on_floor():
+			_tipping = 0.0
+			floor_snap_length = _floor_snap
+		_set_teeter(move_toward(_animator.teeter if _animator != null else 0.0, 0.0, delta * (1.0 if not is_on_floor() else 3.0)))
+		return
+	# Para onde fica o vazio: soma das direções em volta sem chão.
+	var void_dir := Vector3.ZERO
+	for i in 8:
+		var offset := Vector3(cos(TAU * i / 8.0), 0.0, sin(TAU * i / 8.0)) * EDGE_PROBE
+		if not _ground_below(space, global_position + offset, 0.35):
+			void_dir += offset
+	if void_dir.length_squared() < 0.0001:
+		void_dir = Vector3(get_floor_normal().x, 0.0, get_floor_normal().z)
+	_edge_dir = void_dir.normalized() if void_dir.length_squared() > 0.0001 else -_visual.global_basis.z
+	var instability := 0.55
+	if _animator != null:
+		var loose := int(not _animator.foot_supported[0]) + int(not _animator.foot_supported[1])
+		# Os dois pés no vazio: não há em que se segurar.
+		instability += 2.5 if loose == 2 else 0.2 * loose
+	if Vector2(velocity.x, velocity.z).dot(Vector2(_edge_dir.x, _edge_dir.z)) > 0.2:
+		instability += 0.5
+	if direction.dot(-_edge_dir) > 0.3:
+		instability -= 0.9
+	if _crouching:
+		instability -= 0.35
+	_balance = clampf(_balance - instability * delta * 0.6, 0.0, 1.0)
+	_set_teeter(0.55 + 0.45 * (1.0 - _balance))
+	if _balance <= 0.0:
+		_tipping = 0.6
+		floor_snap_length = 0.0
+		velocity += _edge_dir * 1.2 + Vector3.UP * 0.8
+
+
+func _ground_below(space: PhysicsDirectSpaceState3D, at: Vector3, depth: float) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.3, at + Vector3.DOWN * depth, 1, [get_rid()])
+	return not space.intersect_ray(query).is_empty()
+
+
+func _set_teeter(amount: float) -> void:
+	if _animator == null:
+		return
+	_animator.teeter = amount
+	var local := _visual.global_basis.inverse() * _edge_dir
+	_animator.teeter_dir = Vector2(local.x, local.z).normalized() if amount > 0.0 else Vector2.ZERO
 
 
 ## Livre para agir: controles ligados e nenhuma ação (pegar, coletar) em andamento.
@@ -270,6 +365,10 @@ func _current_speed() -> float:
 # --- Arco ------------------------------------------------------------------------
 
 func _update_bow(delta: float) -> void:
+	if _reload > 0.0:
+		_reload -= delta
+		if _reload <= 0.0 and aiming and Inventory.has(&"arrow"):
+			OccludedAudio.play_at(self, BOW_NOCK_SOUNDS.pick_random(), global_position + Vector3.UP * 0.7, &"World", -4.0, 2.5)
 	if not aiming:
 		_was_aiming = false
 		if draw > 0.0:
@@ -279,9 +378,9 @@ func _update_bow(delta: float) -> void:
 	if not _was_aiming:
 		_was_aiming = true
 		# Ao erguer o arco, o goblin encaixa uma flecha na corda.
-		if Inventory.has(&"arrow"):
+		if Inventory.has(&"arrow") and _reload <= 0.0:
 			OccludedAudio.play_at(self, BOW_NOCK_SOUNDS.pick_random(), global_position + Vector3.UP * 0.7, &"World", -4.0, 2.5)
-	if Input.is_action_pressed("attack") and Inventory.has(&"arrow"):
+	if Input.is_action_pressed("attack") and _arrow_nocked():
 		if draw == 0.0:
 			_draw_sound.stream = BOW_DRAW_SOUNDS.pick_random()
 			_draw_sound.pitch_scale = 1.0 / draw_time
@@ -292,13 +391,18 @@ func _update_bow(delta: float) -> void:
 			_shoot()
 		draw = 0.0
 		_draw_sound.stop()
-	elif Input.is_action_just_pressed("attack"):
+	elif Input.is_action_just_pressed("attack") and not Inventory.has(&"arrow"):
 		Events.notification_shown.emit("Sem flechas. Aperte R para fazer flechas com madeira.")
+
+
+func _arrow_nocked() -> bool:
+	return _reload <= 0.0 and Inventory.has(&"arrow")
 
 
 func _shoot() -> void:
 	if not Inventory.remove(&"arrow"):
 		return
+	_reload = RELOAD_TIME
 	var origin := _visual.global_position + Vector3.UP * 0.75 + _camera.global_basis.x * 0.15
 	var arrow := Arrow.new()
 	Game.current_level.add_child(arrow)
@@ -326,8 +430,9 @@ func _on_inventory_changed(item: StringName, _amount: int) -> void:
 func _update_gear() -> void:
 	var has_bow := Inventory.has(&"bow")
 	if has_bow and _bow == null:
-		_bow = _attach(BowMesh.build_bow(), "braco_E*mao")
+		_bow = _attach_node(HeldBow.new(), "braco_E*mao")
 		_quiver = _attach(BowMesh.build_quiver(), "tronco*tras")
+		_right_hand = _model.find_child("braco_D*mao", true, false) as Node3D
 	if _bow != null:
 		_bow.visible = has_bow
 		_quiver.visible = has_bow
@@ -341,15 +446,24 @@ func _orient_gear() -> void:
 		_bow.global_basis = _camera.global_basis * Basis(Vector3.UP, PI)
 	else:
 		_bow.global_basis = _visual.global_basis * Basis(Vector3.RIGHT, -0.25)
+	# A corda vai até a mão direita enquanto há flecha encaixada; senão, fica reta.
+	if _bow is HeldBow:
+		var nocked := aiming and _arrow_nocked()
+		var hand := _right_hand.global_position if nocked and _right_hand != null else Vector3.INF
+		(_bow as HeldBow).pose_string(hand, draw, nocked)
 	_quiver.global_basis = _visual.global_basis * Basis(Vector3.BACK, 0.35) * Basis(Vector3.RIGHT, -0.2)
 
 
 func _attach(mesh: Mesh, socket_pattern: String) -> Node3D:
 	var holder := MeshInstance3D.new()
 	holder.mesh = mesh
+	return _attach_node(holder, socket_pattern)
+
+
+func _attach_node(node: Node3D, socket_pattern: String) -> Node3D:
 	var socket := _model.find_child(socket_pattern, true, false) as Node3D
-	(socket if socket != null else _visual).add_child(holder)
-	return holder
+	(socket if socket != null else _visual).add_child(node)
+	return node
 
 
 # --- Interação: pegar coisas, quebrar árvore, fazer flecha -----------------------
@@ -438,14 +552,59 @@ func _land_punch() -> void:
 
 func _update_camera(delta: float) -> void:
 	var weight := 1.0 - exp(-10.0 * delta)
-	_spring_arm.spring_length = lerpf(_spring_arm.spring_length, 1.5 if aiming else _camera_rest.length, weight)
-	_camera.h_offset = lerpf(_camera.h_offset, 0.6 if aiming else _camera_rest.offset, weight)
+	_camera_length = lerpf(_camera_length, 1.5 if aiming else camera_distance, weight)
+	_camera_shoulder = lerpf(_camera_shoulder, 0.6 if aiming else shoulder_offset, weight)
 	_camera.fov = lerpf(_camera.fov, 50.0 - draw * 6.0 if aiming else _camera_rest.fov, weight)
 	_camera_pivot.position.y = lerpf(_camera_pivot.position.y, _camera_rest.pivot - (0.25 if _crouching else 0.0), weight)
+	_place_camera(delta)
+
+
+## Câmera sobre o ombro que não atravessa rocha. Uma esfera vai do pivô (nuca) até o
+## ombro e de lá para trás; onde ela bater, a câmera para. Ao bater, encolhe na hora
+## (nunca mostra o outro lado da parede); quando o caminho abre, volta devagar.
+func _place_camera(delta: float) -> void:
+	var arm := _camera_arm.global_transform
+	var side := arm.basis.x * _camera_shoulder
+	var shoulder := arm.origin + side * _sweep(arm.origin, side)
+	var back := arm.basis.z * _camera_length
+	var free_length := _camera_length * _sweep(shoulder, back)
+	if free_length < _arm_length:
+		_arm_length = free_length
+	else:
+		_arm_length = lerpf(_arm_length, free_length, 1.0 - exp(-3.0 * delta))
+	_camera.global_position = shoulder + arm.basis.z * _arm_length
+	_fade_model()
+
+
+## Fração livre (0..1) do movimento da esfera da câmera de `from` até `from + motion`.
+func _sweep(from: Vector3, motion: Vector3) -> float:
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = _camera_probe
+	query.transform = Transform3D(Basis.IDENTITY, from)
+	query.motion = motion
+	query.collision_mask = CAMERA_MASK
+	query.exclude = [get_rid()]
+	var result := get_world_3d().direct_space_state.cast_motion(query)
+	return result[0]
+
+
+## Com a câmera espremida contra a parede, o goblin fica transparente em vez de a
+## lente entrar na cabeça dele. Colado na lente, some de vez (o brilho dos olhos
+## continuaria boiando na tela).
+func _fade_model() -> void:
+	var distance := _camera.global_position.distance_to(_visual.global_position + Vector3.UP * 0.7)
+	var fade := 1.0 if distance < 0.6 else (1.0 - smoothstep(0.6, 1.3, distance)) * 0.8
+	if absf(fade - _model_fade) < 0.02 and not (fade == 0.0 and _model_fade > 0.0):
+		return
+	_model_fade = fade
+	for node in _visual.find_children("*", "GeometryInstance3D", true, false):
+		var geometry := node as GeometryInstance3D
+		geometry.visible = fade < 1.0
+		geometry.transparency = fade if fade < 1.0 else 0.0
 
 
 func _rotate_camera(yaw: float, pitch: float) -> void:
 	_camera_pivot.rotate_y(yaw)
-	_spring_arm.rotation.x = clampf(
-		_spring_arm.rotation.x + pitch, deg_to_rad(min_pitch_deg), deg_to_rad(max_pitch_deg)
+	_camera_arm.rotation.x = clampf(
+		_camera_arm.rotation.x + pitch, deg_to_rad(min_pitch_deg), deg_to_rad(max_pitch_deg)
 	)

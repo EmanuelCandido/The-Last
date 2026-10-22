@@ -72,11 +72,12 @@ func get_splat(x: float, z: float) -> Color:
 	return _splat[_nearest_index(x, z)]
 
 
-## Tipo de chão para sons de passos: &"stone", &"dirt" ou &"grass".
+## Tipo de chão para sons de passos: &"cave", &"stone", &"dirt" ou &"grass".
 func surface_at(world_position: Vector3) -> StringName:
 	var p := Vector2(world_position.x, world_position.z)
+	# O salão da caverna é terra batida com cascalho, não rocha lisa.
 	if ForestLayout.cave_interior(p) > 0.3:
-		return &"stone"
+		return &"cave"
 	var splat := get_splat(p.x, p.y)
 	if splat.r > 0.5:
 		return &"stone"

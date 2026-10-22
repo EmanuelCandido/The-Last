@@ -41,7 +41,11 @@ func build(floor_height: float) -> void:
 	add_child(shell)
 
 	var collision := CollisionShape3D.new()
-	collision.shape = mesh.create_trimesh_shape()
+	var shape := mesh.create_trimesh_shape()
+	# Casca de face única: sem isto, quem vem pelo lado de trás de um triângulo (a câmera
+	# raspando na borda da boca, por exemplo) atravessa a parede.
+	shape.backface_collision = true
+	collision.shape = shape
 	var body := StaticBody3D.new()
 	body.name = "Collision"
 	body.add_child(collision)

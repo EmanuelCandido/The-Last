@@ -269,7 +269,7 @@ func _scatter_rocks(terrain: Terrain, rng: RandomNumberGenerator) -> void:
 		var basis := Basis.from_euler(Vector3(rng.randf_range(-0.2, 0.2), rng.randf() * TAU, rng.randf_range(-0.2, 0.2))).scaled(Vector3.ONE * rock_scale)
 		var xf := Transform3D(basis, Vector3(p.x, terrain.get_height(p.x, p.y) - 0.1 * rock_scale, p.y))
 		_add_instance(rocks[variant], xf, rock_draw_distance, true)
-		_add_shape_collider(shapes[variant], xf)
+		_add_shape_collider(shapes[variant], xf, &"stone")
 
 
 func _scatter_logs(terrain: Terrain, rng: RandomNumberGenerator) -> void:
@@ -289,7 +289,7 @@ func _scatter_logs(terrain: Terrain, rng: RandomNumberGenerator) -> void:
 		var variant := placed % logs.size()
 		var xf := Transform3D(Basis(Vector3.UP, rng.randf() * TAU), Vector3(p.x, terrain.get_height(p.x, p.y) - 0.12, p.y))
 		_add_instance(logs[variant], xf, small_draw_distance, true)
-		_add_shape_collider(shapes[variant], xf)
+		_add_shape_collider(shapes[variant], xf, &"wood")
 		placed += 1
 
 
@@ -367,8 +367,10 @@ func _add_cylinder_collider(body: StaticBody3D, base: Vector3, radius: float, he
 	return collision
 
 
-func _add_shape_collider(shape: Shape3D, xf: Transform3D) -> void:
+## `surface` é o chão que os passos tocam em cima dessa colisão (Footsteps lê o meta).
+func _add_shape_collider(shape: Shape3D, xf: Transform3D, surface: StringName) -> void:
 	var collision := CollisionShape3D.new()
+	collision.set_meta(&"surface", surface)
 	collision.shape = shape
 	collision.transform = xf
 	_colliders.add_child(collision)
