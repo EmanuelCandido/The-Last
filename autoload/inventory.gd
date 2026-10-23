@@ -11,6 +11,7 @@ const NAMES := {
 	&"meat": "Carne crua",
 	&"cooked_meat": "Carne assada",
 	&"hide": "Couro",
+	&"clothes": "Roupa de couro",
 }
 
 var _items := {}

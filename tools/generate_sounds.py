@@ -392,6 +392,100 @@ def moss_fall():
     return 0.5 * peak_norm(tear) + 0.45 * peak_norm(crumbs) + peak_norm(thud) + 0.35 * peak_norm(patter)
 
 
+# --- Noite e perigo -----------------------------------------------------------------
+
+def crickets_loop(seconds=12):
+    """Grilos: trinados curtos e regulares em poucas notas, uns longe, outros perto."""
+    rng = np.random.default_rng(180)
+    n = seconds * SR
+    out = np.zeros(n)
+    for k in range(6):
+        freq = rng.uniform(3800, 5200)
+        chirp_rate = rng.uniform(1.6, 3.2)
+        pulses = int(rng.integers(3, 5))
+        gain = rng.uniform(0.25, 1.0) / (1 + k * 0.3)
+        period = 1.0 / chirp_rate
+        t0 = rng.uniform(0, period)
+        while t0 < seconds:
+            for p in range(pulses):
+                dur = 0.018
+                t = np.arange(int(dur * SR)) / SR
+                env = np.sin(np.pi * t / dur) ** 2
+                pulse = np.sin(TAU * freq * t) * env * gain
+                start = int((t0 + p * 0.03) * SR)
+                np.add.at(out, (start + np.arange(len(pulse))) % n, pulse)
+            t0 += period * rng.uniform(0.92, 1.08)
+    return out + 0.02 * peak_norm(band(periodic_noise(n, rng), 3500, 6000))
+
+
+def owl(variant):
+    """Coruja: dois ou três pios graves e redondos ("hu... hu-huuu")."""
+    rng = np.random.default_rng(190 + variant)
+    pattern = [(0.0, 0.35), (0.75, 0.18), (1.0, 0.6)] if variant == 1 else [(0.0, 0.5), (0.9, 0.7)]
+    n = int(2.0 * SR)
+    out = np.zeros(n)
+    base = rng.uniform(330, 400)
+    for start, dur in pattern:
+        t = np.arange(int(dur * SR)) / SR
+        freq = base * (1.0 + 0.05 * np.sin(np.pi * t / dur)) - 15 * t / dur
+        env = np.sin(np.pi * np.minimum(t / dur, 1.0)) ** 0.6
+        hoot = tone(freq, ((1, 1.0), (2, 0.12))) * env
+        hoot += 0.08 * band_oneshot(rng.standard_normal(len(t)), 300, 900) * env
+        s = int(start * SR)
+        out[s:s + len(hoot)] += hoot[: n - s]
+    return out
+
+
+def wolf_growl(variant):
+    """Rosnado: um ronco grave e áspero que sobe e desce, com a respiração por trás."""
+    rng = np.random.default_rng(200 + variant)
+    dur = rng.uniform(1.2, 1.8)
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    f = rng.uniform(85, 110) * (1 + 0.12 * np.sin(TAU * rng.uniform(0.8, 1.5) * t))
+    voice = tone(f, ((1, 1.0), (2, 0.8), (3, 0.6), (4, 0.4), (5, 0.3), (6, 0.2)))
+    rough = 0.6 + 0.4 * np.sign(np.sin(TAU * rng.uniform(25, 40) * t))
+    breath = band_oneshot(rng.standard_normal(n), 300, 2500)
+    env = smoothstep(0.0, 0.15, t) * (1 - smoothstep(dur - 0.3, dur, t))
+    x = formants(voice * rough, [(400, 150, 1.0), (900, 200, 0.5)]) + 0.25 * peak_norm(breath)
+    return band_oneshot(peak_norm(x) * env, 50, 3000)
+
+
+def wolf_bite():
+    """Mordida: o estalo dos dentes fechando e um rosnado curto."""
+    rng = np.random.default_rng(210)
+    n = int(0.6 * SR)
+    t = np.arange(n) / SR
+    snap = band_oneshot(burst(rng, 0.03, 0.004, 0.0003), 1200, 7000)
+    snarl_f = 160 * (1 + 0.3 * np.sin(TAU * 7 * t))
+    snarl = formants(tone(snarl_f, ((1, 1.0), (2, 0.7), (3, 0.5), (4, 0.3))), [(600, 200, 1.0)])
+    snarl *= smoothstep(0.0, 0.03, t) * np.exp(-t / 0.18)
+    out = 0.6 * peak_norm(snarl)
+    out[: len(snap)] += peak_norm(snap)
+    return out
+
+
+def wolf_yelp():
+    """Ganido de lobo ferido: agudo, caindo rápido, duas vezes."""
+    out = []
+    for dur, f0 in ((0.28, 1300), (0.4, 1150)):
+        t = np.arange(int(dur * SR)) / SR
+        freq = f0 - 600 * (t / dur) ** 0.7
+        out.append(tone(freq, ((1, 1.0), (2, 0.4), (3, 0.15))) * np.sin(np.pi * t / dur) ** 0.5)
+        out.append(silence(0.08))
+    return concat(*out)
+
+
+def teeth_chatter():
+    """Dentes batendo de frio: estalinhos rápidos e irregulares."""
+    rng = np.random.default_rng(220)
+    n = int(1.4 * SR)
+    times = np.cumsum(rng.uniform(0.045, 0.08, 30)) * SR
+    clicks = place_events(n, times[times < n - 400], lambda: burst(rng, 0.008, 0.0015, 0.0002) * rng.uniform(0.4, 1.0))
+    t = np.arange(n) / SR
+    return band_oneshot(clicks, 1500, 7000) * smoothstep(0.0, 0.1, t) * (1 - smoothstep(1.1, 1.4, t))
+
+
 def main():
     print("Gerando sons em", ROOT)
     write_wav(ROOT / "ambience" / "wind_loop.wav", wind_loop(), loop=True)
@@ -415,6 +509,13 @@ def main():
         write_wav(ROOT / "sfx" / f"chew_{v}.wav", chew(v))
     write_wav(ROOT / "ambience" / "sizzle_loop.wav", sizzle_loop(), loop=True)
     write_wav(ROOT / "sfx" / "moss_fall.wav", moss_fall())
+    write_wav(ROOT / "ambience" / "crickets_loop.wav", crickets_loop(), loop=True)
+    for v in range(1, 3):
+        write_wav(ROOT / "animals" / f"owl_{v}.wav", owl(v))
+        write_wav(ROOT / "animals" / f"wolf_growl_{v}.wav", wolf_growl(v))
+    write_wav(ROOT / "animals" / "wolf_bite.wav", wolf_bite())
+    write_wav(ROOT / "animals" / "wolf_yelp.wav", wolf_yelp())
+    write_wav(ROOT / "sfx" / "teeth_chatter.wav", teeth_chatter())
 
 
 if __name__ == "__main__":

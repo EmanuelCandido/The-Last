@@ -1,3 +1,4 @@
+class_name Campfire
 extends Node3D
 ## Fogueira: brasas, chamas, fumaça, luz tremendo e estalos, do tamanho da lenha que tem.
 ##
@@ -7,6 +8,10 @@ extends Node3D
 
 const SIZZLE := preload("res://assets/audio/ambience/sizzle_loop.wav")
 const FEED_SOUNDS := [preload("res://assets/audio/real/tree_hit_3.ogg"), preload("res://assets/audio/real/wood_creak_2.ogg")]
+
+## Grupo dos fogos acesos ou não (fogueira, e depois tocha): esquentam e espantam lobos.
+## Membros implementam is_lit().
+const FIRE_GROUP := &"fire"
 
 @export var base_energy := 1.0
 @export var stone_material: Material
@@ -29,6 +34,7 @@ var _sizzle: OccludedAudio
 func _ready() -> void:
 	add_to_group(&"interactable")
 	add_to_group(&"persist")
+	add_to_group(FIRE_GROUP)
 	_noise.frequency = 1.5
 	_build_stone_ring()
 	_rest = {"energy": base_energy, "range": _light.omni_range, "crackle": _crackle.volume_db}
@@ -51,6 +57,16 @@ func _process(delta: float) -> void:
 
 func is_lit() -> bool:
 	return fuel > 0.0
+
+
+## Distância (no chão) de `at` até o fogo aceso mais próximo; INF se não há nenhum.
+static func distance_to_fire(at: Vector3) -> float:
+	var best := INF
+	for node in (Engine.get_main_loop() as SceneTree).get_nodes_in_group(FIRE_GROUP):
+		var fire := node as Node3D
+		if fire.is_lit():
+			best = minf(best, Vector2(fire.global_position.x - at.x, fire.global_position.z - at.z).length())
+	return best
 
 
 func add_fuel(amount := 1.0) -> void:

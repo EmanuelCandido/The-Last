@@ -222,27 +222,28 @@ O jogo do goblin precisa ser bom sozinho: é ele que segura as primeiras horas. 
   - cada ciclo antigo vira uma faixa de riscos antigos, mais apagados;
   - antes do Ato II, os antigos ficam sob um musgo que cai no `moss_falls`.
 
-### 4.6 Frio e roupa (F2)
+### 4.6 Frio e roupa (F2; a receita da roupa entra na F3)
 
 - **Frio:** 0–100, por segundo:
 
   | Situação | Variação do frio |
   |---|---|
-  | Noite, fora | +1,2 |
-  | Noite, dentro da caverna | +0,3 |
+  | Noite, fora | +0,6 |
+  | Noite, dentro da caverna | +0,15 |
   | Dia | −1 |
   | A até 4 m de fogo aceso | −3 |
 
   O ganho é multiplicado por `0,5 + Wind.strength_at(pos)`: vento esfria.
 - **Frio > 50:** treme (overlay no animador), aparece o vapor da respiração e os dentes batem.
 - **Frio 100:** a vida cai 0,6/s.
-- **Roupa de couro** (3 couros, §4.10): o ganho de frio cai pela metade. Aparece no modelo como uma túnica de couro presa ao osso `tronco`.
+- **Roupa de couro** (3 couros, §4.10): o ganho de frio cai pela metade. Aparece no modelo como uma túnica de couro presa ao osso `tronco`. O efeito já existe (item `clothes`); a receita e a túnica entram com a lista de fabricar, na F3.
+- **Balanceamento (F2):** com +1,2 por segundo, a noite de 10 min matava em 3 min fora da toca. Com +0,6 o frio enche em ~3 min com vento médio e mata em mais ~3 min: dá para voltar da caçada ao anoitecer.
 
 ### 4.7 Lobos (F2)
 
 - A partir do dia 3, às 21h, nascem **2 lobos** na borda do vale. Somem ao amanhecer.
 - `Wolf extends Animal`, com os mesmos sentidos (visão, audição e faro). A diferença é a reação: em vez de fugir, **ronda, persegue e ataca**:
-  - mordida de 20 a cada 1,2 s;
+  - mordida de 15 a cada 1,6 s, com um tranco que empurra o goblin (com 20 a cada 1,2 s, dois lobos matavam em 3 s);
   - foge com uma flecha; morre com 2;
   - não chega a menos de 6 m de fogo aceso.
 - Morto, rende 2 couros e 2 carnes.
@@ -564,8 +565,8 @@ Cada fase termina jogável, com teste de fumaça, roteiro `--run` e print confer
 | Fase | Entrega | Pronto quando |
 |---|---|---|
 | **F1: Fundação e sobrevivência** ✅ feita | `Tuning`, `StoryBeats`, `Story`, `Clock`, `Vitals`; save genérico; `--set`; fome, comer cru e assado; vida, queda, morte e acordar; fogueira com lenha e assar; dormir na pele; riscos na parede; musgo e o beat `moss_falls`; vinheta de vida baixa; Dicas e estado no pause | Roteiro: caçar, assar, comer, dormir 7 vezes; o musgo cai e começa o Ato II; save e load preservam tudo |
-| **F2: Noite e perigo** | Dia e noite visual, sons da noite, frio, roupa, lobos, uivo de aviso, `shiver` | Print de noite com fogueira legível; lobo persegue e foge do fogo |
-| **F3: Caça completa** | Pegadas, farejar, prender o ar, pedras, lama, lista de fabricar, penas, laço, tocha | Seguir um cervo ferido pelas pegadas; tocar a manada com pedra |
+| **F2: Noite e perigo** ✅ feita | Dia e noite visual, sons da noite, frio (efeito da roupa), lobos, uivo de aviso, `shiver` | Print de noite com fogueira legível; lobo persegue e foge do fogo |
+| **F3: Caça completa** | Pegadas, farejar, prender o ar, pedras, lama, lista de fabricar (com a roupa de couro), penas, laço, tocha | Seguir um cervo ferido pelas pegadas; tocar a manada com pedra |
 | **F4: Rachaduras** | Pistas do Ato I, Vigilância, corvos espiões, cervo branco, ruína (malha, porta, teclado), pintura, sala-espelho, sarcófago | Do musgo até a porta aberta, com os 4 beats de pista disparando |
 | **F5: O Abrigo** | Cena do Abrigo, controle em primeira pessoa, troca de mundo, flashes 1–3, shader de visão borrada | Flash 1 ao dormir no Ato II; ida e volta sem perder estado |
 | **F6: O Zelador** | Componente `Senses`, IA e ronda do Zelador, lucidez, captura, R1–R4 e os efeitos na floresta, Reciclagem | Fazer R1–R4 em sequência; ser pego desfaz o certo |

@@ -7,6 +7,8 @@ extends Node
 ## - folhas: o farfalhar sai das árvores mais próximas, cada uma com o próprio vento;
 ## - chamados de bichos saem de árvores reais, ecoam no vale e ficam abafados atrás
 ##   de terreno ou rocha (OccludedAudio);
+## - dia e noite (Clock.night): de dia pássaros, pica-pau e gafanhotos; de noite grilos,
+##   coruja e uivos ao longe;
 ## - dentro da caverna o som de fora fica abafado (passa-baixa no bus Ambience) e o
 ##   fogo, os passos e as gotas ganham eco (reverb no bus World).
 
@@ -22,6 +24,7 @@ const WOODPECKER := preload("res://assets/audio/animals/woodpecker.wav")
 ## Uivo sintético: usado só enquanto não houver gravações reais (wolf_howl_real_N.ogg/.wav/.mp3).
 const WOLF := preload("res://assets/audio/animals/wolf_howl.wav")
 const WOLF_REAL_PATTERN := "res://assets/audio/animals/wolf_howl_real_%d.%s"
+const OWLS := [preload("res://assets/audio/animals/owl_1.wav"), preload("res://assets/audio/animals/owl_2.wav")]
 
 ## Fontes de vento em volta do ouvinte e a distância delas.
 const WIND_RING := 4
@@ -38,6 +41,7 @@ var indoor := 0.0
 var _wind_ring: Array[AudioStreamPlayer3D] = []
 var _ear_wind: AudioStreamPlayer
 var _insects: AudioStreamPlayer
+var _crickets: AudioStreamPlayer
 var _cave_tone: AudioStreamPlayer
 var _rustles: Array[OccludedAudio] = []
 ## Para cada fonte de farfalhar, o índice da árvore em Vegetation.trees (-1 = livre).
@@ -47,6 +51,7 @@ var _callers: Array[OccludedAudio] = []
 var _bird_timer := 2.0
 var _woodpecker_timer := 20.0
 var _wolf_timer := 45.0
+var _owl_timer := 15.0
 var _wolf_sounds: Array[AudioStream] = []
 var _ambience_bus := AudioServer.get_bus_index(&"Ambience")
 var _world_bus := AudioServer.get_bus_index(&"World")
@@ -72,6 +77,7 @@ func _ready() -> void:
 	# Cada loop começa num ponto sorteado: nada soa como faixa dando play junto.
 	_ear_wind = _loop(WIND_LOOP, &"Ambience")
 	_insects = _loop(preload("res://assets/audio/ambience/grasshoppers_loop.wav"), &"Ambience")
+	_crickets = _loop(preload("res://assets/audio/ambience/crickets_loop.wav"), &"Ambience")
 	_cave_tone = _loop(preload("res://assets/audio/ambience/cave_loop.wav"), &"World")
 	for i in RUSTLE_SOURCES:
 		var rustle := OccludedAudio.new()
@@ -107,14 +113,22 @@ func _process(delta: float) -> void:
 		_assign_rustles(ear)
 	_update_rustles()
 
-	_insects.volume_db = linear_to_db(0.1 * (1.0 - indoor) * (1.0 - 0.5 * smoothstep(0.5, 0.9, Wind.intensity)) + 0.0001)
+	var night := Clock.night()
+	var calm := (1.0 - indoor) * (1.0 - 0.5 * smoothstep(0.5, 0.9, Wind.intensity))
+	_insects.volume_db = linear_to_db(0.1 * calm * (1.0 - night) + 0.0001)
+	_crickets.volume_db = linear_to_db(0.12 * calm * night + 0.0001)
 	_cave_tone.volume_db = linear_to_db(0.3 * indoor + 0.0001)
 	var lowpass := AudioServer.get_bus_effect(_ambience_bus, 0) as AudioEffectLowPassFilter
 	lowpass.cutoff_hz = 20000.0 * pow(700.0 / 20000.0, indoor)
 	var reverb := AudioServer.get_bus_effect(_world_bus, 0) as AudioEffectReverb
 	reverb.wet = lerpf(0.03, 0.4, indoor)
 
-	_tick_calls(delta, ear)
+	_tick_calls(delta, ear, night)
+
+
+## Uivo de um lobo vindo de `at` (usado pela matilha para avisar que está chegando).
+func howl_from(at: Vector3) -> void:
+	_call(_wolf_sounds.pick_random(), at, 60.0, -2.0, randf_range(0.95, 1.05))
 
 
 func _update_wind(ear: Vector3) -> void:
@@ -174,21 +188,32 @@ func _nearest_trees(ear: Vector3) -> Array[int]:
 	return result
 
 
-func _tick_calls(delta: float, ear: Vector3) -> void:
+func _tick_calls(delta: float, ear: Vector3, night: float) -> void:
+	# Os timers sempre correm; o chamado só sai se a hora for dele (pássaro de dia, coruja
+	# de noite), então na passagem os dois rareiam juntos.
 	_bird_timer -= delta
 	if _bird_timer <= 0.0:
 		_bird_timer = randf_range(2.0, 7.0) * (1.0 + indoor * 2.0) * (1.0 + Wind.intensity)
-		_call(BIRDS.pick_random(), _point_near(ear, 10.0, 38.0, 6.0), 10.0, -3.0, randf_range(0.9, 1.15))
+		if randf() > night:
+			_call(BIRDS.pick_random(), _point_near(ear, 10.0, 38.0, 6.0), 10.0, -3.0, randf_range(0.9, 1.15))
 	_woodpecker_timer -= delta
 	if _woodpecker_timer <= 0.0:
 		_woodpecker_timer = randf_range(25.0, 50.0)
-		_call(WOODPECKER, _point_near(ear, 30.0, 60.0, 5.0), 14.0, -2.0, randf_range(0.95, 1.05))
+		if randf() > night:
+			_call(WOODPECKER, _point_near(ear, 30.0, 60.0, 5.0), 14.0, -2.0, randf_range(0.95, 1.05))
+	_owl_timer -= delta
+	if _owl_timer <= 0.0:
+		_owl_timer = randf_range(18.0, 40.0)
+		if randf() < night:
+			_call(OWLS.pick_random(), _point_near(ear, 20.0, 55.0, 8.0), 16.0, -4.0, randf_range(0.95, 1.05))
 	_wolf_timer -= delta
 	if _wolf_timer <= 0.0:
 		_wolf_timer = randf_range(70.0, 140.0)
-		var angle := randf() * TAU
-		var far := ear + Vector3(cos(angle), 0.0, sin(angle)) * randf_range(130.0, 170.0) + Vector3.UP * 30.0
-		_call(_wolf_sounds.pick_random(), far, 70.0, -4.0, randf_range(0.92, 1.05))
+		# Uivo ao longe: quase sempre de noite, raro de dia.
+		if randf() < lerpf(0.15, 1.0, night):
+			var angle := randf() * TAU
+			var far := ear + Vector3(cos(angle), 0.0, sin(angle)) * randf_range(130.0, 170.0) + Vector3.UP * 30.0
+			_call(_wolf_sounds.pick_random(), far, 70.0, -4.0, randf_range(0.92, 1.05))
 
 
 ## Toca um som solto num ponto do mundo, usando um dos tocadores livres.

@@ -37,7 +37,14 @@ Esc — pausar  ·  F3 — desempenho
 • Na fogueira da caverna (E): ponha madeira para a chama crescer e asse a carne crua. A lenha queima com o tempo, até de noite; sem lenha ficam só as brasas, e brasa não assa nada.
 • À noite (ou cansado depois de muito tempo acordado), deite na pele da caverna (E) para dormir até amanhecer. Dormir cura, se a barriga não estiver vazia, e salva o jogo.
 • Cair de muito alto machuca. Com a vida baixa, a borda da tela escurece.
-• Se o goblin morrer, ele acorda na toca na manhã seguinte, mas perde a carne que levava."""
+• Se o goblin morrer, ele acorda na toca na manhã seguinte, mas perde a carne que levava.
+
+[b]NOITE, FRIO E LOBOS[/b]
+• A noite é escura e fria. Fora da toca o goblin esfria, mais ainda no vento; dentro da caverna esfria devagar, e perto do fogo aceso esquenta. Com muito frio ele treme, e no fim o frio machuca.
+• De noite os bichos enxergam pior: é mais fácil chegar perto, e mais difícil achar o caminho.
+• Depois de alguns dias, os lobos caçam à noite. Um uivo avisa que estão chegando. Eles ouvem, veem e farejam como os cervos, mas vêm atrás de você.
+• Lobos têm medo de fogo: perto da fogueira acesa eles não chegam. Com a fogueira apagada, entram na caverna.
+• Uma flechada faz o lobo fugir; duas matam, e ele dá couro e carne. Ao amanhecer, a matilha vai embora."""
 ## Cor das anotações que o próprio Ari deixou.
 const NOTES_COLOR := "#d9c27a"
 

@@ -16,6 +16,25 @@ const WAKE_HOUR := 6.5
 const SLEEP_FROM_HOUR := 18.0
 const SLEEP_UNTIL_HOUR := 5.0
 const SLEEPY_AFTER_HOURS := 10.0
+## Anoitecer e amanhecer (hora em que começa e em que termina a passagem). Entre o fim
+## do anoitecer e o começo do amanhecer é noite fechada.
+const DUSK := Vector2(18.5, 20.5)
+const DAWN := Vector2(5.0, 7.0)
+
+# --- Luz do dia e da noite (§4.1) ------------------------------------------------------
+
+## Céu nublado de dia e de noite; a passagem mistura os dois pela Clock.night(). Na meia
+## passagem (lusco-fusco) a neblina puxa para TWILIGHT_FOG.
+const DAY_LIGHT := {
+	"sun_energy": 0.65, "sun_color": Color(0.86, 0.88, 0.92),
+	"sky_energy": 1.0, "fog_color": Color(0.56, 0.58, 0.6),
+}
+const NIGHT_LIGHT := {
+	"sun_energy": 0.12, "sun_color": Color(0.5, 0.58, 0.85),
+	"sky_energy": 0.13, "fog_color": Color(0.07, 0.085, 0.11),
+}
+const TWILIGHT_FOG := Color(0.48, 0.4, 0.36)
+const TWILIGHT_WEIGHT := 0.45
 
 # --- Corpo (§4.2, §4.3) ------------------------------------------------------------
 
@@ -58,6 +77,23 @@ const NAUSEA_SECONDS := 60.0
 const EAT_TIME := 1.6
 const EAT_BITE_AT := 0.8
 
+## Frio (0..100) ganho por segundo. Fora/dentro da caverna, de noite e de dia (a passagem
+## mistura). O ganho (positivo) é multiplicado por 0,5 + força do vento no goblin.
+const COLD_NIGHT_OUTSIDE := 0.6
+const COLD_NIGHT_CAVE := 0.15
+const COLD_DAY := -1.0
+## Perto de fogo aceso (raio em m), o frio cai por segundo.
+const FIRE_WARMTH := -3.0
+const FIRE_WARM_RADIUS := 4.0
+## Com a roupa de couro, o ganho de frio é multiplicado por isto.
+const CLOTHES_COLD_FACTOR := 0.5
+## A partir disto o goblin treme e o aviso aparece; no máximo, o frio machuca.
+const COLD_SHIVER := 50.0
+const COLD_DAMAGE := 0.6
+
+## De noite os bichos enxergam o goblin com esta fração da visibilidade de dia.
+const NIGHT_VISIBILITY := 0.55
+
 ## Queda: acima desta velocidade (m/s), dano = (v - FALL_DAMAGE_SPEED) * FALL_DAMAGE_PER_MS.
 const FALL_DAMAGE_SPEED := 8.0
 const FALL_DAMAGE_PER_MS := 12.0
@@ -87,3 +123,23 @@ const DARK_HOLD := 1.2
 
 ## Riscos antigos debaixo do musgo, de ciclos passados (o bastante para cobrir a mancha).
 const OLD_MARKS := 640
+
+# --- Lobos (§4.7) --------------------------------------------------------------------
+
+## A partir de que dia, a que hora chegam e a que hora vão embora.
+const WOLVES_FROM_DAY := 3
+const WOLF_ARRIVE_HOUR := 21.0
+const WOLF_LEAVE_HOUR := 5.5
+const WOLF_COUNT := 2
+## O uivo de aviso vem este tanto de horas antes (0,5 h = 30 s).
+const WOLF_WARNING_HOURS := 0.5
+## Nascem na borda do vale, pelo menos a esta distância do goblin.
+const WOLF_SPAWN_MIN_DISTANCE := 60.0
+## Mordida: dano, intervalo e alcance (m).
+const WOLF_BITE := 15.0
+const WOLF_BITE_INTERVAL := 1.6
+const WOLF_BITE_RANGE := 1.3
+## Não chegam a menos disto de um fogo aceso (m).
+const WOLF_FIRE_FEAR := 6.0
+## De quanto em quanto tempo a matilha arrasta a área de caça para onde sentiu o goblin.
+const WOLF_HOME_DRIFT_SECONDS := 25.0

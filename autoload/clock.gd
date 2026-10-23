@@ -34,6 +34,17 @@ func advance(hours: float) -> void:
 		hour_changed.emit(hour)
 
 
+## Quanto é noite agora: 0 de dia, 1 noite fechada, suave no anoitecer e no amanhecer.
+func night() -> float:
+	return night_at(hour)
+
+
+static func night_at(at_hour: float) -> float:
+	if at_hour >= Tuning.DUSK.x:
+		return smoothstep(Tuning.DUSK.x, Tuning.DUSK.y, at_hour)
+	return 1.0 - smoothstep(Tuning.DAWN.x, Tuning.DAWN.y, at_hour)
+
+
 func can_sleep() -> bool:
 	return hour >= Tuning.SLEEP_FROM_HOUR or hour < Tuning.SLEEP_UNTIL_HOUR or hours_awake >= Tuning.SLEEPY_AFTER_HOURS
 

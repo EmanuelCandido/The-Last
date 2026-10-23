@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://components/footsteps.gd" id="3_footsteps"]
 [ext_resource type="Script" path="res://scenes/player/parts/eat_ability.gd" id="4_eat"]
 [ext_resource type="Script" path="res://scenes/player/parts/body_feedback.gd" id="5_body"]
+[ext_resource type="Script" path="res://scenes/player/parts/cold_exposure.gd" id="6_cold"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.26
@@ -50,3 +51,6 @@ script = ExtResource("4_eat")
 
 [node name="BodyFeedback" type="Node" parent="."]
 script = ExtResource("5_body")
+
+[node name="ColdExposure" type="Node" parent="."]
+script = ExtResource("6_cold")

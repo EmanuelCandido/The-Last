@@ -42,6 +42,8 @@ var crouching := false
 var aiming := false
 ## Faminto: parado, a mania mais comum vira pôr a mão na barriga.
 var starving := false
+## Frio (0..1): o corpo treme e, parado, ele se abraça e encolhe.
+var shiver := 0.0
 var draw := 0.0
 ## Buscando outra flecha na aljava (1 = acabou de atirar, 0 = flecha na corda).
 var reload := 0.0
@@ -212,6 +214,7 @@ func update(delta: float) -> void:
 
 	var pose := _locomotion(delta)
 	pose = _idle_overlay(delta, pose)
+	_cold_overlay(pose)
 	_aim_overlay(pose)
 	if _action != &"":
 		_action_time += delta
@@ -770,6 +773,28 @@ func _idle_overlay(delta: float, pose: Dictionary) -> Dictionary:
 		_idle_time = 0.0
 		_next_fidget = randf_range(5.0, 11.0)
 	return pose
+
+
+## Frio: tremor rápido no tronco e na cabeça o tempo todo; quando não está andando nem
+## mirando, abraça o próprio corpo, encolhe o pescoço e baixa as orelhas.
+func _cold_overlay(pose: Dictionary) -> void:
+	if shiver <= 0.001:
+		return
+	var tremble := sin(_time * 41.0) * 0.6 + sin(_time * 29.0 + 1.3) * 0.4
+	pose.torso_roll += tremble * 0.014 * shiver
+	pose.torso_yaw += sin(_time * 33.0 + 0.4) * 0.012 * shiver
+	pose.head_roll += tremble * 0.016 * shiver
+	var hug: float = shiver * (1.0 - 0.7 * float(_weights.move)) * (1.0 - float(_weights.aim))
+	for side in ["l", "r"]:
+		pose["arm_%s_fwd" % side] += 0.5 * hug
+		pose["arm_%s_out" % side] -= 0.06 * hug
+		pose["arm_%s_twist" % side] += 0.6 * hug
+		pose["elbow_%s" % side] += 1.1 * hug + tremble * 0.03 * shiver
+		pose["ear_%s" % side] += 0.35 * shiver
+	pose.spine_arch += 0.1 * hug
+	pose.neck_fwd += 0.05 * hug
+	pose.head_pitch += 0.1 * hug
+	pose.pelvis_y -= 0.01 * hug
 
 
 ## Mecânica do corpo, por cima de qualquer pose (andar, ação, mania, mira): o tronco reage

@@ -53,6 +53,11 @@ func ground_height(x: float, z: float) -> float:
 	return _terrain.get_height(x, z)
 
 
+## Quanto `world_position` está abrigado dentro da caverna (0 fora .. 1 no salão).
+func indoor_at(world_position: Vector3) -> float:
+	return ForestLayout.cave_interior(Vector2(world_position.x, world_position.z))
+
+
 ## Quanto o capim e a mata escondem quem está em `world_position` (0..0.7).
 func cover_at(world_position: Vector3) -> float:
 	var splat := _terrain.get_splat(world_position.x, world_position.z)
@@ -93,6 +98,11 @@ func _spawn_animals() -> void:
 	var crows := CrowFlock.new()
 	crows.terrain = _terrain
 	_animals.add_child(crows)
+	var wolves := WolfPack.new()
+	wolves.name = "WolfPack"
+	wolves.terrain = _terrain
+	wolves.ambience = _ambience
+	_animals.add_child(wolves)
 
 
 func _spawn_animal(animal: Animal, home: Vector2) -> void:

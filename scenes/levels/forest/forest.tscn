@@ -19,6 +19,7 @@
 [ext_resource type="Texture2D" path="res://assets/textures/grass_card.png" id="17_grass_card"]
 [ext_resource type="Script" path="res://scenes/world/ambience/ambience.gd" id="18_ambience"]
 [ext_resource type="Texture2D" path="res://assets/textures/leaf.png" id="19_leaf"]
+[ext_resource type="Script" path="res://scenes/world/day_night/day_night.gd" id="20_day_night"]
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_clouds"]
 frequency = 0.008
@@ -190,6 +191,11 @@ shadow_enabled = true
 shadow_blur = 2.5
 directional_shadow_max_distance = 70.0
 sky_mode = 1
+
+[node name="DayNight" type="Node" parent="." node_paths=PackedStringArray("sun", "environment")]
+script = ExtResource("20_day_night")
+sun = NodePath("../Sun")
+environment = NodePath("../WorldEnvironment")
 
 [node name="Terrain" type="Node3D" parent="."]
 script = ExtResource("2_terrain")

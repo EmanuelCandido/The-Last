@@ -240,6 +240,7 @@ func _process(delta: float) -> void:
 		_animator.crouching = _crouching
 		_animator.aiming = aiming
 		_animator.starving = Vitals.is_starving()
+		_animator.shiver = smoothstep(Tuning.COLD_SHIVER, 90.0, Vitals.cold)
 		_animator.draw = draw
 		_animator.reload = clampf(_reload / RELOAD_TIME, 0.0, 1.0)
 		_animator.aim_pitch = _camera_arm.rotation.x
@@ -317,7 +318,7 @@ func visibility() -> float:
 		value *= 1.0 - float(level.cover_at(global_position)) * (1.0 if _crouching else 0.4)
 	if Vector2(velocity.x, velocity.z).length() < 0.3:
 		value *= 0.6
-	return value
+	return value * lerpf(1.0, Tuning.NIGHT_VISIBILITY, Clock.night())
 
 
 ## Aponta a câmera (graus). Yaw 0 olha para -Z.
