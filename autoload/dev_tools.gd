@@ -139,7 +139,7 @@ func _press(action: String) -> void:
 
 ## "story.act:2" -> Story.debug_set("act", "2").
 func _set_value(entry: String) -> void:
-	var targets := {"story": Story, "clock": Clock, "vitals": Vitals}
+	var targets := {"story": Story, "clock": Clock, "vitals": Vitals, "weather": Weather}
 	var parts := entry.split(":", true, 1)
 	var path := parts[0].split(".", true, 1)
 	if parts.size() < 2 or path.size() < 2 or not targets.has(path[0]):

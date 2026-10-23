@@ -30,7 +30,7 @@ python tools/generate_sounds.py                                         # regera
   - `--frames`, `--hold`, `--press`, `--give`;
   - `--load`, `--save`, `--pause`, `--tips`;
   - `--screenshot`, `--skip-intro`, `--teleport=x,z`, `--camera=yaw,pitch`;
-  - `--set=story.act:2,story.flag:moss_fell,vitals.satiety:10,clock.hour:19` (põe o estado global em qualquer ponto);
+  - `--set=story.act:2,story.flag:moss_fell,vitals.satiety:10,clock.hour:19,weather.rain:3` (põe o estado global em qualquer ponto; `weather.rain:n` chove n horas, 0 para);
   - `--shelter` (acorda Ari no Abrigo, já de pé) e `--flash=n` (começa o flash n, para prints);
   - `--menu` (abre o menu principal; sem `--frames` nem `--screenshot` ele já abre sozinho) e `--welcome` (começa o Bem-vindo de volta);
   - `--run=roteiro.gd`.
@@ -48,7 +48,7 @@ python tools/generate_sounds.py                                         # regera
 ```
 docs/                roteiro.md (rascunho) e plano.md (plano fechado de história e mecânicas, em fases)
 data/                tuning.gd (todos os números de ajuste), story_beats.gd (acontecimentos da história) e recipes.gd (receitas)
-autoload/            Events, Wind, Inventory, Clock, Vitals, Story, Game, SaveSystem, MetaFiles, DevTools
+autoload/            Events, Wind, Inventory, Clock, Weather, Vitals, Story, Game, SaveSystem, MetaFiles, DevTools
 scenes/
   main/              cena raiz: LevelRoot + UI (HUD, ScreenFade, PauseMenu); abre o menu principal
   endings/           Endings (as cenas dos três finais) e WelcomeBack (o Bem-vindo de volta)
@@ -56,16 +56,18 @@ scenes/
                      (animação procedural no esqueleto) e goblin_look.gd (texturas)
   player/parts/      mecânicas novas do goblin como nós filhos: EatAbility (F), BodyFeedback (fome), ColdExposure (frio),
                      SniffAbility (X), BreathControl (Q), StoneThrow (G), MudCamouflage, CraftAbility (R), TorchCarry,
-                     SnareSetter, LeatherClothes e GoblinAutopilot (a IA que joga no Bem-vindo de volta)
+                     SnareSetter, LeatherClothes, AimGuide (mira com fôlego), Practice (aprender pela prática) e
+                     GoblinAutopilot (a IA que joga no Bem-vindo de volta)
   items/             arco (pickup na caverna), HeldBow (arco na mão, corda que puxa), flecha (projétil), pedra jogada,
                      tocha, BowMesh e MeatMesh (malhas)
   levels/forest/     fase da floresta: forest.tscn/gd e ForestLayout (pontos-chave do mapa)
   levels/test_level/ fase de teste antiga (blocos CSG)
   world/terrain/     Terrain: relevo, malha em blocos, HeightMapShape3D, mapa de abrigo do vento
-  world/cave/        Cave: casca de rocha procedural + fogueira, pele de dormir, riscos na parede (WallMarks), pintura
-                     no teto (CavePainting), arco, gotejamento
+  world/cave/        Cave: casca de rocha procedural + fogueira, pele de dormir (e a cama de peles), riscos na parede
+                     (WallMarks), pintura no teto (CavePainting), troféus (Trophies), arco, gotejamento
   world/vegetation/  TreeBuilder (malhas por código) e Vegetation (espalha, instancia, derruba árvores)
-  world/props/       fogueira (lenha, assar), folhas caindo, monte de pedras, poça de lama, laço (Snare e SnareField)
+  world/props/       fogueira (lenha, assar), folhas caindo, monte de pedras, poça de lama, laço (Snare e SnareField),
+                     defumador (SmokingRack), coleta (ForageField e ForageSpot) e tocaias (BlindField)
   world/tracks/      Tracks: pegadas dos bichos (MultiMesh)
   world/clues/       Clues: as pistas do Ato I e os sons que vazam do mundo real
   world/ruin/        Ruin (capela e sala-espelho), RuinDoor (porta e discos) e Sarcophagus
@@ -73,8 +75,9 @@ scenes/
   world/day_night/   DayNight: sol, céu e neblina pela hora (Clock.night)
   world/north_void/  NorthVoid: o mundo acabando ao norte depois do R3 (clima cortado)
   world/memory/      Memory346: a memória do ciclo 346 (o goblin riscando ACORDA), que passa ao carregar o ciclo_346.sav
-  animals/           Animal (sentidos, fuga, ferimento, caça), Deer, WhiteDeer, Rabbit, CrowFlock e Crow, Wolf e WolfPack,
-                     Watchers (os olhos do Zelador: corvos sentinela e espiões, cervo branco)
+  animals/           Animal (sentidos, fuga, ferimento, caça, sono), Herd (manada com casa e agenda), Deer, WhiteDeer,
+                     OldDeer (o Velho), Rabbit, Boar (javali), CrowFlock e Crow, Wolf e WolfPack, Watchers (os olhos do
+                     Zelador: corvos sentinela e espiões, cervo branco)
   shelter/           o Abrigo 9 (mundo real, 2 km abaixo): Shelter (salas por código), ShelterLook (materiais e peças),
                      CareCapsule, VitalsMonitor, WindowBlinds, FlickerLight, Caretaker (corpo do Zelador), Keeper (a IA
                      dele), Visit (lucidez e objetivos da visita), ShelterSwitch (fusível, alicate, cabo, cartão), Ari
@@ -101,8 +104,8 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - `noise_made(pos, raio)`: barulho que assusta bichos;
   - `notification_shown`: avisos na tela;
   - `prompt_changed`: ação disponível agora.
-- **Inventory:** quantidade por item (`bow`, `arrow`, `feathered_arrow`, `wood`, `stone`, `meat`, `cooked_meat`, `white_meat`, `hide`, `feather`, `snare`, `clothes`). Emite `changed` e vai junto no save. `Inventory.HUD_ORDER` diz o que aparece no HUD.
-- **Plano e maleabilidade:** `docs/plano.md` é a fonte da história e das mecânicas, dividida em fases (F1 a F8 feitas). Receitas ficam em `Recipes` (`data/recipes.gd`). Números ficam em `Tuning` (`data/tuning.gd`), nunca soltos no código. Acontecimentos da história ficam em `StoryBeats` (`data/story_beats.gd`): cada beat tem gatilho (`on`), condições (`when`) e ações (`do`). Os sistemas reagem a flags (`Story.flag_changed`), sem saber qual beat as ligou.
+- **Inventory:** quantidade por item (`bow`, `arrow`, `feathered_arrow`, `bone_arrow`, `wood`, `stone`, `meat`, `cooked_meat`, `smoked_meat`, `rotten_meat`, `white_meat`, `berries`, `mushroom`, `hide`, `bone`, `feather`, `snare`, `clothes`, `yew_bow`, `fur_bed`). Emite `changed` e vai junto no save. `Inventory.HUD_ORDER` diz o que aparece no HUD. A carne estraga (F9): cada pedaço de `meat` e `cooked_meat` tem idade em horas (`_ages`, o mais velho primeiro, sai primeiro); passando de `Tuning.MEAT_SPOIL_HOURS`/`COOKED_SPOIL_HOURS` vira `rotten_meat`. As idades vão no save na chave `__ages`.
+- **Plano e maleabilidade:** `docs/plano.md` é a fonte da história e das mecânicas, dividida em fases (F1 a F9 feitas). Receitas ficam em `Recipes` (`data/recipes.gd`). Números ficam em `Tuning` (`data/tuning.gd`), nunca soltos no código. Acontecimentos da história ficam em `StoryBeats` (`data/story_beats.gd`): cada beat tem gatilho (`on`), condições (`when`) e ações (`do`). Os sistemas reagem a flags (`Story.flag_changed`), sem saber qual beat as ligou.
 - **Story:** ato, ciclo (347), riscos deste ciclo (`marks`) e antigos (`old_marks`), flags, contadores (`deer_harvested`, `sleeps_act_2`...), anotações (`notes`, que viram a seção ANOTAÇÕES das Dicas), a Vigilância (`vigilance`, 0..100, só do Ato II em diante) e os objetivos reais (`objectives`, F6). Avalia os beats quando acontece `start`, `slept`, `woke`, `died`, `harvested`, `ate`, `ritual`, `objective`, `memory`, `shelter` (`control_room`, `recordings`) ou `choice` (`ficar`, `acordar`, `trocar`); beat com `"repeat"` dispara toda vez. Ações de beat: `set_flag`, `set_act`, `add_note`, `notify`, `flash` (0 = sorteado entre os vistos), `recycle`, `vigilance`, `wake_real` (Ari acorda no Abrigo), `freeze` e `ending` (um dos finais).
 - **Vigilância e Reciclagem:** `Story.add_vigilance()` sobe e desce (números em `Tuning.VIGILANCE_*`); em 100, `Events.recycle_requested`. `Game.recycle()` desmancha a tela (`recycle.gdshader`), roda `Story.recycle()` (ciclo +1, riscos viram antigos, Vigilância 30, desfaz o último objetivo; ato, flags e anotações ficam), zera o inventário e o corpo, volta ao dia 1 e recarrega a fase.
 - **Watchers (os olhos do Zelador):** do Ato II em diante, corvos sentinela pousados na boca da caverna (`ForestLayout.CAVE_CROW`) e no ninho da ruína (somem com o flag `blind_spot`), corvos que pousam perto do goblin de tempos em tempos (fora do capim alto) e, com Vigilância alta, um cervo branco por dia. `Watchers.watching(ponto)` responde se algum corvo pousado vê o ponto. `Crow` tem o modo do bando e o modo pousado (`perch`: desce planando, segue o goblin com a cabeça, vai embora).
@@ -132,6 +135,19 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - **Título (`MetaFiles`, em `user://toca.cfg`):** `title_mode()` é `""`, `ninho` ou `welcome`; `title()` dá o nome da janela e do menu. `welcome_done()` liga depois de assistir ao Bem-vindo de volta.
   - **Menu principal (`MainMenu`, `Game.open_menu`):** a floresta de verdade atrás (câmera fora da caverna, goblin parado, `Game.menu_open`). Continuar (`SaveSystem.load_game(true)`: põe os globais antes de criar a fase), Novo jogo (confirma, apaga save, arquivos e finais: `Game.start_new_game`) e Sair. No modo `welcome`: Assistir, Novo ciclo (depois de assistir) e Sair. O pause ganhou "Menu principal" (`Game.back_to_menu`). `Events.game_started` volta a mostrar as dicas de controle.
   - **Bem-vindo de volta (`WelcomeBack`, `Game.start_welcome`, `Game.welcome`):** nada salva, o HUD some e o `GoblinAutopilot` (filho do Player) joga apertando as ações do `Input`: pega o arco, caça (cervo antes, coelho de perto; chega agachado, mira com a queda da flecha), coleta, come, fabrica flechas e dorme de noite. Depois de dormir uma vez (ou `Tuning.WELCOME_MAX_HOURS`), os riscos viram OBRIGADO (`WallMarks.carve`, `word_spot`), o goblin olha para a câmera e o menu volta com "Novo ciclo".
+- **Caça e vida na toca (F9, §8b do plano):**
+  - **Chuva (`Weather`, autoload salvo):** a cada hora, `Tuning.RAIN_CHANCE_PER_HOUR` de começar; dura `RAIN_HOURS_MIN..MAX` e entra e sai em `RAIN_FADE_SECONDS` (`Weather.rain`, 0..1). Para com o relógio; o sono pula de uma vez. A floresta faz os riscos (`Rain`, GPUParticles3D em volta da câmera, some na caverna), adensa a neblina (`RAIN_FOG`) e o `DayNight` escurece (`RAIN_DARK`); o `Ambience` toca o `rain_loop` e cala os insetos. Os bichos ouvem e farejam menos (`RAIN_HEARING`, `RAIN_SCENT`). Molhado (fora da caverna e longe da copa, `Vegetation.canopy_at`), o dia não esquenta e o frio soma `RAIN_COLD`.
+  - **Manadas (`Herd`, filho de Animals):** uma por casa em `ForestLayout.DEER_HOMES`, de `HERD_SIZE_MIN..MAX` cervos. A manada tem um centro; cada cervo pasta em volta dele (`Animal.home = centro`, `home_radius`) e anda até ele quando fica longe (`Animal.regroup`). Modos pelo `Clock`: `ROAM` (de dia o centro vai de pasto em pasto pelo vale a `HERD_ROAM_SPEED`), `HOMEWARD` (fim da tarde), `SLEEP` (de noite em casa, `Animal.sleep`, estado `SLEEP`: `SLEEP_SIGHT` e `SLEEP_HEARING`) e `SHELTER` (chovendo, vai para `forest.shelter_near`, a copa mais fechada por perto, e fica parada, `Animal.stand`). Depois de uma fuga o centro passa a ser onde os cervos pararam. O sono do goblin põe a manada em casa (`place_near`). A cada amanhecer ela volta ao tamanho e a floresta repõe coelhos e javalis (`_restock`), sempre a mais de `RESTOCK_MIN_DISTANCE` do goblin.
+  - **Caça legível:** o corpo avisa antes da fuga: com `DEER_ALERT_AT` o bicho para de pastar (orelhas em pé), desconfiado encara em silêncio e com `DEER_STOMP_AT` bate a pata e bufa (`Animal._on_stomp`). A ferida sangra até matar (`Animal._wound`, `BLEED_PER_DAMAGE`, mais rápido correndo). O cervo se acalma a 40 m (`calm_distance`); sozinho muda de casa, com manada volta para ela. Coletar dá `bone`.
+  - **Mira com fôlego (`AimGuide`):** com o arco puxado e o ar preso, desenha a queda da flecha (`Arrow.start_velocity`, `Arrow.gravity_of`) até bater ou `AIM_GUIDE_MAX`.
+  - **Tocaia (`BlindField`, persist):** a receita especial `&"blind"` monta galhos aos pés do goblin (no máximo `BLIND_MAX`); agachado a menos de `BLIND_RADIUS`, `visibility_factors[&"blind"] = BLIND_VISIBILITY`.
+  - **Coleta (`ForageField`, persist):** `FORAGE_MUSHROOMS` tufos ao pé de árvores vivas e `FORAGE_BERRIES` arbustos onde a mata começa, sempre nos mesmos lugares (semente fixa). Cada `ForageSpot` colhido volta em `FORAGE_REGROW_DAYS`. Comidas novas em `Tuning.FOODS` e `FOOD_PREFERENCE`.
+  - **Defumador (`SmokingRack`, filho da Cave, persist):** até `SMOKE_RACK_SLOTS` pedaços crus; com a fogueira acesa, `SMOKE_HOURS` de fumaça viram `smoked_meat` (no sono, conta o que a lenha durou).
+  - **Equipamento:** receitas `bone_arrows` (dano `BONE_ARROW_DAMAGE`, vai primeiro na corda), `yew_bow` (`Arrow.speed_scale = YEW_BOW_SPEED`, `Player.tremor_factors[&"yew"]`) e `fur_bed` (`Vitals.rest` com `FUR_BED_HEAL`/`FUR_BED_SATIETY`; a pele ganha mais camadas). `GoblinAnimator.tremor_scale` multiplica o tremor do arco.
+  - **Prática (`Practice`):** contadores `stealth_seconds` (andando agachado) e `arrow_hits` (`Events.arrow_hit`) no Story; o ganho é `1 - e^(-x/k)` até `PRACTICE_STEALTH_MAX` de barulho a menos (`noise_factors[&"practice"]`) e `PRACTICE_STEADY_MAX` de tremor a menos.
+  - **Troféus (`Trophies`, filho da Cave):** galhadas (`deer_harvested`), presas (`boar_harvested`) e o crânio do Velho (`old_deer_harvested`), presos na parede por raios.
+  - **O Velho (`OldDeer`):** do dia `OLD_DEER_FROM_DAY` em diante, `OLD_DEER_CHANCE` por amanhecer (`forest._maybe_old_deer`, `spawn_old_deer`) até ser caçado; maior, mais vida e sentidos; vai embora às 19h longe do goblin.
+  - **Javali (`Boar`):** em `ForestLayout.BOAR_HOMES`. Assustado de longe foge; a menos de `BOAR_CHARGE_RANGE` ou ferido, investe (`Boar.charge`: `RUN` → `PAST` → `GLARE`, vira a `CHARGE_TURN` para dar para desviar), fere `BOAR_DAMAGE` e, depois de `BOAR_CHARGES` investidas, foge.
 - **Zelador (`Keeper`, F6):** a IA (o corpo é o `Caretaker`). Estados `DOCKED`, `ROUND`, `CHECK`, `FOUND`, `CAPTURE`, `DORMANT`, `TALK` e `ESCORT` (os dois da F8, sem sentidos), com a lente verde, âmbar e vermelha. Sentidos pelo `Senses`: cone de `Tuning.KEEPER_FOV`, alcance menor no escuro (`Shelter.is_dark`) e com Ari rastejando; ouve `noise_level()` e `Events.noise_made`; térmico de 3 m através de parede; o sensor do corredor (`Shelter.sensor_active`) avisa quando Ari passa embaixo. Anda pelo grafo `Keeper.POINTS`/`LINKS`, ou reto quando dois raios (0,4 e 1,1 m) passam livres. Números em `Tuning.KEEPER_*`.
 - **Vazio do norte (`NorthVoid`, R3):** com `climate_cut`, `Terrain.set_north_cut` e `Vegetation.set_north_cut` escondem os blocos além de `Tuning.VOID_EDGE_Z`, que precisa cair numa divisa de bloco de 48 m. Na borda ficam um corte preto sem neblina, uma parede invisível e um fundo preto distante que some no céu. `openness(ponto)` abre a neblina no setor norte (`forest.gd`) e escurece o chão do céu (`DayNight.void_amount`).
 - **Voz do Zelador na floresta (Ato III):** corvo espião com `Crow.speech` fala no primeiro crocito pousado; um salto de Vigilância ≥ `Tuning.KEEPER_ROCK_VOICE_RISE` faz o `Clues` tocar a voz dentro do chão ao lado do goblin. As falas ficam em `StoryBeats.LINES`, e a legenda é `Game.vision.say()`.
@@ -191,7 +207,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 - **Tocha (`Torch`, `TorchCarry`):** na mão direita, segue o socket da mão. É fogo (grupo `fire`): esquenta e afasta lobo. Os bichos veem mais o goblin (`Tuning.TORCH_VISIBILITY`). Mirando, ela é fincada no chão.
 - **Laço (`Snare`, `SnareField`):** armado sobre pegada de coelho; `SnareField` (persist) sorteia a captura com o goblin longe, e as horas dormidas contam de uma vez. Pegou: um `Rabbit` morto (`Animal.kill()`) fica no laço para coletar.
 - **Corvos:** cada corvo do `CrowFlock` é um `Crow` com área de acerto (camada 4). Flechada derruba; no chão, E dá penas. A `Arrow` acerta qualquer área cujo dono tenha `take_hit` e devolve o próprio tipo de flecha (`Arrow.collect_from`).
-- **Bichos** (`Animal`):
+- **Bichos** (`Animal`, ver também F9 acima):
   - visão em cone com linha de visada e movimento pesando mais que forma parada; pastando enxergam mal;
   - audição do `noise_level()` do jogador e de `noise_made`;
   - olfato quando o vento sopra do jogador para o bicho;

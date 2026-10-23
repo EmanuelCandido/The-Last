@@ -868,6 +868,67 @@ def crowd_loop(seconds=10):
     return out + 0.08 * peak_norm(band(periodic_noise(n, rng, 1.0), 80, 600))
 
 
+# --- Caça e vida na toca (F9) ------------------------------------------------------
+
+def rain_loop(seconds=16):
+    """Chuva: um chiado largo (a chuva longe, nas folhas) com gotas batendo perto, umas mais
+    graves (no chão) e outras agudas (nas folhas). Loop."""
+    rng = np.random.default_rng(900)
+    n = seconds * SR
+    swell = slow_env(n, rng, 1, 4, 0.7, 1.0)
+    hiss = band(periodic_noise(n, rng, beta=0.4), 400, 7000) * swell
+    patter = band(periodic_noise(n, rng), 2500, 9000) * swell
+    times = thinned_times(rng, n, 220, swell)
+    drops = place_events(n, times, lambda: burst(rng, rng.uniform(0.003, 0.012), rng.uniform(0.002, 0.01)) * rng.uniform(0.1, 1.0))
+    drops = band(drops, 900, 8000)
+    thuds = place_events(n, thinned_times(rng, n, 25, swell), lambda: burst(rng, 0.03, 0.015) * rng.uniform(0.2, 0.7))
+    thuds = band(thuds, 120, 900)
+    return rms_norm(hiss) + 0.35 * rms_norm(patter) + 0.6 * rms_norm(drops) + 0.3 * rms_norm(thuds)
+
+
+def deer_stomp():
+    """O cervo bate a pata: um baque surdo no chão e um bufo curto pelo nariz."""
+    rng = np.random.default_rng(901)
+    n = int(0.5 * SR)
+    t = np.arange(n) / SR
+    thud = band_oneshot(rng.standard_normal(n), 60, 500) * np.exp(-t / 0.03)
+    puff = formants(rng.standard_normal(n), [(700, 250, 1.0), (1600, 350, 0.5)])
+    puff = np.roll(puff * np.minimum(t / 0.008, 1.0) * np.exp(-t / 0.07), int(0.12 * SR))
+    return peak_norm(1.4 * peak_norm(thud) + 0.6 * peak_norm(puff))
+
+
+def boar_grunt(variant):
+    """Grunhido do javali: roncos curtos e graves pelo nariz, em série."""
+    rng = np.random.default_rng(910 + variant)
+    out = []
+    for _ in range(rng.integers(2, 5)):
+        dur = rng.uniform(0.12, 0.25)
+        m = int(dur * SR)
+        t = np.arange(m) / SR
+        f = rng.uniform(70, 95) * (1 - 0.15 * t / dur)
+        voice = tone(f, tuple((k, 1.0 / k ** 0.7) for k in range(1, 14)))
+        rough = 0.5 + 0.5 * np.sign(np.sin(TAU * rng.uniform(18, 30) * t))
+        nose = band_oneshot(rng.standard_normal(m), 200, 1800)
+        x = formants(voice * rough, [(300, 120, 1.0), (750, 180, 0.4)]) + 0.3 * peak_norm(nose)
+        out.append(peak_norm(x) * np.sin(np.pi * t / dur) ** 0.6)
+        out.append(silence(rng.uniform(0.05, 0.16)))
+    return band_oneshot(np.concatenate(out), 50, 3000)
+
+
+def boar_squeal():
+    """Guincho do javali ferido ou investindo: agudo, áspero e com ronco por baixo."""
+    rng = np.random.default_rng(920)
+    dur = 0.8
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    f = 900 + 500 * np.sin(np.pi * t / dur) + 40 * np.sin(TAU * 22 * t)
+    voice = tone(f, ((1, 1.0), (2, 0.6), (3, 0.35), (4, 0.2)))
+    rough = 0.6 + 0.4 * np.sign(np.sin(TAU * 35 * t))
+    grunt = tone(np.full(n, 90.0), tuple((k, 1.0 / k) for k in range(1, 10)))
+    x = formants(voice * rough, [(1200, 300, 1.0), (2600, 400, 0.4)]) + 0.3 * peak_norm(grunt)
+    return band_oneshot(peak_norm(x) * smoothstep(0.0, 0.04, t) * (1 - smoothstep(dur - 0.2, dur, t)), 80, 6000)
+
+
 def main():
     print("Gerando sons em", ROOT)
     write_wav(ROOT / "ambience" / "wind_loop.wav", wind_loop(), loop=True)
@@ -928,6 +989,16 @@ def main():
     write_wav(ROOT / "sfx" / "blast_door.wav", blast_door())
     write_wav(ROOT / "sfx" / "church_bell.wav", church_bell())
     write_wav(ROOT / "ambience" / "crowd_loop.wav", crowd_loop(), loop=True)
+    write_f9()
+
+
+def write_f9():
+    """Os sons da F9 (dá para gerar só eles: python -c "import generate_sounds as g; g.write_f9()")."""
+    write_wav(ROOT / "ambience" / "rain_loop.wav", rain_loop(), loop=True)
+    write_wav(ROOT / "animals" / "deer_stomp.wav", deer_stomp())
+    for v in range(1, 3):
+        write_wav(ROOT / "animals" / f"boar_grunt_{v}.wav", boar_grunt(v))
+    write_wav(ROOT / "animals" / "boar_squeal.wav", boar_squeal())
 
 
 if __name__ == "__main__":

@@ -1,18 +1,24 @@
 class_name Deer
 extends Animal
-## Cervo: anda em manada, pasta de cabeça baixa (e aí enxerga mal), levanta a cabeça
-## e bufa quando desconfia, e foge em disparada com a manada.
+## Cervo: anda em manada, pasta de cabeça baixa (e aí enxerga mal), ergue a cabeça e as orelhas
+## quando algo chama a atenção, encara quando desconfia, bate a pata e bufa antes de fugir, e
+## foge em disparada com a manada. De noite deita e dorme com a manada.
 
 const SNORT := preload("res://assets/audio/animals/deer_snort.wav")
+const STOMP := preload("res://assets/audio/animals/deer_stomp.wav")
 
 ## Cor do pelo (o cervo branco troca).
 var fur_color := Color(0.62, 0.43, 0.27)
 
 var _body: Node3D
 var _neck: Node3D
+var _head: Node3D
 var _legs: Array[Node3D] = []
 var _phase := 0.0
 var _graze := 0.0
+var _lie := 0.0
+var _ears: Array[Node3D] = []
+var _stomp := 0.0
 
 
 func _init() -> void:
@@ -26,10 +32,11 @@ func _init() -> void:
 	step_volume_db = -11.0
 	step_pitch = 0.9
 	eye_height = 1.45
-	calm_distance = 70.0
+	calm_distance = 40.0
 	max_health = 2.0
 	meat = 3
 	hide = 1
+	bones = 2
 	dead_height = 0.22
 	gallop_stride = 1.7
 	track_size = Vector2(0.2, 0.25)
@@ -44,6 +51,11 @@ func body_node() -> Node3D:
 
 func _alarm_sound() -> AudioStream:
 	return SNORT
+
+
+func _on_stomp() -> void:
+	_stomp = 0.7
+	_play_voice(STOMP)
 
 
 ## Peito na frente do tronco e pescoço/cabeça são pontos vitais.
@@ -68,10 +80,13 @@ func _build_body() -> void:
 	_neck = _joint(_body, Vector3(0.0, 0.12, 0.48))
 	_box(_neck, Vector3(0.17, 0.6, 0.2), Vector3(0.0, 0.26, 0.1), fur, Vector3(0.4, 0.0, 0.0))
 	var head := _joint(_neck, Vector3(0.0, 0.54, 0.24))
+	_head = head
 	_box(head, Vector3(0.2, 0.2, 0.32), Vector3(0.0, 0.0, 0.08), fur)
 	_box(head, Vector3(0.12, 0.11, 0.12), Vector3(0.0, -0.04, 0.28), dark)
 	for side in [-1.0, 1.0]:
-		_box(head, Vector3(0.05, 0.17, 0.1), Vector3(0.12 * side, 0.15, -0.04), fur, Vector3(0.0, 0.0, -0.55 * side))
+		var ear := _joint(head, Vector3(0.08 * side, 0.08, -0.04))
+		_box(ear, Vector3(0.05, 0.17, 0.1), Vector3(0.04 * side, 0.07, 0.0), fur, Vector3(0.0, 0.0, -0.55 * side))
+		_ears.append(ear)
 
 	for leg_pos: Vector3 in [Vector3(0.14, -0.15, 0.45), Vector3(-0.14, -0.15, 0.45), Vector3(0.14, -0.15, -0.45), Vector3(-0.14, -0.15, -0.45)]:
 		var hip := _joint(_body, leg_pos)
@@ -98,6 +113,30 @@ func _animate(delta: float) -> void:
 	_body.rotation.x = sin(_phase * 2.0) * 0.05 * amp if running else 0.0
 
 	_graze = move_toward(_graze, 1.0 if state == State.GRAZE else 0.0, delta * 1.5)
-	# Desconfiado: cabeça bem erguida, encarando o perigo.
-	var alert := -0.3 if state == State.SUSPICIOUS else 0.0
+	_lie = move_toward(_lie, 1.0 if state == State.SLEEP else 0.0, delta * 0.8)
+	# Atento: cabeça erguida e orelhas em pé; desconfiado, ainda mais alta, encarando.
+	var attention := clampf((awareness - Tuning.DEER_ALERT_AT * 0.5) / Tuning.DEER_ALERT_AT, 0.0, 1.0) if state != State.SLEEP else 0.0
+	var alert := -0.3 if state == State.SUSPICIOUS else -0.12 * attention
 	_neck.rotation.x = lerpf(alert, 1.35, _graze) + (sin(Time.get_ticks_msec() * 0.006) * 0.04 * _graze)
+	for i in _ears.size():
+		var side := -1.0 if i == 0 else 1.0
+		_ears[i].rotation.z = side * 0.45 * attention + sin(Time.get_ticks_msec() * 0.004 + i) * 0.08 * (1.0 - attention)
+		_ears[i].rotation.x = -0.3 * attention
+	# Bate a pata da frente no chão.
+	if _stomp > 0.0:
+		_stomp = maxf(_stomp - delta, 0.0)
+		_legs[0].rotation.x = -0.9 * sin(clampf(_stomp / 0.7, 0.0, 1.0) * PI)
+	# Deitado: o corpo desce, as pernas dobram por baixo (encolhem) e o pescoço vira para o lado.
+	if _lie > 0.0:
+		var fold := smoothstep(0.0, 1.0, _lie)
+		_body.position.y = lerpf(_body.position.y, 0.4, fold)
+		for i in _legs.size():
+			_legs[i].rotation.x = lerpf(_legs[i].rotation.x, 0.5 if i < 2 else -0.5, fold)
+			_legs[i].scale = Vector3(1.0, lerpf(1.0, 0.32, fold), 1.0)
+		var nod := sin(Time.get_ticks_msec() * 0.0004 + position.x) > 0.93
+		_neck.rotation.x = lerpf(_neck.rotation.x, -0.1 if nod else 0.6, fold)
+		_neck.rotation.y = lerpf(0.0, 0.0 if nod else 0.9, fold)
+	else:
+		_neck.rotation.y = 0.0
+		for leg in _legs:
+			leg.scale = Vector3.ONE

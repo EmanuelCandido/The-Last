@@ -46,6 +46,7 @@ var _ear_wind: AudioStreamPlayer
 var _insects: AudioStreamPlayer
 var _crickets: AudioStreamPlayer
 var _cave_tone: AudioStreamPlayer
+var _rain: AudioStreamPlayer
 var _rustles: Array[OccludedAudio] = []
 ## Para cada fonte de farfalhar, o índice da árvore em Vegetation.trees (-1 = livre).
 var _rustle_tree: Array[int] = []
@@ -82,6 +83,8 @@ func _ready() -> void:
 	_insects = _loop(preload("res://assets/audio/ambience/grasshoppers_loop.wav"), &"Ambience")
 	_crickets = _loop(preload("res://assets/audio/ambience/crickets_loop.wav"), &"Ambience")
 	_cave_tone = _loop(preload("res://assets/audio/ambience/cave_loop.wav"), &"World")
+	_rain = _loop(preload("res://assets/audio/ambience/rain_loop.wav"), &"Ambience")
+	_rain.volume_db = -80.0
 	for i in RUSTLE_SOURCES:
 		var rustle := OccludedAudio.new()
 		rustle.stream = LEAVES_LOOP
@@ -121,6 +124,11 @@ func _process(delta: float) -> void:
 	_insects.volume_db = linear_to_db(0.1 * calm * (1.0 - night) + 0.0001)
 	_crickets.volume_db = linear_to_db(0.12 * calm * night + 0.0001)
 	_cave_tone.volume_db = linear_to_db(0.3 * indoor + 0.0001)
+	# A chuva: o bus Ambience já abafa dentro da caverna; lá dentro ela ainda soa mais baixa.
+	_rain.volume_db = linear_to_db(0.5 * Weather.rain * lerpf(1.0, 0.35, indoor) + 0.0001)
+	# Na chuva os grilos e os insetos se calam.
+	_insects.volume_db -= 30.0 * Weather.rain
+	_crickets.volume_db -= 30.0 * Weather.rain
 	var lowpass := AudioServer.get_bus_effect(_ambience_bus, 0) as AudioEffectLowPassFilter
 	lowpass.cutoff_hz = 20000.0 * pow(700.0 / 20000.0, indoor)
 	var reverb := AudioServer.get_bus_effect(_world_bus, 0) as AudioEffectReverb

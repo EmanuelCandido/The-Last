@@ -14,6 +14,8 @@
 [ext_resource type="Script" path="res://scenes/player/parts/torch_carry.gd" id="12_torch"]
 [ext_resource type="Script" path="res://scenes/player/parts/snare_setter.gd" id="13_snare"]
 [ext_resource type="Script" path="res://scenes/player/parts/leather_clothes.gd" id="14_clothes"]
+[ext_resource type="Script" path="res://scenes/player/parts/aim_guide.gd" id="15_aim"]
+[ext_resource type="Script" path="res://scenes/player/parts/practice.gd" id="16_practice"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.26
@@ -86,3 +88,9 @@ script = ExtResource("13_snare")
 
 [node name="LeatherClothes" type="Node" parent="."]
 script = ExtResource("14_clothes")
+
+[node name="AimGuide" type="MeshInstance3D" parent="."]
+script = ExtResource("15_aim")
+
+[node name="Practice" type="Node" parent="."]
+script = ExtResource("16_practice")

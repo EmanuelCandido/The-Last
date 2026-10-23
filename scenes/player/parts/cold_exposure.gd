@@ -40,6 +40,13 @@ func exposure() -> float:
 	var night := Clock.night()
 	var indoor := _indoor(at)
 	var rate := lerpf(lerpf(Tuning.COLD_DAY, Tuning.COLD_NIGHT_OUTSIDE, night), lerpf(Tuning.COLD_DAY, Tuning.COLD_NIGHT_CAVE, night), indoor)
+	# Molhado: a chuva esfria fora da toca e longe da copa das árvores.
+	var level := Game.current_level
+	var canopy: float = level.canopy_at(at) if level != null and level.has_method("canopy_at") else 0.0
+	var wet := Weather.rain * (1.0 - indoor) * (1.0 - smoothstep(0.0, Tuning.CANOPY_SHELTER, canopy))
+	# Molhado, o dia não esquenta: a chuva tira o calor e soma o frio dela.
+	if wet > 0.01:
+		rate = lerpf(rate, maxf(rate, 0.0), wet) + Tuning.RAIN_COLD * wet
 	if rate > 0.0:
 		rate *= 0.5 + Wind.strength_at(at)
 		if Inventory.has(&"clothes"):

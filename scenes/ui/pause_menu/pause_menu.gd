@@ -21,13 +21,19 @@ Esc — pausar  ·  F3 — desempenho
 
 [b]CAÇADA[/b]
 • Os bichos [i]enxergam[/i], [i]ouvem[/i] e [i]farejam[/i]. Correndo, você é ouvido de longe; agachado (Ctrl), quase não faz barulho.
-• Eles percebem movimento muito mais que forma parada. Quando um cervo levantar a cabeça e encarar, fique parado até ele voltar a pastar.
+• Eles percebem movimento muito mais que forma parada. Leia o corpo do cervo: [i]ergue a cabeça e as orelhas[/i] (algo chamou a atenção), [i]encara[/i] (desconfiado), [i]bate a pata e bufa[/i] (vai fugir). Ao primeiro sinal, pare ou agache.
 • Pastando, de cabeça baixa, o cervo enxerga mal: é a hora de chegar mais perto.
 • Fique contra o vento! Se o vento sopra de você para o bicho, ele sente seu cheiro de longe. Veja para onde a grama e as folhas se curvam.
 • Capim alto e mata fechada escondem você, ainda mais agachado.
 • Segure o clique para puxar a corda toda: a flecha vai mais longe e machuca mais. De longe, mire um pouco acima: a flecha cai.
-• Acerte o peito ou o pescoço do cervo. Ferido, ele foge sangrando e mais devagar; siga o sangue e as pegadas. Coelhos caem com uma flecha.
+• Acerte o peito ou o pescoço do cervo. Ferido, ele foge sangrando e mais devagar, e a ferida o derruba em menos de um minuto: siga o sangue e as pegadas. Coelhos caem com uma flecha.
 • Se um cervo da manada foge, os outros fogem junto.
+• Cada manada tem a sua casa. De dia ela anda pelo vale todo, pastando; no fim da tarde volta para casa e dorme lá. Dormindo, os cervos quase não enxergam.
+• Prendendo o ar (Q) com a corda puxada, aparece o caminho da flecha.
+• Tocaia de galhos (3 madeiras, R): monta aos seus pés. Agachado dentro dela, você quase some.
+• Javalis fuçam na mata fechada. De longe, fogem; de perto ou feridos, [i]investem[/i]: saia da frente no último instante.
+• Às vezes, depois de alguns dias, um cervo enorme e esperto anda sozinho pelo vale.
+• Com a prática o goblin melhora: andar agachado ensina a pisar leve, e acertar flechas firma o braço.
 • Chegue perto do bicho abatido e aperte E para coletar carne e couro (e as flechas presas nele).
 
 [b]RASTROS, CHEIRO E SILÊNCIO[/b]
@@ -47,10 +53,15 @@ Esc — pausar  ·  F3 — desempenho
 • Laço (1 couro e 1 madeira): arme sobre pegadas de coelho (E) e volte mais tarde. Às vezes pega um.
 • Roupa de couro (3 couros): o frio pega pela metade.
 • Tocha (1 madeira): luz e calor por uns minutos, e lobo não chega perto. Mas os bichos veem você de longe. Ao mirar o arco, o goblin finca a tocha no chão.
+• A caça dá ossos: flechas de osso (ferem mais), arco de teixo (flecha mais rápida, braço firme) e, com couro, a cama de peles (o sono cura mais e dá menos fome).
+• Cada caça coletada deixa um troféu na parede da caverna.
 
 [b]FOME, FOGO E SONO[/b]
 • O goblin sente fome com o tempo. A barriga ronca quando é hora de comer; se a fome apertar demais, ela começa a machucar.
 • Aperte F para comer. Carne crua mata pouco a fome e às vezes faz mal; assada, enche a barriga.
+• Cogumelos ao pé das árvores e frutinhas nos arbustos da borda da mata (E) enganam a fome. Voltam a dar em uns dias.
+• A carne estraga: crua em um dia e meio, assada em três. Estragada, quase sempre faz mal.
+• Defumador (ao lado da fogueira): pendure a carne crua e mantenha o fogo aceso. Em algumas horas vira carne defumada, que não estraga.
 • Na fogueira da caverna (E): ponha madeira para a chama crescer e asse a carne crua. A lenha queima com o tempo, até de noite; sem lenha ficam só as brasas, e brasa não assa nada.
 • À noite (ou cansado depois de muito tempo acordado), deite na pele da caverna (E) para dormir até amanhecer. Dormir cura, se a barriga não estiver vazia, e salva o jogo.
 • Cair de muito alto machuca. Com a vida baixa, a borda da tela escurece.
@@ -61,7 +72,11 @@ Esc — pausar  ·  F3 — desempenho
 • De noite os bichos enxergam pior: é mais fácil chegar perto, e mais difícil achar o caminho.
 • Depois de alguns dias, os lobos caçam à noite. Um uivo avisa que estão chegando. Eles ouvem, veem e farejam como os cervos, mas vêm atrás de você.
 • Lobos têm medo de fogo: perto da fogueira acesa eles não chegam. Com a fogueira apagada, entram na caverna.
-• Uma flechada faz o lobo fugir; duas matam, e ele dá couro e carne. Ao amanhecer, a matilha vai embora."""
+• Uma flechada faz o lobo fugir; duas matam, e ele dá couro e carne. Ao amanhecer, a matilha vai embora.
+
+[b]CHUVA[/b]
+• Às vezes chove. A chuva abafa seus passos e lava o seu cheiro: é um bom tempo para caçar. Mas molha, e molhado o goblin esfria, até de dia. Debaixo das árvores e na toca ela não pega.
+• Na chuva as manadas se abrigam debaixo das árvores mais fechadas e ficam paradas."""
 ## Cor das anotações que o próprio Ari deixou.
 const NOTES_COLOR := "#d9c27a"
 

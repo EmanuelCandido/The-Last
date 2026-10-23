@@ -31,6 +31,17 @@ const MEADOW := Vector2(30.0, 8.0)
 const MEADOW_RADIUS := 18.0
 ## Ruína de pedra no fim da trilha.
 const RUINS := Vector2(-18.0, -46.0)
+## A casa de cada manada de cervos (§8b-B): onde ela volta no fim da tarde e dorme. De dia anda
+## pelo vale todo.
+const DEER_HOMES := [Vector2(42.0, -12.0), Vector2(-42.0, -22.0), Vector2(-52.0, 30.0), Vector2(50.0, 42.0), Vector2(14.0, -62.0)]
+## Onde os javalis fuçam: mata fechada, longe da caverna.
+const BOAR_HOMES := [Vector2(-66.0, -8.0), Vector2(64.0, 4.0), Vector2(30.0, -75.0)]
+## Tocas dos coelhos: cada coelho vive em volta de uma.
+const RABBIT_HOMES := [
+	Vector2(4.0, 54.0), Vector2(-8.0, 30.0), Vector2(6.0, 18.0), Vector2(12.0, 40.0), Vector2(-6.0, -8.0),
+	Vector2(30.0, -30.0), Vector2(-30.0, 8.0), Vector2(38.0, 20.0), Vector2(-24.0, -40.0), Vector2(20.0, 60.0),
+	Vector2(-40.0, 50.0), Vector2(55.0, -30.0),
+]
 
 ## Poças de lama ao lado da trilha (camuflagem, §4.11).
 const MUD_SPOTS := [Vector2(-4.8, 51.0), Vector2(3.6, 21.0), Vector2(1.6, -5.0), Vector2(-13.5, -31.0)]

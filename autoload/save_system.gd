@@ -127,4 +127,4 @@ func restore(payload: Dictionary) -> bool:
 
 ## Estado global salvo junto com a partida. Para salvar um autoload novo, ponha aqui.
 func _globals() -> Dictionary:
-	return {"inventory": Inventory, "story": Story, "clock": Clock, "vitals": Vitals}
+	return {"inventory": Inventory, "story": Story, "clock": Clock, "vitals": Vitals, "weather": Weather}

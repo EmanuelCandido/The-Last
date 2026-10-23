@@ -71,3 +71,6 @@ signal ending_requested(ending: StringName)
 
 ## Uma partida começou de verdade (o menu principal fechou): o HUD volta a mostrar as dicas.
 signal game_started
+
+## Uma flecha do goblin acertou um bicho (`kind`: "deer", "rabbit"...). A prática conta (F9).
+signal arrow_hit(kind: StringName)

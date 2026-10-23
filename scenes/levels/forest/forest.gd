@@ -15,6 +15,8 @@ extends Node3D
 @onready var _fog_sky_affect := _environment.fog_sky_affect
 
 var _void: NorthVoid
+## Os riscos da chuva, em volta da câmera (Weather.rain).
+var _rain: GPUParticles3D
 
 
 func _ready() -> void:
@@ -27,6 +29,16 @@ func _ready() -> void:
 	var painting := CavePainting.new()
 	painting.name = "Painting"
 	_cave.add_child(painting)
+	# A toca (§8b): o defumador ao lado da fogueira e os troféus na parede.
+	var rack := SmokingRack.new()
+	rack.name = "SmokingRack"
+	rack.campfire = _cave.get_node(^"Campfire") as Campfire
+	_cave.add_child(rack)
+	rack.position = Vector3(-2.35, 0.0, -1.0)
+	rack.rotation.y = PI * 0.5
+	var trophies := Trophies.new()
+	trophies.name = "Trophies"
+	_cave.add_child(trophies)
 	var ruin := Ruin.new()
 	ruin.name = "Ruin"
 	add_child(ruin)
@@ -41,6 +53,7 @@ func _ready() -> void:
 	_ambience.vegetation = _vegetation
 	_spawn_animals()
 	_place_props()
+	_build_rain()
 	var spawn := ForestLayout.SPAWN
 	_spawn.position = Vector3(spawn.x, _terrain.get_height(spawn.x, spawn.y) + 0.1, spawn.y)
 	print("[Floresta] Mundo gerado em %d ms." % (Time.get_ticks_msec() - started))
@@ -63,12 +76,56 @@ func _process(_delta: float) -> void:
 	var camera := get_viewport().get_camera_3d()
 	var eye := camera.global_position if camera != null else at
 	var north := _void.openness(eye)
-	_environment.fog_density = lerpf(_outdoor_fog_density, Tuning.NORTH_FOG_DENSITY, north)
+	# Na chuva a neblina adensa.
+	var fog := _outdoor_fog_density * (1.0 + Tuning.RAIN_FOG * Weather.rain)
+	_environment.fog_density = lerpf(fog, Tuning.NORTH_FOG_DENSITY, north)
 	# O console do Zelador (§7): "neblina off" mostra o mundo como ele é, cortado na distância.
 	if Story.has_flag(&"fog_off"):
 		_environment.fog_density = 0.0
 	_environment.fog_sky_affect = lerpf(_fog_sky_affect, 0.1, north)
 	_day_night.void_amount = north * Tuning.VOID_SKY_DARKNESS
+	_update_rain(eye, push)
+
+
+## A chuva cai num bloco em volta da câmera (as gotas ficam no mundo, não andam com ela) e some
+## dentro da caverna.
+func _update_rain(eye: Vector3, push: Vector2) -> void:
+	_rain.global_position = eye + Vector3(0.0, 7.0, 0.0)
+	var inside := ForestLayout.cave_interior(Vector2(eye.x, eye.z))
+	_rain.amount_ratio = Weather.rain * (1.0 - inside)
+	_rain.emitting = _rain.amount_ratio > 0.01
+	(_rain.process_material as ParticleProcessMaterial).gravity = Vector3(push.x * 2.0, -30.0, push.y * 2.0)
+
+
+func _build_rain() -> void:
+	_rain = GPUParticles3D.new()
+	_rain.name = "Rain"
+	_rain.amount = 6000
+	_rain.lifetime = 0.75
+	_rain.local_coords = false
+	_rain.visibility_aabb = AABB(Vector3(-20.0, -16.0, -20.0), Vector3(40.0, 24.0, 40.0))
+	_rain.emitting = false
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	process.emission_box_extents = Vector3(12.0, 2.0, 12.0)
+	process.direction = Vector3.DOWN
+	process.spread = 3.0
+	process.initial_velocity_min = 10.0
+	process.initial_velocity_max = 13.0
+	process.gravity = Vector3(0.0, -30.0, 0.0)
+	_rain.process_material = process
+	var streak := QuadMesh.new()
+	streak.size = Vector2(0.008, 0.55)
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.albedo_color = Color(0.68, 0.72, 0.76, 0.16)
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	streak.material = material
+	_rain.draw_pass_1 = streak
+	_rain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_rain)
 
 
 ## Tipo de chão para os passos (usado pelo componente Footsteps).
@@ -90,6 +147,18 @@ func cover_at(world_position: Vector3) -> float:
 	var splat := _terrain.get_splat(world_position.x, world_position.z)
 	var grass := (1.0 - splat.r) * (1.0 - splat.g) * (1.0 - 0.65 * splat.b)
 	return clampf(grass * 0.5 + _terrain.forest_density(world_position.x, world_position.z) * 0.35, 0.0, 0.7)
+
+
+## Quanto a copa das árvores cobre `world_position` (0..1): abriga da chuva.
+func canopy_at(world_position: Vector3) -> float:
+	return _vegetation.canopy_at(world_position)
+
+
+## O lugar mais coberto pelas copas a até `radius` m (a manada se abriga ali na chuva).
+func shelter_near(world_position: Vector3, radius: float) -> Vector3:
+	var spot := _vegetation.shelter_near(world_position, radius)
+	spot.y = _terrain.get_height(spot.x, spot.z)
+	return spot
 
 
 ## Árvore em pé perto de `world_position` (índice) ou -1. Usado pelo soco do goblin.
@@ -116,12 +185,17 @@ func _on_level_loaded(level: Node3D) -> void:
 
 
 func _spawn_animals() -> void:
-	# Duas manadas de cervos e coelhos espalhados pelo vale.
-	for herd_home: Vector2 in [ForestLayout.MEADOW, Vector2(-40.0, -22.0)]:
-		for i in 3:
-			_spawn_animal(Deer.new(), herd_home)
-	for home: Vector2 in [Vector2(4.0, 54.0), Vector2(-8.0, 30.0), Vector2(6.0, 18.0), Vector2(12.0, 40.0), Vector2(-6.0, -8.0), Vector2(30.0, -30.0)]:
-		_spawn_animal(Rabbit.new(), home)
+	# As manadas de cervos, cada uma com a sua casa (§8b-B), e os coelhos espalhados pelo vale.
+	for i in ForestLayout.DEER_HOMES.size():
+		var herd := Herd.new()
+		herd.name = "Herd%d" % i
+		_animals.add_child(herd)
+		herd.setup(_terrain, self, ForestLayout.DEER_HOMES[i], randi_range(Tuning.HERD_SIZE_MIN, Tuning.HERD_SIZE_MAX), randi())
+	for i in Tuning.RABBIT_COUNT:
+		_spawn_animal(Rabbit.new(), ForestLayout.RABBIT_HOMES[i % ForestLayout.RABBIT_HOMES.size()])
+	for i in Tuning.BOAR_COUNT:
+		_spawn_animal(Boar.new(), ForestLayout.BOAR_HOMES[i % ForestLayout.BOAR_HOMES.size()])
+	Clock.day_started.connect(_on_day_started)
 	var crows := CrowFlock.new()
 	crows.name = "Crows"
 	crows.terrain = _terrain
@@ -164,24 +238,72 @@ func _place_props() -> void:
 		props.add_child(pile)
 		pile.position = Vector3(spot.x, _terrain.get_height(spot.x, spot.y), spot.y)
 		pile.build(height_at)
+	# A coleta e as tocaias (§8b).
+	var forage := ForageField.new()
+	forage.name = "Forage"
+	props.add_child(forage)
+	forage.build(_terrain, _vegetation)
+	var blinds := BlindField.new()
+	blinds.name = "Blinds"
+	blinds.terrain = _terrain
+	props.add_child(blinds)
 
 
 func _spawn_animal(animal: Animal, home: Vector2) -> void:
 	_animals.add_child(animal)
 	animal.setup(_terrain, home, randi())
-	# Caçado (coletado), outro bicho da mesma espécie aparece depois, longe do goblin.
-	animal.tree_exited.connect(_respawn_later.bind(animal is Deer, home))
 
 
-func _respawn_later(is_deer: bool, home: Vector2) -> void:
-	if is_queued_for_deletion() or not is_inside_tree():
+## A cada amanhecer os coelhos e os javalis voltam ao número do vale, nascendo longe do goblin
+## (as manadas se repõem sozinhas, Herd), e às vezes o Velho aparece.
+func _on_day_started(day: int) -> void:
+	_restock(Rabbit, Tuning.RABBIT_COUNT, ForestLayout.RABBIT_HOMES)
+	_restock(Boar, Tuning.BOAR_COUNT, ForestLayout.BOAR_HOMES)
+	_maybe_old_deer(day)
+
+
+func _restock(species: Script, wanted: int, homes_list: Array) -> void:
+	var alive := 0
+	for node in get_tree().get_nodes_in_group(&"animals"):
+		if node.get_script() == species and (node as Animal).state != Animal.State.DEAD:
+			alive += 1
+	var homes := homes_list.duplicate()
+	homes.shuffle()
+	for home: Vector2 in homes:
+		if alive >= wanted:
+			break
+		if _near_player(home, Tuning.RESTOCK_MIN_DISTANCE):
+			continue
+		_spawn_animal(species.new() as Animal, home)
+		alive += 1
+
+
+## O Velho (§8b-G): do dia OLD_DEER_FROM_DAY em diante, em alguns amanheceres, até ser caçado.
+func _maybe_old_deer(day: int) -> void:
+	if day < Tuning.OLD_DEER_FROM_DAY or Story.count(&"old_deer_harvested") > 0 or randf() >= Tuning.OLD_DEER_CHANCE:
 		return
-	# Conexão com um método desta fase: se a fase sair antes, o timer não chama nada.
-	get_tree().create_timer(120.0).timeout.connect(_respawn.bind(is_deer, home))
+	if not get_tree().get_nodes_in_group(&"animals").filter(func(node: Node) -> bool: return node is OldDeer).is_empty():
+		return
+	spawn_old_deer()
 
 
-func _respawn(is_deer: bool, home: Vector2) -> void:
+## Põe o Velho num canto do vale longe do goblin (o DevTools e os roteiros também chamam).
+func spawn_old_deer(at := Vector2.INF) -> OldDeer:
+	var home := at
+	for attempt in 30:
+		if home != Vector2.INF:
+			break
+		var angle := randf() * TAU
+		var p := Vector2(cos(angle), sin(angle)) * randf_range(40.0, ForestLayout.VALLEY_RADIUS - 20.0)
+		if not _near_player(p, Tuning.RESTOCK_MIN_DISTANCE) and p.y > Tuning.VOID_EDGE_Z + 15.0 and _terrain.get_normal(p.x, p.y).y > 0.85:
+			home = p
+	if home == Vector2.INF:
+		return null
+	var old := OldDeer.new()
+	_spawn_animal(old, home)
+	return old
+
+
+func _near_player(p: Vector2, distance: float) -> bool:
 	var player := Game.player
-	if player != null and Vector2(player.global_position.x, player.global_position.z).distance_to(home) < 60.0:
-		home = -home
-	_spawn_animal(Deer.new() if is_deer else Rabbit.new(), home)
+	return player != null and Vector2(player.global_position.x, player.global_position.z).distance_to(p) < distance

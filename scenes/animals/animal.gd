@@ -9,6 +9,10 @@ extends Node3D
 ## - audição: o barulho dos passos do goblin (agachado quase não faz) e barulhos
 ##   altos do mundo (Events.noise_made: árvore caindo, flecha batendo);
 ## - olfato: se o vento sopra do goblin para o bicho, ele sente o cheiro de longe.
+## Antes disso o corpo avisa: com Tuning.DEER_ALERT_AT ele para de pastar e ergue a cabeça, e
+## desconfiado, com DEER_STOMP_AT, bate a pata (`_on_stomp`).
+## Ferido, a ferida sangra até ele cair (Tuning.BLEED_PER_DAMAGE). De noite, quem tem manada dorme
+## (SLEEP: quase não enxerga e ouve menos); a manada (Herd) diz onde ficar.
 ## Os estímulos somam `awareness`: acima de SUSPICIOUS o bicho para e encara; acima de
 ## FLEE ele foge (e avisa a manada). A atenção não passa de estímulo × Tuning.ANIMAL_AWARENESS_CEILING:
 ## um sinal fraco (longe, de lado, um cheiro ralo) deixa desconfiado, mas não faz fugir. Ferido, foge sangrando e mais devagar; morto,
@@ -16,7 +20,7 @@ extends Node3D
 ##
 ## Não usa física para andar: segue a altura do Terrain. O modelo olha para +Z.
 
-enum State { IDLE, GRAZE, WALK, SUSPICIOUS, FLEE, DEAD }
+enum State { IDLE, GRAZE, WALK, SUSPICIOUS, FLEE, DEAD, SLEEP }
 
 const SENSE_INTERVAL := 0.15
 const SIGHT_MASK := 1 | 2
@@ -60,6 +64,8 @@ const PICKUP_SOUND := preload("res://assets/audio/real/pickup_5.ogg")
 ## Que carne o bicho dá (o cervo branco dá a carne branca).
 @export var meat_item := &"meat"
 @export var hide := 1
+## Ossos que a caça dá (pontas de flecha, o arco de teixo).
+@export var bones := 1
 ## Altura do corpo deitado, quando morre.
 @export var dead_height := 0.22
 ## Grupo da manada ("" = vive sozinho).
@@ -74,6 +80,8 @@ var speed := 0.0
 ## Atenção (0 calmo .. 1+ fugindo).
 var awareness := 0.0
 var health := 2.0
+## A manada que comanda este bicho (null = vive sozinho e muda de casa depois de fugir).
+var herd_node: Herd
 
 var _target := Vector2.ZERO
 var _timer := 0.0
@@ -93,6 +101,10 @@ var _stride := 0.0
 var _frozen := 0.0
 var _track_distance := 0.0
 var _track_left := false
+## O que a ferida já tirou de vida (o sangramento é proporcional a ela).
+var _wound := 0.0
+## Já bateu a pata desta vez que desconfiou.
+var _stomped := false
 var _hitbox: Area3D
 var _voice: OccludedAudio
 var _steps: OccludedAudio
@@ -141,6 +153,7 @@ func _physics_process(delta: float) -> void:
 	_think(delta, here)
 	_move(delta, here)
 	_bleed(delta)
+	_bleed_out(delta)
 	_animate(delta)
 
 
@@ -168,6 +181,11 @@ func _alarm_sound() -> AudioStream:
 	return null
 
 
+## Desconfiado e cada vez mais certo do perigo: o aviso antes da fuga (o cervo bate a pata e bufa).
+func _on_stomp() -> void:
+	pass
+
+
 ## Som do bicho ao ser ferido ou morto. Nulo = usa o de alarme.
 func _hurt_sound() -> AudioStream:
 	return _alarm_sound()
@@ -182,7 +200,9 @@ func _vital_multiplier(_local_point: Vector3) -> float:
 func take_hit(power: float, point: Vector3, _direction: Vector3, damage := 1.0) -> void:
 	if state == State.DEAD:
 		return
-	health -= lerpf(0.6, 1.4, power) * damage * _vital_multiplier(to_local(point))
+	var hurt := lerpf(0.6, 1.4, power) * damage * _vital_multiplier(to_local(point))
+	health -= hurt
+	_wound += hurt
 	if Game.player != null:
 		_threat = Vector2(Game.player.global_position.x, Game.player.global_position.z)
 	_play_voice(_hurt_sound())
@@ -205,6 +225,44 @@ func alarm(threat: Vector2) -> void:
 	get_tree().create_timer(_rng.randf_range(0.1, 0.5)).timeout.connect(func() -> void:
 		if state != State.DEAD and state != State.FLEE:
 			_enter(State.FLEE))
+
+
+## A manada mandou: deita e dorme onde está.
+func sleep() -> void:
+	if state in [State.DEAD, State.FLEE, State.SUSPICIOUS]:
+		return
+	awareness = 0.0
+	_enter(State.SLEEP)
+
+
+## Acorda (amanheceu, ou a manada vai sair).
+func wake() -> void:
+	if state == State.SLEEP:
+		_enter(State.IDLE)
+
+
+## A manada está longe: anda até ela (um ponto em volta do centro novo).
+func regroup() -> void:
+	if state in [State.DEAD, State.FLEE, State.SUSPICIOUS, State.SLEEP]:
+		return
+	_enter(State.WALK)
+
+
+## Fica parado no lugar (debaixo da árvore, esperando a chuva passar).
+func stand() -> void:
+	if state in [State.GRAZE, State.WALK]:
+		_enter(State.IDLE)
+		_timer = _rng.randf_range(6.0, 12.0)
+
+
+## Põe o bicho perto de `at` sem andar (a noite passou enquanto o goblin dormia).
+func place_near(at: Vector2, radius: float) -> void:
+	var p := at + Vector2(_rng.randf_range(-1.0, 1.0), _rng.randf_range(-1.0, 1.0)) * radius
+	if not _is_walkable(p):
+		p = at
+	position = Vector3(p.x, terrain.get_height(p.x, p.y), p.y)
+	speed = 0.0
+	awareness = 0.0
 
 
 ## Trava no meio do passo por `seconds`, mudo, como uma imagem parada.
@@ -248,7 +306,11 @@ func interact(_player: Node) -> void:
 		Inventory.add(meat_item, meat)
 	if hide > 0:
 		Inventory.add(&"hide", hide)
+	if bones > 0:
+		Inventory.add(&"bone", bones)
 	var message := "+%d %s, +%d couro" % [meat, String(Inventory.NAMES.get(meat_item, "carne")).to_lower(), hide]
+	if bones > 0:
+		message += ", +%d osso%s" % [bones, "s" if bones > 1 else ""]
 	if arrows > 0:
 		message += ", +%d flecha%s" % [arrows, "s" if arrows > 1 else ""]
 	Events.notification_shown.emit(message)
@@ -279,15 +341,18 @@ func _sense(dt: float) -> void:
 			sight *= 1.0 if angle < 60.0 else 0.5
 			if state == State.GRAZE:
 				sight *= 0.35
+			elif state == State.SLEEP:
+				sight *= Tuning.SLEEP_SIGHT
 			seen = sight * 3.0
 			stimulus += seen
 
 	if distance < hearing_range:
-		stimulus += player.noise_level() * (1.0 - distance / hearing_range) * 2.0
+		var heard := player.noise_level() * (1.0 - distance / hearing_range) * 2.0 * lerpf(1.0, Tuning.RAIN_HEARING, Weather.rain)
+		stimulus += heard * (Tuning.SLEEP_HEARING if state == State.SLEEP else 1.0)
 
 	var from_player := Vector2(global_position.x - player.global_position.x, global_position.z - player.global_position.z)
 	# Coberto de lama, o goblin cheira menos (Player.scent_level).
-	var scent_range := (smell_range * Wind.intensity + 6.0) * player.scent_level()
+	var scent_range := (smell_range * Wind.intensity + 6.0) * player.scent_level() * lerpf(1.0, Tuning.RAIN_SCENT, Weather.rain)
 	if from_player.length() < scent_range:
 		var downwind := from_player.normalized().dot(Wind.direction)
 		if downwind > 0.6:
@@ -328,22 +393,32 @@ func _think(delta: float, here: Vector2) -> void:
 		_enter(State.FLEE)
 		return
 	match state:
+		State.SLEEP:
+			if awareness >= SUSPICIOUS:
+				_enter(State.SUSPICIOUS)
 		State.IDLE, State.GRAZE, State.WALK:
 			if awareness >= SUSPICIOUS:
 				_enter(State.SUSPICIOUS)
+			elif state == State.GRAZE and awareness >= Tuning.DEER_ALERT_AT:
+				# Algo chamou a atenção: para de pastar e ergue a cabeça.
+				_enter(State.IDLE)
 			elif state == State.WALK and (here.distance_to(_target) < 0.6 or _timer <= 0.0):
 				_enter(State.GRAZE if _rng.randf() < 0.7 else State.IDLE)
 			elif state != State.WALK and _timer <= 0.0:
 				_enter(State.WALK if _rng.randf() < 0.6 else State.GRAZE)
 		State.SUSPICIOUS:
+			if awareness >= Tuning.DEER_STOMP_AT and not _stomped:
+				_stomped = true
+				_on_stomp()
 			if awareness < SUSPICIOUS * 0.6 and _timer <= 0.0:
 				_enter(State.GRAZE)
 		State.FLEE:
 			_stamina = maxf(_stamina - delta / 18.0, 0.0)
 			var wounded := health < max_health
 			if here.distance_to(_threat) > calm_distance and awareness < 0.3 and not wounded:
-				# Acalma onde parou e passa a viver por ali.
-				home = here
+				# Sozinho, acalma onde parou e passa a viver por ali; com manada, volta para ela.
+				if herd_node == null:
+					home = here
 				_enter(State.WALK)
 	if state != State.FLEE:
 		_stamina = minf(_stamina + delta / 30.0, 1.0)
@@ -361,9 +436,12 @@ func _enter(new_state: State) -> void:
 			_target = _pick_target()
 			_timer = 15.0
 		State.SUSPICIOUS:
+			# Encarar é em silêncio; o bufo vem com a pata (_on_stomp) e com a fuga.
 			_timer = _rng.randf_range(3.0, 6.0)
 			if previous != State.SUSPICIOUS:
-				_play_voice(_alarm_sound())
+				_stomped = false
+		State.SLEEP:
+			speed = 0.0
 		State.FLEE:
 			if previous != State.FLEE:
 				_play_voice(_alarm_sound())
@@ -474,6 +552,15 @@ func _bleed(delta: float) -> void:
 	drop.global_position = global_position + Vector3(_rng.randf_range(-0.2, 0.2), 0.03, _rng.randf_range(-0.2, 0.2))
 	drop.rotation.y = _rng.randf() * TAU
 	get_tree().create_timer(120.0).timeout.connect(drop.queue_free)
+
+
+## A ferida tira vida aos poucos (mais rápido correndo) até o bicho cair, onde estiver.
+func _bleed_out(delta: float) -> void:
+	if _wound <= 0.0 or state == State.DEAD:
+		return
+	health -= _wound * Tuning.BLEED_PER_DAMAGE * (Tuning.BLEED_RUN_FACTOR if speed > walk_speed * 2.0 else 1.0) * delta
+	if health <= 0.0:
+		_die()
 
 
 func _die() -> void:

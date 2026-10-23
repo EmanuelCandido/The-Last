@@ -87,6 +87,8 @@ var ritual_place := &""
 ## Tirar a chave tira o efeito.
 var visibility_factors := {}
 var noise_factors := {}
+## Multiplicadores do tremor do braço do arco, por nome (o arco de teixo, a prática).
+var tremor_factors := {}
 var scent_factors := {}
 
 var _spawn_transform: Transform3D
@@ -167,6 +169,7 @@ func _ready() -> void:
 	add_child(_draw_sound)
 	Inventory.changed.connect(_on_inventory_changed)
 	_update_gear()
+	_on_inventory_changed(&"yew_bow", Inventory.count(&"yew_bow"))
 	# Limpa a dica de ação deixada por um jogador anterior (troca de fase).
 	Events.prompt_changed.emit("")
 
@@ -256,6 +259,7 @@ func _process(delta: float) -> void:
 		_animator.shiver = smoothstep(Tuning.COLD_SHIVER, 90.0, Vitals.cold)
 		_animator.sniffing = sniffing
 		_animator.breath_held = breath_held
+		_animator.tremor_scale = _product(tremor_factors)
 		_animator.holding_torch = torch_held
 		_animator.lying = lying
 		_animator.draw = draw
@@ -549,9 +553,9 @@ func _arrow_nocked() -> bool:
 	return _reload <= 0.0 and _arrow_item() != &""
 
 
-## A flecha que vai na corda: a emplumada primeiro, depois a comum; vazio = nenhuma.
+## A flecha que vai na corda: a de osso primeiro, depois a emplumada e a comum; vazio = nenhuma.
 func _arrow_item() -> StringName:
-	for item: StringName in [&"feathered_arrow", &"arrow"]:
+	for item: StringName in [&"bone_arrow", &"feathered_arrow", &"arrow"]:
 		if Inventory.has(item):
 			return item
 	return &""
@@ -566,10 +570,29 @@ func _shoot() -> void:
 	var origin := _bow.global_position
 	var arrow := Arrow.new()
 	arrow.item = item
+	arrow.speed_scale = bow_speed()
 	Game.current_level.add_child(arrow)
 	arrow.launch(origin, _aim_point() - origin, draw, [get_rid()])
 	OccludedAudio.play_at(self, BOW_RELEASE_SOUNDS.pick_random(), origin, &"World", lerpf(-8.0, -1.0, draw), 4.0, randf_range(0.96, 1.04))
 	Events.noise_made.emit(global_position, 10.0)
+
+
+## De onde a flecha sai agora (a corda no arco) e qual vai na corda; a mira com fôlego usa.
+func arrow_origin() -> Vector3:
+	return _bow.global_position if _bow != null else global_position + Vector3.UP
+
+
+func arrow_item() -> StringName:
+	return _arrow_item() if _arrow_nocked() else &""
+
+
+## O arco de teixo atira mais rápido.
+func bow_speed() -> float:
+	return Tuning.YEW_BOW_SPEED if Inventory.has(&"yew_bow") else 1.0
+
+
+func aim_point() -> Vector3:
+	return _aim_point()
 
 
 ## Ponto do mundo no centro da tela (onde a mira aponta).
@@ -585,6 +608,12 @@ func _aim_point() -> Vector3:
 func _on_inventory_changed(item: StringName, _amount: int) -> void:
 	if item == &"bow" or item == &"arrow":
 		_update_gear()
+	if item == &"yew_bow":
+		# O arco de teixo: o braço treme menos.
+		if Inventory.has(&"yew_bow"):
+			tremor_factors[&"yew"] = Tuning.YEW_BOW_TREMOR
+		else:
+			tremor_factors.erase(&"yew")
 
 
 ## Mostra o arco na mão e a aljava nas costas quando o goblin tem o arco.

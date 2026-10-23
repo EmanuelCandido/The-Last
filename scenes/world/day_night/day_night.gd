@@ -20,6 +20,7 @@ var void_amount := 0.0:
 var _sky: ProceduralSkyMaterial
 var _sky_rest := {}
 var _last_night := -1.0
+var _last_rain := -1.0
 
 
 func _ready() -> void:
@@ -35,21 +36,24 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	var night := Clock.night()
 	# O céu refaz a luz ambiente quando muda: só mexe quando a diferença aparece.
-	if absf(night - _last_night) > 0.004:
+	if absf(night - _last_night) > 0.004 or absf(Weather.rain - _last_rain) > 0.01:
 		apply(night)
 
 
 func apply(night: float) -> void:
 	_last_night = night
+	_last_rain = Weather.rain
+	# Na chuva o céu fecha: menos sol e menos luz do céu.
+	var overcast := 1.0 - Tuning.RAIN_DARK * Weather.rain
 	var day := Tuning.DAY_LIGHT
 	var dark := Tuning.NIGHT_LIGHT
 	var twilight := (1.0 - absf(night * 2.0 - 1.0)) * Tuning.TWILIGHT_WEIGHT
-	sun.light_energy = lerpf(day.sun_energy, dark.sun_energy, night)
+	sun.light_energy = lerpf(day.sun_energy, dark.sun_energy, night) * overcast
 	sun.light_color = (day.sun_color as Color).lerp(dark.sun_color, night)
 	var fog: Color = (day.fog_color as Color).lerp(dark.fog_color, night).lerp(Tuning.TWILIGHT_FOG, twilight)
 	environment.environment.fog_light_color = fog
 	var sky_energy: float = lerpf(day.sky_energy, dark.sky_energy, night)
-	_sky.energy_multiplier = sky_energy
+	_sky.energy_multiplier = sky_energy * overcast
 	# O horizonte some na neblina: puxa as cores do céu para a cor dela.
 	var tint := fog * (1.0 / maxf(fog.get_luminance(), 0.001)) * Color(_sky_rest.horizon).get_luminance()
 	_sky.sky_horizon_color = Color(_sky_rest.horizon).lerp(tint, night * 0.6 + twilight)

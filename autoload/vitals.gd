@@ -74,9 +74,11 @@ func eat(food: StringName) -> bool:
 
 ## Uma noite de sono: gasta saciedade e, bem alimentado, cura.
 func rest() -> void:
-	satiety = maxf(satiety - Tuning.SLEEP_SATIETY_COST, 0.0)
+	# Na cama de peles (F9) o sono cura mais e gasta menos fome.
+	var bed := Inventory.has(&"fur_bed")
+	satiety = maxf(satiety - Tuning.SLEEP_SATIETY_COST * (Tuning.FUR_BED_SATIETY if bed else 1.0), 0.0)
 	if satiety > Tuning.SLEEP_HEAL_MIN_SATIETY:
-		health = minf(health + Tuning.SLEEP_HEAL, 100.0)
+		health = minf(health + Tuning.SLEEP_HEAL * (Tuning.FUR_BED_HEAL if bed else 1.0), 100.0)
 	# Dormiu enrolado na pele, dentro da toca.
 	cold = 0.0
 	changed.emit()

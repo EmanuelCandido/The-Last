@@ -48,6 +48,8 @@ var shiver := 0.0
 var sniffing := false
 ## Prendendo o ar: a respiração para (o peito fica cheio) e o arco puxado não treme.
 var breath_held := false
+## Multiplica o tremor do braço do arco (o arco de teixo e a prática firmam).
+var tremor_scale := 1.0
 ## Tocha acesa na mão direita: o braço a segura erguida à frente.
 var holding_torch := false
 ## Deitado de costas (no sarcófago): a pose do começo do `wake`.
@@ -477,7 +479,7 @@ func _aim_overlay(pose: Dictionary) -> void:
 	# Segurando a corda no fim, o braço cansa e treme cada vez mais.
 	var tired := 0.004 + 0.03 * smoothstep(1.0, 4.0, _hold_time) + 0.05 * _exertion
 	# Prendendo o ar, o braço firma; ofegante, a mira dança.
-	tired = lerpf(tired, 0.0008, float(_weights.breath))
+	tired = lerpf(tired, 0.0008, float(_weights.breath)) * tremor_scale
 	var shake := (_wave(20, 9.0) * 0.6 + _wave(21, 14.0) * 0.4) * tired * draw
 	_bow_shake = Vector3(_wave(22, 11.0) * tired * draw, shake, 0.0) * 0.35
 	# Depois do tiro a mão da corda sobe por cima do ombro até a aljava e volta com a flecha.

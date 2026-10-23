@@ -40,6 +40,8 @@ var _last := Vector3.ZERO
 var _detour := 0.0
 var _detour_side := 1.0
 var _wander := Vector2.INF
+## Quanto tempo está parado esperando um bicho desconfiado (ou fugindo) se acalmar.
+var _waiting := 0.0
 
 
 func _ready() -> void:
@@ -126,9 +128,15 @@ func _hunt(delta: float) -> void:
 		return
 	if fleeing or (_target as Animal).state == Animal.State.SUSPICIOUS:
 		# Desconfiado, fica parado até ele voltar a pastar; assustado, não adianta correr atrás.
-		_release_moves()
-		_hold("crouch", true)
+		# Esperou demais (o bicho não se acalma): volta a chegar perto, agachado.
+		_waiting += delta
+		if _waiting < Tuning.AUTOPILOT_WAIT_SECONDS:
+			_release_moves()
+			_hold("crouch", true)
+			return
+		_walk_to(_target.global_position, true, delta)
 		return
+	_waiting = 0.0
 	_walk_to(_target.global_position, distance < Tuning.AUTOPILOT_STALK_RANGE, delta)
 
 

@@ -9,7 +9,13 @@ const CHEW_SOUNDS := [preload("res://assets/audio/sfx/chew_1.wav"), preload("res
 const MESSAGES := {
 	&"cooked_meat": "Comeu carne assada.",
 	&"meat": "Comeu carne crua.",
+	&"smoked_meat": "Comeu carne defumada.",
+	&"berries": "Comeu frutinhas.",
+	&"mushroom": "Comeu cogumelos crus.",
+	&"rotten_meat": "Comeu carne estragada.",
 }
+## O que se segura na mão comendo (frutinhas e cogumelos vão direto à boca).
+const MEATS := [&"meat", &"cooked_meat", &"smoked_meat", &"rotten_meat", &"white_meat"]
 
 @onready var _player: Player = get_parent()
 
@@ -23,7 +29,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		Events.notification_shown.emit("Nada para comer. Cace e asse a carne na fogueira.")
 		return
 	_player.perform(&"eat", Tuning.EAT_TIME, [[Tuning.EAT_BITE_AT, _bite.bind(food)]])
-	_player.hold_in_hand(MeatMesh.instance(food == &"cooked_meat"), Tuning.EAT_TIME - 0.25)
+	if food in MEATS:
+		_player.hold_in_hand(MeatMesh.instance(food in [&"cooked_meat", &"smoked_meat"]), Tuning.EAT_TIME - 0.25)
 
 
 func _pick_food() -> StringName:

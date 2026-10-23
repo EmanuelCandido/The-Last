@@ -35,8 +35,10 @@ const PICKUP := [
 var velocity := Vector3.ZERO
 ## Força do disparo (0..1): quanto a corda foi puxada.
 var power := 1.0
-## Item que volta para o inventário ao recolher: &"arrow" ou &"feathered_arrow".
+## Item que volta para o inventário ao recolher: &"arrow", &"feathered_arrow" ou &"bone_arrow".
 var item := &"arrow"
+## Multiplica a velocidade de saída (o arco de teixo atira mais rápido).
+var speed_scale := 1.0
 
 var _flying := true
 var _age := 0.0
@@ -53,6 +55,26 @@ func is_feathered() -> bool:
 	return item == &"feathered_arrow"
 
 
+## Quanto a gravidade puxa cada tipo de flecha (a emplumada cai menos).
+static func gravity_of(arrow_item: StringName) -> float:
+	return GRAVITY * (Tuning.FEATHERED_GRAVITY if arrow_item == &"feathered_arrow" else 1.0)
+
+
+## Quanto cada tipo de flecha fere (a de osso mais que todas).
+static func damage_of(arrow_item: StringName) -> float:
+	match arrow_item:
+		&"feathered_arrow":
+			return Tuning.FEATHERED_DAMAGE
+		&"bone_arrow":
+			return Tuning.BONE_ARROW_DAMAGE
+	return 1.0
+
+
+## A velocidade com que a flecha sai, na direção `direction`, com a corda puxada `draw` (0..1).
+static func start_velocity(direction: Vector3, draw: float, scale := 1.0) -> Vector3:
+	return direction.normalized() * lerpf(SPEED_MIN, SPEED_MAX, draw) * scale
+
+
 ## Devolve ao inventário as flechas presas em `body` (a caça coletada). Retorna quantas.
 static func collect_from(body: Node) -> int:
 	var count := 0
@@ -66,7 +88,7 @@ static func collect_from(body: Node) -> int:
 ## Dispara de `from` na direção `direction` com a corda puxada `draw` (0..1).
 func launch(from: Vector3, direction: Vector3, draw: float, exclude: Array[RID]) -> void:
 	power = draw
-	velocity = direction.normalized() * lerpf(SPEED_MIN, SPEED_MAX, draw)
+	velocity = start_velocity(direction, draw, speed_scale)
 	_exclude = exclude
 	global_position = from
 	_face(velocity)
@@ -79,7 +101,7 @@ func _physics_process(delta: float) -> void:
 	if _age > 10.0:
 		queue_free()
 		return
-	velocity += Vector3.DOWN * GRAVITY * (Tuning.FEATHERED_GRAVITY if is_feathered() else 1.0) * delta
+	velocity += Vector3.DOWN * gravity_of(item) * delta
 	var from := global_position
 	var to := from + velocity * delta
 	var query := PhysicsRayQueryParameters3D.create(from, to, HIT_MASK, _exclude)
@@ -113,7 +135,9 @@ func _stick(hit: Dictionary) -> void:
 		target = (collider as Area3D).get_parent()
 	if target != null:
 		reparent(target.body_node())
-		target.take_hit(power, hit.position, direction, Tuning.FEATHERED_DAMAGE if is_feathered() else 1.0)
+		target.take_hit(power, hit.position, direction, damage_of(item))
+		if target is Animal:
+			Events.arrow_hit.emit((target as Animal).kind)
 		OccludedAudio.play_at(target, HIT_FLESH.pick_random(), hit.position, &"World", 0.0, 5.0)
 	else:
 		var wood: bool = collider is CollisionObject3D and (collider as CollisionObject3D).collision_layer & TREES_LAYER

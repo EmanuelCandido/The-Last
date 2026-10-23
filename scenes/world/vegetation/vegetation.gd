@@ -119,6 +119,47 @@ func tree_near(p: Vector3, max_distance: float) -> int:
 	return best
 
 
+## Quanto a copa das árvores cobre `p` (0 = céu aberto .. 1 = mata fechada): árvores vivas em
+## pé a até 4 m, as mais perto pesando mais. A chuva e a manada usam.
+func canopy_at(p: Vector3) -> float:
+	var here := Vector2(p.x, p.z)
+	var cell := Vector2i(floori(p.x / TREE_CELL), floori(p.z / TREE_CELL))
+	var cover := 0.0
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
+			for id: int in _tree_grid.get(cell + Vector2i(dx, dz), []):
+				var tree := trees[id]
+				if tree.fallen or tree.dead:
+					continue
+				var gap := here.distance_to(Vector2(tree.base.x, tree.base.z))
+				if gap < 4.0:
+					cover += 1.0 - gap / 4.0
+	return clampf(cover * 0.6, 0.0, 1.0)
+
+
+## O ponto de copa mais fechada a até `radius` de `p` (onde a manada se abriga da chuva). Testa
+## a base de cada árvore viva por perto, um pouco ao lado do tronco.
+func shelter_near(p: Vector3, radius: float) -> Vector3:
+	var best := p
+	var best_cover := canopy_at(p)
+	var reach := ceili(radius / TREE_CELL)
+	var cell := Vector2i(floori(p.x / TREE_CELL), floori(p.z / TREE_CELL))
+	for dx in range(-reach, reach + 1):
+		for dz in range(-reach, reach + 1):
+			for id: int in _tree_grid.get(cell + Vector2i(dx, dz), []):
+				var tree := trees[id]
+				if tree.fallen or tree.dead:
+					continue
+				var spot := tree.base + Vector3(1.2, 0.0, 0.8)
+				if Vector2(spot.x - p.x, spot.z - p.z).length() > radius:
+					continue
+				var cover := canopy_at(spot)
+				if cover > best_cover + 0.05:
+					best_cover = cover
+					best = spot
+	return best
+
+
 ## Bate na árvore `id`, golpeada a partir de `from`. Devolve true se ela caiu agora.
 ## Só árvores secas quebram; pinheiros vivos só balançam o som do golpe.
 func hit_tree(id: int, from: Vector3) -> bool:

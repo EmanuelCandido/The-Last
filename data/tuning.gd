@@ -69,9 +69,14 @@ const FOODS := {
 	&"meat": {"satiety": 12.0, "nausea_chance": 0.25},
 	# O sedativo: enche muito a barriga e reinicia o ciclo (beat white_meat_recycle).
 	&"white_meat": {"satiety": 60.0, "nausea_chance": 0.0},
+	# F9: a coleta, a carne defumada (não estraga) e a estragada.
+	&"smoked_meat": {"satiety": 26.0, "nausea_chance": 0.0},
+	&"berries": {"satiety": 6.0, "nausea_chance": 0.0},
+	&"mushroom": {"satiety": 8.0, "nausea_chance": 0.15},
+	&"rotten_meat": {"satiety": 6.0, "nausea_chance": 0.9},
 }
 ## Ordem em que o goblin escolhe o que comer.
-const FOOD_PREFERENCE: Array[StringName] = [&"cooked_meat", &"meat", &"white_meat"]
+const FOOD_PREFERENCE: Array[StringName] = [&"cooked_meat", &"smoked_meat", &"berries", &"mushroom", &"meat", &"rotten_meat", &"white_meat"]
 ## Enjoo de carne crua: dano na hora e segundos sem regenerar.
 const NAUSEA_DAMAGE := 5.0
 const NAUSEA_SECONDS := 60.0
@@ -458,4 +463,94 @@ const AUTOPILOT_STALK_RANGE := 32.0
 const AUTOPILOT_DRAW_SECONDS := 1.1
 const AUTOPILOT_EAT_BELOW := 40.0
 const AUTOPILOT_SLEEP_HOUR := 19.5
+## Esperando um bicho desconfiado se acalmar, depois disto (s) volta a se aproximar agachado.
+const AUTOPILOT_WAIT_SECONDS := 6.0
 const WELCOME_MAX_HOURS := 26.0
+
+# --- Caça e vida na toca (F9, §8b) ---------------------------------------------------------------
+
+## Chuva: chance de começar por hora de jogo, duração (h) e quanto tempo leva para entrar e sair (s).
+const RAIN_CHANCE_PER_HOUR := 0.05
+const RAIN_HOURS_MIN := 1.0
+const RAIN_HOURS_MAX := 4.0
+const RAIN_FADE_SECONDS := 25.0
+## Na chuva cheia: o que os bichos ouvem e cheiram do goblin (fração do normal), o frio a mais por
+## segundo fora do abrigo, quanto a neblina adensa e quanto a luz do céu cai.
+const RAIN_HEARING := 0.5
+const RAIN_SCENT := 0.5
+const RAIN_COLD := 0.45
+const RAIN_FOG := 0.6
+const RAIN_DARK := 0.4
+## Debaixo de árvore (copa de 0..1, Vegetation.canopy_at) a chuva quase não molha acima disto.
+const CANOPY_SHELTER := 0.5
+
+## Manadas (§8b-B): tamanho, quão espalhados pastam em volta do centro (m), a velocidade do centro
+## andando pelo vale (m/s) e de quantas em quantas horas ele escolhe outro ponto de pasto.
+const HERD_SIZE_MIN := 3
+const HERD_SIZE_MAX := 4
+const HERD_SPREAD := 9.0
+const HERD_ROAM_SPEED := 0.35
+const HERD_WAYPOINT_HOURS := Vector2(1.0, 2.5)
+## A agenda da manada: sai de casa, volta para casa e deita para dormir (horas do dia).
+const HERD_DAY_START := 6.0
+const HERD_HOME_HOUR := 18.0
+const HERD_SLEEP_HOUR := 20.0
+## Longe assim do centro da manada (m), o cervo volta a andar até ela.
+const HERD_REJOIN_DISTANCE := 25.0
+## Dormindo, o bicho enxerga e ouve esta fração do normal.
+const SLEEP_SIGHT := 0.1
+const SLEEP_HEARING := 0.6
+## Coelhos no vale e quão longe do goblin um bicho reposto pode nascer (m).
+const RABBIT_COUNT := 10
+const RESTOCK_MIN_DISTANCE := 60.0
+
+## Caça (§8b-C): vida perdida por segundo para cada ponto de dano da ferida (correndo, vezes o fator).
+const BLEED_PER_DAMAGE := 0.009
+const BLEED_RUN_FACTOR := 1.6
+## O corpo do cervo avisando: ergue a cabeça e as orelhas, e bate a pata e bufa (atenção 0..1).
+const DEER_ALERT_AT := 0.12
+const DEER_STOMP_AT := 0.6
+## A mira com fôlego: até onde o arco da flecha é desenhado (m).
+const AIM_GUIDE_MAX := 70.0
+## Tocaia: quantas no mapa, o raio de dentro (m) e quanto se vê do goblin agachado nela.
+const BLIND_MAX := 2
+const BLIND_RADIUS := 1.3
+const BLIND_VISIBILITY := 0.2
+
+## Comida (§8b-D): quantos lugares de coleta e em quantos dias voltam a dar.
+const FORAGE_MUSHROOMS := 28
+const FORAGE_BERRIES := 14
+const FORAGE_REGROW_DAYS := 2
+## Horas até a carne estragar (crua e assada). A defumada não estraga.
+const MEAT_SPOIL_HOURS := 36.0
+const COOKED_SPOIL_HOURS := 72.0
+## Defumador: horas de fogo aceso para defumar e quantos pedaços cabem.
+const SMOKE_HOURS := 5.0
+const SMOKE_RACK_SLOTS := 4
+
+## Equipamento (§8b-E): dano da flecha de osso; o arco de teixo (velocidade da flecha e tremor).
+const BONE_ARROW_DAMAGE := 1.5
+const YEW_BOW_SPEED := 1.18
+const YEW_BOW_TREMOR := 0.5
+## Cama de peles: cura do sono vezes isto, e a fome do sono vezes aquilo.
+const FUR_BED_HEAL := 1.6
+const FUR_BED_SATIETY := 0.7
+## Prática: segundos andando agachado e flechas acertadas para chegar a ~63% do ganho, e o ganho
+## máximo (barulho a menos e tremor a menos).
+const PRACTICE_STEALTH_SECONDS := 900.0
+const PRACTICE_STEALTH_MAX := 0.3
+const PRACTICE_HITS := 25.0
+const PRACTICE_STEADY_MAX := 0.6
+## Troféus na parede da caverna.
+const TROPHY_MAX := 8
+
+## O Velho: a partir de que dia e a chance de aparecer em cada amanhecer.
+const OLD_DEER_FROM_DAY := 4
+const OLD_DEER_CHANCE := 0.3
+## Javali: quantos, a distância em que investe em vez de fugir (m), a velocidade da investida (m/s),
+## o dano e quantas investidas antes de fugir.
+const BOAR_COUNT := 3
+const BOAR_CHARGE_RANGE := 12.0
+const BOAR_CHARGE_SPEED := 8.5
+const BOAR_DAMAGE := 22.0
+const BOAR_CHARGES := 2

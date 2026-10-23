@@ -107,6 +107,12 @@ func _finish(recipe: Dictionary) -> void:
 			var torch := _player.get_node_or_null(^"TorchCarry") as TorchCarry
 			if torch != null:
 				torch.light()
+		&"blind":
+			var field := get_tree().get_first_node_in_group(BlindField.GROUP) as BlindField
+			if field != null:
+				# A abertura fica para onde o goblin olha.
+				var facing := _player.facing()
+				field.build_at(_player.global_position, atan2(facing.x, facing.z))
 	OccludedAudio.play_at(_player, CRAFT_SOUNDS.pick_random(), _player.global_position + Vector3.UP * 0.6, &"World", -4.0, 3.0)
 	Events.notification_shown.emit(String(recipe.get("message", recipe.name)))
 	Events.crafted.emit(recipe.id)

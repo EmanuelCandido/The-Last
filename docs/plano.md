@@ -586,6 +586,61 @@ O terminal mostra os comandos disponíveis.
 
 ---
 
+## 8b. Caça e vida na toca (F9)
+
+A caçada estava difícil demais e o jogo do goblin precisava de mais motivo para continuar jogando. Esta fase deixa a caça mais legível e justa, faz os bichos viverem um dia de verdade e dá ao goblin coisas para construir, guardar e aprender. Todos os números ficam em `Tuning` (bloco "F9").
+
+### A. Clima: a chuva (`Weather`, autoload salvo)
+
+- **Quando:** a cada hora de jogo há uma chance (`RAIN_CHANCE_PER_HOUR`) de começar a chover; a chuva dura de 1 a 4 h e entra e sai devagar (`Weather.rain`, 0..1).
+- **Na tela:** riscos de chuva em volta da câmera (somem dentro da caverna), céu e luz mais escuros e neblina mais densa.
+- **No som:** um loop de chuva (sintético) no bus `Ambience`, que já abafa dentro da caverna.
+- **No jogo:** a chuva cobre os passos (os bichos ouvem `RAIN_HEARING` do normal) e lava o cheiro (`RAIN_SCENT`). Em compensação, molha: fora da caverna e longe de árvore, o frio sobe (`RAIN_COLD`).
+
+### B. Manadas que vivem um dia (`Herd`)
+
+- Mais cervos: `DEER_HERDS` manadas de 3 a 4, cada uma com a sua **casa** (`ForestLayout.DEER_HOMES`): o lugar onde dorme.
+- **De dia** (6h às 18h) a manada **anda pelo mapa**: o centro dela vai de um ponto de pasto a outro pelo vale, devagar, e cada cervo pasta em volta do centro.
+- **No fim da tarde** volta para a casa; **de noite** os cervos deitam e dormem lá (estado `SLEEP`: enxergam quase nada e ouvem menos). De vez em quando um levanta a cabeça.
+- **Na chuva** a manada vai para baixo das árvores mais fechadas por perto e fica parada até passar.
+- **Depois de fugir**, o cervo volta a se juntar à manada onde ela estiver (não há mais "casa" de dia).
+- **Reposição:** a cada amanhecer cada manada volta ao tamanho dela, e os coelhos também, nascendo longe do goblin.
+
+### C. Caça mais legível
+
+- **O ferido sangra até cair:** a ferida tira vida aos poucos (proporcional ao dano, mais rápido correndo). Um bom tiro no corpo derruba em ~1 min; o rastro de sangue e as pegadas levam até ele.
+- **Linguagem do corpo, sem HUD:** pastando → ergue a cabeça e mexe as orelhas (`alert`) → encara (`SUSPICIOUS`) → bate a pata e bufa (`DEER_STOMP_AT`) → foge. Cada degrau é um aviso para parar ou se agachar.
+- **Foge menos longe:** o cervo se acalma a 40 m do perigo (antes 70).
+- **Mira com fôlego (`AimGuide`):** com o arco puxado e o ar preso (Q), aparece um arco fraco mostrando a queda da flecha.
+- **Tocaia:** receita "Tocaia de galhos" (3 madeiras), montada aos pés do goblin. Agachado dentro dela, ele quase não é visto. No máximo duas no mapa.
+
+### D. Comida: coleta, carne que estraga, defumador
+
+- **Coleta (`ForageField`):** cogumelos embaixo das árvores e arbustos de frutinhas nas bordas da mata. E colhe; o lugar volta a dar em `FORAGE_REGROW_DAYS`. Frutinhas não fazem mal; cogumelo cru às vezes enjoa.
+- **Carne que estraga:** o inventário guarda a idade de cada pedaço (`Inventory`, FIFO: come o mais velho primeiro). Crua estraga em `MEAT_SPOIL_HOURS`, assada em `COOKED_SPOIL_HOURS`; estragada enjoa quase sempre.
+- **Defumador (`SmokingRack`):** uma armação ao lado da fogueira da caverna. Pendure até 4 pedaços crus; com o fogo aceso, em `SMOKE_HOURS` eles viram carne defumada, que não estraga. Conta também dormindo, se a lenha durar.
+
+### E. Equipamento e prática
+
+- **Osso:** coletar caça dá osso.
+- **Receitas novas:** pontas de osso (flechas que ferem mais), arco de teixo (flecha mais rápida, braço treme menos) e cama de peles (dormir cura mais e gasta menos fome).
+- **Prática (`Practice`), sem barras:** andar agachado ensina a pisar leve (até `PRACTICE_STEALTH_MAX` de barulho a menos); acertar flechas firma o braço (o tremor cai até `PRACTICE_STEADY_MAX`). Um aviso discreto em cada degrau.
+
+### F. A caverna vira lar (`Trophies`)
+
+- Cada cervo coletado deixa uma galhada na parede da caverna; javali deixa as presas; o Velho, um crânio grande. A cama de peles e o defumador com carne também se veem.
+
+### G. Bichos novos
+
+- **O Velho (`OldDeer`):** um cervo enorme e esperto (mais vida, sentidos melhores), sozinho. Do dia `OLD_DEER_FROM_DAY` em diante, aparece em alguns dias e some ao anoitecer, até ser caçado. Dá muita carne e o troféu.
+- **Javali (`Boar`):** vive na mata fechada. Assustado de longe, foge; de perto (`BOAR_CHARGE_RANGE`) ou ferido, **investe**: corre até o goblin, fere (`BOAR_DAMAGE`) e passa direto; depois de uma ou duas investidas, foge.
+
+**Feito (F9):** tudo acima. O roteiro testa a chuva (neblina, frio, caverna, save), as cinco manadas (andando de dia, voltando, dormindo em casa, abrigando na chuva, se repondo), a escada do corpo e o sangramento, a coleta, a carne que estraga, o defumador, as receitas, a tocaia, a prática, os troféus, o Velho, as investidas do javali e a mira com fôlego. A IA do Bem-vindo de volta passou a não esperar para sempre um bicho desconfiado (`Tuning.AUTOPILOT_WAIT_SECONDS`).
+
+**Pronto quando:** roteiro com a chuva ligando e os bichos se abrigando; manada andando de dia, voltando e dormindo de noite; cervo ferido caindo sozinho; coleta, defumar e carne estragando; receitas novas; o Velho e o javali investindo; prints da chuva, da manada dormindo e dos troféus.
+
+---
+
 ## 9. Maleabilidade: como mudar o plano sem quebrar o jogo
 
 O plano vai mudar, talvez muito. O código segue estas regras para que uma mudança grande seja editar um arquivo, não caçar referências pelo projeto:
@@ -657,6 +712,7 @@ Cada fase termina jogável, com teste de fumaça, roteiro `--run` e print confer
 | **F6: O Zelador** ✅ feita | Componente `Senses`, IA e ronda do Zelador, lucidez, captura, R1–R4 e os efeitos na floresta, Reciclagem | Fazer R1–R4 em sequência; ser pego desfaz o certo |
 | **F7: Mistério meta** ✅ feita | Anotações, `ciclo_346.sav` e a memória, `leia_me`, falso travamento, sons vazando, HUD vital, voz do Zelador | Cada item do §7 disparado pelo seu beat |
 | **F8: Verdade e finais** ✅ feita | Sala de controle, câmeras, conversa, terminal, os 3 finais, créditos, menu principal, modo "Bem-vindo de volta" | Os 3 finais jogados de ponta a ponta |
+| **F9: Caça e vida na toca** ✅ feita | Chuva, manadas com casa e dia, caça legível (sangrar, corpo, mira, tocaia), coleta, carne que estraga, defumador, equipamento, prática, troféus, o Velho e o javali (§8b) | Roteiro de cada bloco e prints da chuva, da manada e dos troféus |
 
 ---
 
