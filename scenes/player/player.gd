@@ -127,7 +127,7 @@ var _camera_shoulder := 0.0
 ## Comprimento real do braço depois das colisões (encolhe na hora, volta devagar).
 var _arm_length := 0.0
 var _camera_probe := SphereShape3D.new()
-var _model_fade := 0.0
+var _model_hidden := false
 
 @onready var _visual: Node3D = $Visual
 @onready var _model: Node3D = $Visual/Goblin
@@ -806,19 +806,41 @@ func _sweep(from: Vector3, motion: Vector3) -> float:
 	return result[0]
 
 
-## Com a câmera espremida contra a parede, o goblin fica transparente em vez de a
-## lente entrar na cabeça dele. Colado na lente, some de vez (o brilho dos olhos
-## continuaria boiando na tela).
+## Com a câmera espremida contra a parede, o que está perto da lente some em dither, pixel a
+## pixel (Tuning.CAMERA_FADE_NEAR..FAR), em vez de a lente entrar na cabeça do goblin. Nada fica
+## translúcido: transparência de verdade mostraria o interior da boca e dos olhos. Colado na
+## lente, some de vez (CAMERA_HIDE_DISTANCE).
 func _fade_model() -> void:
 	var distance := _camera.global_position.distance_to(_visual.global_position + Vector3.UP * 0.7)
-	var fade := 1.0 if distance < 0.6 else (1.0 - smoothstep(0.6, 1.3, distance)) * 0.8
-	if absf(fade - _model_fade) < 0.02 and not (fade == 0.0 and _model_fade > 0.0):
+	# O dither é do material: só precisa ligar nos que ainda não têm (itens que chegam na mão).
+	if distance < Tuning.CAMERA_FADE_FAR + 1.0:
+		_dither_near_camera()
+	var hidden := distance < Tuning.CAMERA_HIDE_DISTANCE
+	if hidden == _model_hidden:
 		return
-	_model_fade = fade
+	_model_hidden = hidden
 	for node in _visual.find_children("*", "GeometryInstance3D", true, false):
-		var geometry := node as GeometryInstance3D
-		geometry.visible = fade < 1.0
-		geometry.transparency = fade if fade < 1.0 else 0.0
+		(node as GeometryInstance3D).visible = not hidden
+
+
+func _dither_near_camera() -> void:
+	for node in _visual.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		if mesh.mesh == null:
+			continue
+		for surface in mesh.mesh.get_surface_count():
+			var material := mesh.get_active_material(surface)
+			if material == null or material.has_meta(&"camera_dither"):
+				continue
+			material.set_meta(&"camera_dither", true)
+			if material is StandardMaterial3D:
+				var standard := material as StandardMaterial3D
+				standard.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+				standard.distance_fade_min_distance = Tuning.CAMERA_FADE_NEAR
+				standard.distance_fade_max_distance = Tuning.CAMERA_FADE_FAR
+			elif material is ShaderMaterial and (material as ShaderMaterial).shader == GoblinLook.SHADER:
+				(material as ShaderMaterial).set_shader_parameter(&"camera_fade_near", Tuning.CAMERA_FADE_NEAR)
+				(material as ShaderMaterial).set_shader_parameter(&"camera_fade_far", Tuning.CAMERA_FADE_FAR)
 
 
 func _rotate_camera(yaw: float, pitch: float) -> void:

@@ -570,6 +570,12 @@ const SETTINGS_FPS_OPTIONS: Array[int] = [0, 30, 60, 90, 120, 144, 165, 240]
 const SETTINGS_FOV := 65.0
 const SETTINGS_FOV_RANGE := Vector2(55.0, 90.0)
 const SETTINGS_AIM_FOV_DROP := 15.0
+## Câmera espremida contra a parede: o goblin some em dither, pixel a pixel, do que está a
+## CAMERA_FADE_FAR m da lente (inteiro) até CAMERA_FADE_NEAR (sumido). Com a lente a menos de
+## CAMERA_HIDE_DISTANCE do meio do corpo, some de vez.
+const CAMERA_FADE_NEAR := 0.3
+const CAMERA_FADE_FAR := 0.85
+const CAMERA_HIDE_DISTANCE := 0.4
 ## Brilho (gama sobre a imagem 3D: mais de 1 clareia as sombras).
 const SETTINGS_BRIGHTNESS := 1.0
 const SETTINGS_BRIGHTNESS_RANGE := Vector2(0.6, 1.6)
@@ -623,12 +629,17 @@ const BIRD_WANDER_SECONDS := Vector2(40.0, 140.0)
 ## Só canta e se mexe perto do ouvido (m): longe disso não se ouviria mesmo.
 const BIRD_ACTIVE_RANGE := 80.0
 
-## Uivos de matilhas distantes: algumas noites ficam caladas. Peso de 0, 1, 2 e 3 rodadas por
-## noite; cada rodada é um lobo (às vezes outros respondem) de um lado só, entre 21h e 4h.
+## Matilhas distantes (WolfPack): algumas noites ficam caladas. Peso de 0, 1, 2 e 3 rodadas por
+## noite; cada rodada é um lobo de verdade (às vezes outros respondem) de um lado só, entre 21h e 4h.
 const DISTANT_HOWL_WEIGHTS: Array[float] = [0.4, 0.35, 0.2, 0.05]
 const DISTANT_HOWL_HOURS := Vector2(21.0, 28.0)
-const DISTANT_HOWL_DISTANCE := Vector2(140.0, 210.0)
-## Chance de outro lobo responder dentro da mesma rodada (cada resposta pode puxar outra).
-const DISTANT_HOWL_ANSWER := 0.45
+## Os lobos distantes ficam além da borda do vale, entre estes raios do centro do mapa (m), e a
+## pelo menos DISTANT_HOWL_MIN_DISTANCE do goblin. Somem DISTANT_WOLF_SECONDS depois do uivo.
+const DISTANT_HOWL_RING := Vector2(135.0, 180.0)
+const DISTANT_HOWL_MIN_DISTANCE := 120.0
+const DISTANT_WOLF_SECONDS := 60.0
+## Chance de outro lobo responder a um uivo (no aviso da matilha e nas rodadas distantes; cada
+## resposta distante pode puxar outra).
+const HOWL_ANSWER := 0.45
 ## Chance de uma matilha distante responder ao uivo de aviso da matilha do vale.
 const DISTANT_HOWL_REPLY := 0.35

@@ -7,6 +7,8 @@ extends Animal
 ## - caça (percebeu de vez): corre e morde (Tuning.WOLF_BITE a cada WOLF_BITE_INTERVAL).
 ## Não chega perto de fogo aceso (Tuning.WOLF_FIRE_FEAR): o goblin junto da fogueira está
 ## salvo. Uma flechada o faz fugir e ir embora; duas matam. Ao amanhecer (leave) vai embora.
+## Uiva parado, de focinho para cima (howl): é o aviso da matilha e o chamado das matilhas
+## distantes (WolfPack).
 ##
 ## A caverna não é proibida para ele, como é para cervos e coelhos: com o fogo apagado,
 ## ele entra.
@@ -27,7 +29,13 @@ static var _warned_day := -1
 var mode := Mode.PROWL
 ## Indo embora (amanhecer ou ferido): foge e some longe do goblin.
 var leaving := false
+## Esperando na borda do vale até a hora de chegar: ronda ali, sem seguir o rastro do goblin.
+var waiting := false
+## Lobo de uma matilha distante, além do vale: fica parado, uiva de lá e some.
+var distant := false
 
+## Segundos que ainda faltam do uivo (parado, cabeça para cima).
+var _howl := 0.0
 var _body: Node3D
 var _neck: Node3D
 var _tail: Node3D
@@ -87,6 +95,19 @@ func body_node() -> Node3D:
 	return _body
 
 
+## Para, ergue a cabeça e uiva por `seconds` (o som sai de mouth_position, pelo Ambience).
+func howl(seconds: float) -> void:
+	if state == State.DEAD:
+		return
+	_howl = seconds
+	_enter(State.IDLE)
+
+
+## A boca, de onde sai o uivo.
+func mouth_position() -> Vector3:
+	return global_transform * Vector3(0.0, 0.95, 0.6)
+
+
 func _alarm_sound() -> AudioStream:
 	return GROWLS.pick_random()
 
@@ -117,6 +138,13 @@ func _think(delta: float, here: Vector2) -> void:
 	_timer -= delta
 	_bite_timer -= delta
 	_growl_timer -= delta
+	_howl -= delta
+	# Uivando (ou longe, além do vale): fica parado onde está.
+	if (_howl > 0.0 and state != State.FLEE) or distant:
+		if state != State.IDLE:
+			_enter(State.IDLE)
+		_timer = maxf(_timer, 0.5)
+		return
 	var player := Game.player
 	if state == State.FLEE:
 		if leaving and player != null and here.distance_to(_flat(player.global_position)) > GONE_DISTANCE:
@@ -129,7 +157,7 @@ func _think(delta: float, here: Vector2) -> void:
 
 	var target := _flat(player.global_position)
 	_drift_timer -= delta
-	if _drift_timer <= 0.0:
+	if _drift_timer <= 0.0 and not waiting:
 		# A matilha vai seguindo o rastro: a área de caça escorrega para onde o goblin está.
 		_drift_timer = Tuning.WOLF_HOME_DRIFT_SECONDS
 		home = home.move_toward(target, 14.0)
@@ -293,6 +321,9 @@ func _animate(delta: float) -> void:
 	var low := 0.0
 	if state == State.SUSPICIOUS:
 		low = 0.35 if mode == Mode.STALK else 0.15
+	elif _howl > 0.0:
+		# Uivando: focinho para o céu.
+		low = -0.9
 	_neck.rotation.x = lerpf(_neck.rotation.x, low - 0.35 * _lunge, 1.0 - exp(-6.0 * delta))
 	_tail.rotation.x = lerpf(_tail.rotation.x, 0.35 if state == State.SUSPICIOUS else 0.0, 1.0 - exp(-4.0 * delta))
 	_tail.rotation.y = sin(Time.get_ticks_msec() * 0.004) * (0.25 if state != State.SUSPICIOUS else 0.05)

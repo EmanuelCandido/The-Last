@@ -73,7 +73,7 @@ scenes/
   world/tracks/      Tracks: pegadas dos bichos (MultiMesh)
   world/clues/       Clues: as pistas do Ato I e os sons que vazam do mundo real
   world/ruin/        Ruin (capela e sala-espelho), RuinDoor (porta e discos) e Sarcophagus
-  world/ambience/    Ambience: vento 3D, folhas nas árvores, uivos distantes e os tocadores de chamados;
+  world/ambience/    Ambience: vento 3D, folhas nas árvores e os tocadores de chamados (call_at);
                      InsectField: grilos e gafanhotos de verdade no capim
   world/day_night/   DayNight: sol, céu e neblina pela hora (Clock.night)
   world/north_void/  NorthVoid: o mundo acabando ao norte depois do R3 (clima cortado)
@@ -197,7 +197,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - O abrigo vem do mapa `Terrain.build_wind_exposure()`: mata fechada, vales e caverna abrigam.
   - CPU (`Wind.strength_at`) e GPU (`foliage.gdshader`, globais `wind_*`) fazem a mesma conta.
   - O som, as folhas caindo e a poeira no ar usam `strength_at`.
-- **Câmera:** braço próprio (`CameraPivot/CameraArm`), sem SpringArm. Em `_place_camera`, uma esfera de 0,22 m vai da nuca até o ombro (deslocamento lateral real, não `h_offset`) e de lá para trás, só contra a camada 1. Ao bater, encolhe na hora; quando abre, volta devagar. Colada no goblin, ele fica transparente e some abaixo de 0,6 m. A casca da caverna tem `backface_collision` para a esfera não passar pelo verso dos triângulos.
+- **Câmera:** braço próprio (`CameraPivot/CameraArm`), sem SpringArm. Em `_place_camera`, uma esfera de 0,22 m vai da nuca até o ombro (deslocamento lateral real, não `h_offset`) e de lá para trás, só contra a camada 1. Ao bater, encolhe na hora; quando abre, volta devagar. Colada no goblin, o que está perto da lente some em dither, pixel a pixel (`Tuning.CAMERA_FADE_NEAR..FAR`: `distance_fade` em `PIXEL_DITHER` nos materiais comuns e `camera_fade_near/far` no `goblin_skin.gdshader`, ligados por `Player._dither_near_camera` também nos itens que chegam na mão), e abaixo de `CAMERA_HIDE_DISTANCE` some de vez. Nada de `GeometryInstance3D.transparency`: a transparência de verdade mostrava o interior da boca e dos olhos. A casca da caverna tem `backface_collision` para a esfera não passar pelo verso dos triângulos.
 - **Passos:** `Footsteps.surface_under()` lança um raio curto para baixo; se acertar uma colisão com meta `surface` (pedras `stone`, troncos `wood`, de `Vegetation._add_shape_collider`), vale ela, senão o `surface_at` do terreno (`cave` no salão da caverna, `stone`, `dirt`, `grass`).
 - **Interação:** nós no grupo `interactable` implementam `interaction_prompt() -> String` e `interact(player)`. São o arco no chão, flecha fincada, bicho abatido, corvo caído, fogueira, pele de dormir, monte de pedras, pedra jogada, poça de lama, tocha fincada e laço. O Player pega o mais próximo dentro de 1,8 m.
   - Opcionais: `interaction_enabled()` (false = só mostra o texto, sem [E]), `interaction_action()` (`{action, duration, at}`: a animação e quando chamar `interact`; padrão `pickup`) e `interaction_started(player)`.
@@ -231,7 +231,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - `HeldBow` (filho do `Visual`, sem socket): o Player o põe todo frame em `GoblinAnimator.bow_grip_position()`, a pose do mesmo frame, porque um socket atrasaria um frame em relação à mão da corda. Carregado, fica deitado para a frente (`CARRY_RISE`) e balança com o antebraço; mirando, barriga para o alvo e um pouco deitado (`BOW_CANT`). Braços que dobram com `draw`, corda até `nock_depth(draw)` (volta reta ao soltar) e a flecha encaixada. A flecha sai da empunhadura para o ponto no centro da tela.
   - Depois do tiro, `RELOAD_TIME` (0,75 s): a mão vai até a aljava (`GoblinAnimator.reload`) e só então a próxima flecha aparece na corda, com o som de encaixe.
 - **Grama no relevo:** `Terrain.publish_height_texture()` publica as alturas como global `terrain_height`. Com `follow_ground = 1` (grama e samambaia), o `foliage.gdshader` sobe ou desce cada vértice com o chão embaixo dele.
-- **Lobos:** `WolfPack` (filho de Animals) traz `Tuning.WOLF_COUNT` lobos a partir do dia 3: uivo de aviso às 20h30 da borda do vale (`Ambience.howl_from`), chegada às 21h, saída às 5h30, e somem se o goblin dorme. `Wolf extends Animal` reaproveita os sentidos e troca a reação: ronda (a área de caça escorrega para o goblin), espreita a 9 m rosnando, caça e morde. Não chega a menos de 6 m de fogo aceso e, ao contrário dos outros bichos, pode entrar na caverna. Uma flechada o faz fugir e ir embora; duas matam.
+- **Lobos:** `WolfPack` (filho de Animals) traz `Tuning.WOLF_COUNT` lobos a partir do dia 3: às 20h30 eles aparecem na borda do vale esperando (`Wolf.waiting`: rondam ali sem seguir o rastro do goblin) e um deles uiva o aviso; chegada às 21h, saída às 5h30, e somem se o goblin dorme. `Wolf extends Animal` reaproveita os sentidos e troca a reação: ronda (a área de caça escorrega para o goblin), espreita a 9 m rosnando, caça e morde. Não chega a menos de 6 m de fogo aceso e, ao contrário dos outros bichos, pode entrar na caverna. Uma flechada o faz fugir e ir embora; duas matam.
 - **Pegadas (`Tracks`):** bicho com `track_size` deixa uma pegada a cada `Tuning.TRACK_SPACING` andados (alternando os lados da fila com `track_side`). O MultiMesh tem um pool de `Tuning.TRACK_POOL` e o shader (`track_print.gdshader`) desenha casco, pata de coelho ou de lobo e apaga pela idade. `Tracks.nearest(espécie, ponto, raio)` acha a pegada fresca mais perto (o laço usa). Dormir envelhece todas.
 - **Farejar (`SniffAbility`, X):** agachado e parado, até `Tuning.SNIFF_MAX_SECONDS`. Fecha o som com `Game.close_ears`, mostra riscos de vento e uma trilha de cheiro (partículas por cima de tudo, a 1 m do chão) de cada bicho até `Tuning.SNIFF_RANGE` cujo cheiro o vento traz.
 - **Fôlego (`BreathControl`, Q):** prendendo o ar, parado não faz barulho (a respiração ofegante depois de correr faz) e o arco puxado não treme; o coração bate cada vez mais rápido. Passando do limite, bufa (`noise_made`) e fica ofegante.
@@ -251,13 +251,15 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 
   O jogador expõe `noise_level()` e `visibility()` (agachado, parado e coberto por capim ou mata).
 - **Física, camadas:** 1 `world` (terreno, caverna, pedras, troncos caídos), 2 `trees`, 3 `player`, 4 `animals` (Area3D de acerto). Raios de som só testam a camada 1. Visão dos bichos: 1 e 2. Flechas: 1, 2 e 4.
-- **Bichos do ambiente:** os sons de bicho saem de bichos de verdade, sempre nos mesmos lugares (semente fixa).
-  Números em `Tuning` (bloco "Bichos do ambiente").
+- **Bichos do ambiente:** regra: **todo som de bicho sai de um bicho de verdade**, no ponto onde ele está (nada de
+  loop no ouvido nem chamado de ponto sorteado). Números em `Tuning` (bloco "Bichos do ambiente").
   - **Insetos (`InsectField`, filho do `Ambience`, montado por `Ambience.build_life`):** `CRICKET_COUNT` grilos
-    (de noite, capim até a borda da mata) e `GRASSHOPPER_COUNT` gafanhotos (de dia, no aberto), cada um com tom e
-    hora de começar próprios. Os `INSECT_VOICES` mais perto que cantam ganham um `AudioStreamPlayer3D` com o canto
-    de um bicho só (`cricket_song`, `grasshopper_song`); os de além do alcance viram o coro (os loops antigos), no
-    volume de quantos cantam lá. Goblin andando perto ou `Events.noise_made` calam; o gafanhoto do pé pula.
+    (de noite, capim até a borda da mata) e `GRASSHOPPER_COUNT` gafanhotos (de dia, no aberto), sempre nos mesmos
+    lugares, cada um com tom e hora de começar próprios. Os `INSECT_VOICES` mais perto que cantam ganham um
+    `AudioStreamPlayer3D` com o canto de um bicho só (`cricket_song`, `grasshopper_song`). Os de longe (até
+    `INSECT_CHORUS_RANGE`) são agrupados em células de `CLUSTER_CELL` m: as `CLUSTERS` que mais soam ganham um
+    `OccludedAudio` com o coro (`crickets_loop`, `grasshoppers_loop`) no meio dos que cantam ali, a
+    `CLUSTER_DB` + 10·log10(quantos). Goblin andando perto ou `Events.noise_made` calam; o gafanhoto do pé pula.
     Chuva e vento forte calam todos.
   - **Pássaros (`BirdLife`, filho de Animals, e `Bird`):** canoros na copa das vivas, pica-paus agarrados no tronco
     das secas (o eixo torto vem do meta `trunk` da malha, `TreeBuilder.build_dead_tree`) e corujas na mata fechada.
@@ -265,8 +267,13 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
     do amanhecer. O goblin a menos de `BIRD_FLUSH_RADIUS` (metade agachado e devagar) ou um barulho espanta: pio de
     alarme, bater de asas e voo para outra árvore. Árvore derrubada também espanta. Só cantam perto do ouvido
     (`BIRD_ACTIVE_RANGE`).
-  - **Uivos distantes (`Ambience._tick_howls`):** cada noite sorteia de 0 a 3 rodadas (`DISTANT_HOWL_WEIGHTS`)
-    entre 21h e 4h, de um lado só, com respostas; às vezes uma matilha distante responde ao uivo de aviso da do vale.
+  - **Corvos:** a voz do bando (`CrowFlock`) voa junto com o corvo que grasna.
+  - **Uivos (`WolfPack`):** `Wolf.howl(segundos)` para o lobo de focinho para cima, e o som sai de
+    `mouth_position()` pelo `Ambience.call_at` (`Ambience.howl_sound()` escolhe a gravação). Matilhas distantes:
+    cada noite sorteia de 0 a 3 rodadas (`DISTANT_HOWL_WEIGHTS`) entre 21h e 4h; cada uivo é um `Wolf` com
+    `distant` (parado, sem caçar) além da borda do vale (`DISTANT_HOWL_RING`, a mais de `DISTANT_HOWL_MIN_DISTANCE`
+    do goblin), que some `DISTANT_WOLF_SECONDS` depois. Outros respondem (`HOWL_ANSWER`), e às vezes uma matilha
+    distante responde ao aviso da do vale (`DISTANT_HOWL_REPLY`).
 - **Ouvido (`Game.open_ears`):** passa-baixa no Master. Toda troca de fase abre o som em 2,5 s (quem chega a um lugar); o despertar da floresta abre em 7,5 s, de -42 dB e 160 Hz: o volume sobe primeiro e os agudos chegam por último. Loops de ambiente e `OccludedAudio` com autoplay começam num ponto sorteado.
 - **Áudio, buses:**
   - `Ambience`: sons de fora. Passa-baixa que fecha dentro da caverna e eco de vale.

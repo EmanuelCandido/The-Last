@@ -4,6 +4,9 @@ shader_type spatial;
 // gravadas pelo GoblinLook). Assim ela não escorrega quando os ossos mexem.
 // Por cima vem a lama (global goblin_mud, 0..1, do MudCamouflage): manchas que crescem com
 // a quantidade, mais grossas nas pernas, pixeladas como a textura.
+// Perto da lente (a câmera espremida contra uma parede), a pele some em dither, pixel a pixel:
+// nada fica translúcido, então não aparece o interior da boca e dos olhos (o Player liga
+// camera_fade_near/far; os materiais comuns usam o distance fade em PIXEL_DITHER, igual).
 
 uniform sampler2D albedo_texture : source_color, filter_nearest_mipmap, repeat_enable;
 uniform vec4 tint : source_color = vec4(1.0);
@@ -12,6 +15,9 @@ uniform float roughness = 0.9;
 uniform float texel_span = 0.32;
 uniform vec3 mud_color : source_color = vec3(0.34, 0.26, 0.17);
 global uniform float goblin_mud;
+// Some de todo mais perto que near e aparece inteiro a partir de far (m da câmera). 0 = desligado.
+uniform float camera_fade_near = 0.0;
+uniform float camera_fade_far = 0.0;
 
 varying vec3 rest_position;
 varying vec3 rest_normal;
@@ -35,7 +41,20 @@ float value_noise(vec3 p) {
 		f.z);
 }
 
+// Limiar de dither ordenado (Bayer 4x4) do pixel, o mesmo da folhagem.
+float bayer(vec2 frag) {
+	const float m[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+	ivec2 p = ivec2(frag) & ivec2(3);
+	return (m[p.y * 4 + p.x] + 0.5) / 16.0;
+}
+
 void fragment() {
+	if (camera_fade_far > 0.0) {
+		float shown = clamp((length(VERTEX) - camera_fade_near) / (camera_fade_far - camera_fade_near), 0.0, 1.0);
+		if (shown < bayer(FRAGCOORD.xy)) {
+			discard;
+		}
+	}
 	vec3 weights = pow(abs(normalize(rest_normal)), vec3(4.0));
 	weights /= weights.x + weights.y + weights.z;
 	vec3 p = rest_position / texel_span;

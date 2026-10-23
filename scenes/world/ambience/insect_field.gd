@@ -4,9 +4,11 @@ extends Node3D
 ## lugar (semente fixa), e o som sai dele.
 ## - Grilos cantam de noite (cada um começa num ponto do anoitecer), na grama e na borda da mata;
 ##   gafanhotos de dia, em campo aberto. Chuva e vento forte calam os dois.
-## - Os Tuning.INSECT_VOICES mais perto do ouvido que estão cantando ganham um tocador 3D com o
-##   canto de um bicho só (tom e ponto de começo próprios). Os mais longe, até
-##   Tuning.INSECT_CHORUS_RANGE, viram o coro distante, no volume de quantos cantam lá de verdade.
+## - Todo canto sai de onde os insetos estão. Os Tuning.INSECT_VOICES mais perto do ouvido que
+##   estão cantando ganham um tocador 3D com o canto de um bicho só (tom e ponto de começo
+##   próprios). Os mais longe, até Tuning.INSECT_CHORUS_RANGE, são agrupados em células de
+##   CLUSTER_CELL metros: as CLUSTERS células que mais soam ganham um tocador 3D com o coro, no meio
+##   dos que cantam ali e no volume de quantos são (abafado atrás de terreno ou rocha).
 ## - Com o goblin andando perto, o inseto se cala e só volta depois que ele se afasta; um
 ##   barulho (Events.noise_made) cala os do raio. O gafanhoto do pé pula para longe.
 ## Filho do Ambience (que dá o quanto o ouvinte está dentro da caverna).
@@ -22,11 +24,13 @@ const CHORUS: Array[AudioStream] = [
 	preload("res://assets/audio/ambience/grasshoppers_loop.wav"),
 ]
 const SEED := 5101
-## Volume de um bicho só (dB) e o do coro distante cheio (linear).
+## Volume de um bicho só (dB, a 2 m).
 const VOICE_DB: Array[float] = [-7.0, -11.0]
-const CHORUS_GAIN: Array[float] = [0.12, 0.09]
-## Quantos no anel do coro já soam como coro cheio.
-const CHORUS_FULL := 45.0
+## O coro: lado da célula que vira um grupo (m), quantos grupos tocam ao mesmo tempo e o volume
+## do coro (dB, a 2 m) para um inseto só; cada grupo soma 10·log10(quantos cantam).
+const CLUSTER_CELL := 16.0
+const CLUSTERS := 8
+const CLUSTER_DB: Array[float] = [-13.0, -17.0]
 ## Pulo do gafanhoto: duração (s) e altura (m).
 const HOP_TIME := 0.45
 const HOP_HEIGHT := 0.5
@@ -44,8 +48,11 @@ var _voices: Array[AudioStreamPlayer3D] = []
 ## Inseto de cada tocador (-1 = livre) e o volume que ele está buscando (dB).
 var _voice_insect: Array[int] = []
 var _voice_target: Array[float] = []
-var _chorus: Array[AudioStreamPlayer] = []
-var _chorus_target: Array[float] = [0.0, 0.0]
+## Tocadores do coro: a célula de cada um ([tipo, x, z]; null = livre), o volume buscado e o atual (dB).
+var _clusters: Array[OccludedAudio] = []
+var _cluster_key: Array = []
+var _cluster_target: Array[float] = []
+var _cluster_db: Array[float] = []
 ## Pulos em andamento: [malha, de, para, tempo].
 var _hops: Array = []
 var _hop_pool: Array[MeshInstance3D] = []
@@ -68,14 +75,17 @@ func build(terrain: Terrain) -> void:
 		_voices.append(voice)
 		_voice_insect.append(-1)
 		_voice_target.append(-80.0)
-	for kind in 2:
-		var chorus := AudioStreamPlayer.new()
-		chorus.stream = CHORUS[kind]
-		chorus.bus = &"Ambience"
-		chorus.volume_db = -80.0
-		add_child(chorus)
-		chorus.play(randf() * CHORUS[kind].get_length())
-		_chorus.append(chorus)
+	for i in CLUSTERS:
+		var cluster := OccludedAudio.new()
+		cluster.clear_bus = &"Ambience"
+		cluster.unit_size = 2.0
+		cluster.max_distance = Tuning.INSECT_CHORUS_RANGE + 30.0
+		cluster.volume_db = -80.0
+		add_child(cluster)
+		_clusters.append(cluster)
+		_cluster_key.append(null)
+		_cluster_target.append(-80.0)
+		_cluster_db.append(-80.0)
 	var body := Animal.flat_material(Color(0.32, 0.34, 0.18))
 	for i in 4:
 		var hopper := MeshInstance3D.new()
@@ -135,6 +145,15 @@ func voiced() -> Array[int]:
 	return list
 
 
+## Os grupos do coro tocando agora: [tipo, ponto, volume buscado], para os testes.
+func choruses() -> Array:
+	var list := []
+	for c in _clusters.size():
+		if _cluster_key[c] != null and _cluster_target[c] > -60.0:
+			list.append([(_cluster_key[c] as Vector3i).x, _clusters[c].global_position, _cluster_target[c]])
+	return list
+
+
 func _process(delta: float) -> void:
 	if _terrain == null or Game.player == null or Game.resting:
 		return
@@ -152,9 +171,12 @@ func _process(delta: float) -> void:
 		voice.volume_db = move_toward(voice.volume_db, _voice_target[i], speed * delta)
 		if voice.volume_db <= -79.0 and voice.playing:
 			voice.stop()
-	for kind in 2:
-		var current := db_to_linear(_chorus[kind].volume_db)
-		_chorus[kind].volume_db = linear_to_db(move_toward(current, _chorus_target[kind], 0.05 * delta) + 0.00001)
+	for i in _clusters.size():
+		_cluster_db[i] = move_toward(_cluster_db[i], _cluster_target[i], 20.0 * delta)
+		_clusters[i].set_base_volume(_cluster_db[i])
+		if _cluster_db[i] <= -79.0 and _clusters[i].playing:
+			_clusters[i].stop()
+			_cluster_key[i] = null
 	_update_hops(delta)
 
 
@@ -242,22 +264,27 @@ func _update_hops(delta: float) -> void:
 func _assign(ear: Vector3) -> void:
 	var indoor: float = get_parent().get("indoor") if get_parent() != null else 0.0
 	var near := []
-	var ring_all := [0.0, 0.0]
-	var ring_singing := [0.0, 0.0]
+	# Célula -> [peso de quem canta, soma das posições pesadas].
+	var cells := {}
 	for i in _pos.size():
 		var d := ear.distance_to(_pos[i])
-		if d > Tuning.INSECT_CHORUS_RANGE:
+		if d > Tuning.INSECT_CHORUS_RANGE or not singing(i):
 			continue
 		var kind := int(_kind[i])
 		var hear := Tuning.CRICKET_HEAR_RANGE if kind == Kind.CRICKET else Tuning.GRASSHOPPER_HEAR_RANGE
-		var on := singing(i)
 		if d < hear:
-			if on:
-				near.append([d, i])
-		else:
-			ring_all[kind] += 1.0
-			if on:
-				ring_singing[kind] += 1.0
+			near.append([d, i])
+		# O coro entra onde o canto sozinho some (a voz apaga de 0,65 até 1 do alcance) e
+		# apaga antes do fim do alcance do coro, sem degrau nas duas pontas.
+		var weight := smoothstep(hear * 0.65, hear, d) * (1.0 - smoothstep(Tuning.INSECT_CHORUS_RANGE * 0.8, Tuning.INSECT_CHORUS_RANGE, d))
+		if weight <= 0.01:
+			continue
+		var key := Vector3i(kind, floori(_pos[i].x / CLUSTER_CELL), floori(_pos[i].z / CLUSTER_CELL))
+		if not cells.has(key):
+			cells[key] = [0.0, Vector3.ZERO]
+		var cell: Array = cells[key]
+		cell[0] += weight
+		cell[1] += _pos[i] * weight
 	near.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
 	var chosen := {}
 	for entry: Array in near.slice(0, _voices.size()):
@@ -276,10 +303,50 @@ func _assign(ear: Vector3) -> void:
 				_start_voice(v, insect)
 				_voice_target[v] = _voice_db(insect, chosen[insect], indoor)
 				break
-	for kind in 2:
-		var ratio: float = ring_singing[kind] / maxf(ring_all[kind], 1.0)
-		var fullness := minf(ring_all[kind] / CHORUS_FULL, 1.0)
-		_chorus_target[kind] = CHORUS_GAIN[kind] * ratio * fullness * (1.0 - indoor)
+	_assign_clusters(ear, cells, indoor)
+
+
+## Dá os tocadores do coro às células que mais soam daqui (quantos cantam / distância²).
+func _assign_clusters(ear: Vector3, cells: Dictionary, indoor: float) -> void:
+	var ranked := []
+	for key: Vector3i in cells:
+		var cell: Array = cells[key]
+		var weight: float = cell[0]
+		var center: Vector3 = cell[1] / weight
+		ranked.append([weight / maxf(ear.distance_squared_to(center), 1.0), key, center, weight])
+	ranked.sort_custom(func(a: Array, b: Array) -> bool: return a[0] > b[0])
+	var chosen := {}
+	for entry: Array in ranked.slice(0, _clusters.size()):
+		chosen[entry[1]] = entry
+	# Quem já toca uma célula escolhida continua (e acompanha o meio dela); o resto vai calando.
+	for c in _clusters.size():
+		var key: Variant = _cluster_key[c]
+		if key != null and chosen.has(key):
+			var entry: Array = chosen[key]
+			_clusters[c].global_position = entry[2]
+			_cluster_target[c] = _cluster_volume(int(entry[1].x), entry[3], indoor)
+			chosen.erase(key)
+		else:
+			_cluster_target[c] = -80.0
+	for key: Vector3i in chosen:
+		for c in _clusters.size():
+			if _cluster_target[c] <= -80.0 and _cluster_db[c] <= -60.0:
+				var entry: Array = chosen[key]
+				var cluster := _clusters[c]
+				_cluster_key[c] = key
+				cluster.stream = CHORUS[key.x]
+				cluster.pitch_scale = randf_range(0.94, 1.06)
+				cluster.global_position = entry[2]
+				_cluster_db[c] = -60.0
+				cluster.set_base_volume(-60.0)
+				cluster.play(randf() * cluster.stream.get_length())
+				_cluster_target[c] = _cluster_volume(key.x, entry[3], indoor)
+				break
+
+
+## Volume do coro de uma célula com `count` insetos cantando (o 3D atenua pela distância).
+func _cluster_volume(kind: int, count: float, indoor: float) -> float:
+	return CLUSTER_DB[kind] + 10.0 * log(maxf(count, 0.01)) / log(10.0) + linear_to_db(maxf(1.0 - indoor, 0.0001))
 
 
 func _voice_db(insect: int, distance: float, indoor: float) -> float:

@@ -5,12 +5,10 @@ extends Node
 ##   seu ponto (a rajada "vem" de um lado e passa), mais uma camada colada no ouvido
 ##   quando a rajada pega o goblin em cheio;
 ## - folhas: o farfalhar sai das árvores mais próximas, cada uma com o próprio vento;
-## - os bichos do ambiente são bichos de verdade: os grilos e gafanhotos do InsectField (filho
-##   daqui) cantam de onde estão no capim, e os pássaros do BirdLife (canoros, pica-paus,
-##   corujas) cantam do galho onde pousaram, pelos tocadores daqui (call_at), que ecoam no vale
-##   e ficam abafados atrás de terreno ou rocha (OccludedAudio);
-## - uivos de matilhas distantes vêm em rodadas raras de noite (algumas noites caladas), de um
-##   lado só, com respostas;
+## - todo som de bicho sai de um bicho de verdade: os grilos e gafanhotos do InsectField (filho
+##   daqui) cantam de onde estão no capim; os pássaros do BirdLife (canoros, pica-paus, corujas)
+##   cantam do galho onde pousaram e os lobos do WolfPack uivam de onde estão, pelos tocadores
+##   daqui (call_at), que ecoam no vale e ficam abafados atrás de terreno ou rocha (OccludedAudio);
 ## - dentro da caverna o som de fora fica abafado (passa-baixa no bus Ambience) e o
 ##   fogo, os passos e as gotas ganham eco (reverb no bus World);
 ## - depois do R4 (flag "access_card"), os chamados carregam a voz do Zelador.
@@ -48,11 +46,6 @@ var _rustles: Array[OccludedAudio] = []
 var _rustle_tree: Array[int] = []
 var _rustle_timer := 0.0
 var _callers: Array[OccludedAudio] = []
-## Noite (dia em que começou) das rodadas de uivo sorteadas e as horas que faltam (21..28).
-var _howl_night := -999
-var _howl_hours: Array[float] = []
-## Uivos marcados para daqui a pouco: [segundos, ponto, tom].
-var _howl_queue: Array = []
 var _wolf_sounds: Array[AudioStream] = []
 var _ambience_bus := AudioServer.get_bus_index(&"Ambience")
 var _world_bus := AudioServer.get_bus_index(&"World")
@@ -96,10 +89,6 @@ func _ready() -> void:
 		caller.clear_bus = &"Ambience"
 		add_child(caller)
 		_callers.append(caller)
-	# Dormir pula a noite: as rodadas que ficaram para trás não tocam todas de uma vez.
-	Clock.skipped.connect(func(_hours: float) -> void:
-		_howl_hours.clear()
-		_howl_queue.clear())
 
 
 ## Monta os insetos do vale (depois do terreno).
@@ -134,17 +123,10 @@ func _process(delta: float) -> void:
 	var reverb := AudioServer.get_bus_effect(_world_bus, 0) as AudioEffectReverb
 	reverb.wet = lerpf(0.03, 0.4, indoor)
 
-	_tick_howls(delta, ear)
 
-
-## Uivo de um lobo vindo de `at` (usado pela matilha para avisar que está chegando). Às vezes
-## uma matilha distante responde do outro lado.
-func howl_from(at: Vector3) -> void:
-	call_at(_wolf_sounds.pick_random(), at, 60.0, -2.0, randf_range(0.95, 1.05))
-	var camera := get_viewport().get_camera_3d()
-	if camera != null and randf() < Tuning.DISTANT_HOWL_REPLY:
-		var away := Vector2(camera.global_position.x - at.x, camera.global_position.z - at.z).normalized()
-		_queue_howl(randf_range(5.0, 14.0), _far_point(camera.global_position, atan2(away.y, away.x)), randf_range(0.9, 1.0))
+## Um uivo (as gravações reais, se houver; senão o sintético). Quem toca é o lobo (WolfPack).
+func howl_sound() -> AudioStream:
+	return _wolf_sounds.pick_random()
 
 
 func _update_wind(ear: Vector3) -> void:
@@ -202,51 +184,6 @@ func _nearest_trees(ear: Vector3) -> Array[int]:
 	for entry in candidates.slice(0, RUSTLE_SOURCES):
 		result.append(entry[1])
 	return result
-
-
-## Matilhas distantes: cada noite sorteia de 0 a 3 rodadas (Tuning.DISTANT_HOWL_WEIGHTS) entre
-## 21h e 4h. Uma rodada é um lobo de um lado do vale; outros respondem por perto, às vezes.
-func _tick_howls(delta: float, ear: Vector3) -> void:
-	var hour := Clock.hour
-	var night := Clock.day if hour >= 12.0 else Clock.day - 1
-	var night_hour := hour if hour >= 12.0 else hour + 24.0
-	if night != _howl_night:
-		_howl_night = night
-		_howl_hours.clear()
-		var roll := randf()
-		var bouts := 0
-		for weight in Tuning.DISTANT_HOWL_WEIGHTS:
-			roll -= weight
-			if roll < 0.0:
-				break
-			bouts += 1
-		for i in mini(bouts, Tuning.DISTANT_HOWL_WEIGHTS.size() - 1):
-			_howl_hours.append(randf_range(Tuning.DISTANT_HOWL_HOURS.x, Tuning.DISTANT_HOWL_HOURS.y))
-	for bout: float in _howl_hours.duplicate():
-		# Só na hora da rodada (de dia, fora da faixa, nada toca).
-		if night_hour >= bout and night_hour < bout + 0.5:
-			_howl_hours.erase(bout)
-			var angle := randf() * TAU
-			_queue_howl(0.0, _far_point(ear, angle), randf_range(0.92, 1.05))
-			var delay := 0.0
-			while randf() < Tuning.DISTANT_HOWL_ANSWER:
-				delay += randf_range(2.0, 7.0)
-				_queue_howl(delay, _far_point(ear, angle + randf_range(-0.5, 0.5)), randf_range(0.88, 1.08))
-	for entry: Array in _howl_queue.duplicate():
-		entry[0] -= delta
-		if entry[0] <= 0.0:
-			_howl_queue.erase(entry)
-			call_at(_wolf_sounds.pick_random(), entry[1], 70.0, -4.0, entry[2])
-
-
-func _queue_howl(seconds: float, at: Vector3, pitch: float) -> void:
-	_howl_queue.append([seconds, at, pitch])
-
-
-## Um ponto bem longe, além da borda do vale, na direção `angle` (radianos no plano XZ).
-func _far_point(ear: Vector3, angle: float) -> Vector3:
-	var distance := randf_range(Tuning.DISTANT_HOWL_DISTANCE.x, Tuning.DISTANT_HOWL_DISTANCE.y)
-	return ear + Vector3(cos(angle), 0.0, sin(angle)) * distance + Vector3.UP * 30.0
 
 
 ## Toca um chamado num ponto do mundo. Depois do R4, às vezes a voz do Zelador vem junto.

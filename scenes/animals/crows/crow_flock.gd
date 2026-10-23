@@ -19,6 +19,8 @@ var _crows: Array[Dictionary] = []
 var _time := 0.0
 var _caw_timer := 6.0
 var _voice: AudioStreamPlayer3D
+## O corvo que está grasnando: a voz voa junto com ele.
+var _cawing: Node3D
 
 
 func _ready() -> void:
@@ -50,10 +52,12 @@ func _process(delta: float) -> void:
 	_caw_timer -= delta
 	if _caw_timer <= 0.0 and not _crows.is_empty():
 		_caw_timer = randf_range(7.0, 16.0)
-		_voice.global_position = (_crows.pick_random().node as Node3D).global_position
+		_cawing = _crows.pick_random().node as Node3D
 		_voice.stream = CAWS.pick_random()
 		_voice.pitch_scale = randf_range(0.9, 1.1)
 		_voice.play()
+	if _voice.playing and is_instance_valid(_cawing):
+		_voice.global_position = _cawing.global_position
 
 
 ## Corvos voando agora (para testes e para a Vigilância).
