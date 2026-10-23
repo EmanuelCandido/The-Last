@@ -227,7 +227,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 
 - Numa RTX 3050 Laptop: 120 FPS (limite do vsync), ~430–730 draw calls, 300–590 mil triângulos visíveis e ~10 ms de CPU em `_process`. O mundo é gerado em ~0,5 s.
 - Vegetação em MultiMesh por blocos de 48 m com `visibility_range_end`: grama até 55 m, árvores até 170 m. A grama não projeta sombra.
-- A neblina (`fog_density` 0,016) esconde o corte de distância. Dentro da caverna, `forest.gd` afina e escurece a neblina.
+- A neblina (`fog_density` 0,016) esconde o corte de distância. A neblina é a mesma dentro e fora da caverna: de dentro, o vale tem de parecer igual.
 
 ## Assets
 

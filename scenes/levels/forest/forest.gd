@@ -15,8 +15,6 @@ extends Node3D
 @onready var _fog_sky_affect := _environment.fog_sky_affect
 
 var _void: NorthVoid
-## Quanto a câmera está dentro da caverna (0..1, suavizado): é o que afina a neblina.
-var _fog_indoor := -1.0
 
 
 func _ready() -> void:
@@ -49,7 +47,7 @@ func _ready() -> void:
 	Events.level_loaded.connect(_on_level_loaded, CONNECT_ONE_SHOT)
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	if Game.player == null:
 		return
 	# Folhas e poeira soltas no ar acompanham o goblin; somem dentro da caverna.
@@ -59,22 +57,17 @@ func _process(delta: float) -> void:
 	_debris.amount_ratio = (1.0 - ForestLayout.cave_interior(Vector2(at.x, at.z))) * clampf(strength * 1.3, 0.1, 1.0)
 	var push := Wind.direction * (0.6 + strength * 2.4)
 	(_debris.process_material as ParticleProcessMaterial).gravity = Vector3(push.x, -0.35, push.y)
-	# Dentro da caverna a neblina cinza lavaria as paredes escuras: afina e escurece. Com o
-	# clima cortado (R3), no setor norte ela quase some e o vazio aparece. Vale onde está a
-	# câmera, não o goblin: com ele na boca da caverna e a câmera fora, o vale fica com a neblina
-	# inteira (e no menu, que olha a caverna de fora com o goblin dormindo lá dentro).
+	# A neblina é a mesma dentro e fora da caverna (de dentro, o vale lá fora tem de parecer o
+	# mesmo). Com o clima cortado (R3), no setor norte ela quase some e o vazio aparece; vale
+	# onde está a câmera, não o goblin.
 	var camera := get_viewport().get_camera_3d()
 	var eye := camera.global_position if camera != null else at
-	var inside := ForestLayout.cave_interior(Vector2(eye.x, eye.z))
-	_fog_indoor = inside if _fog_indoor < 0.0 else move_toward(_fog_indoor, inside, delta * 1.5)
 	var north := _void.openness(eye)
-	var fog := lerpf(_outdoor_fog_density, _outdoor_fog_density * 0.35, _fog_indoor)
-	_environment.fog_density = lerpf(fog, Tuning.NORTH_FOG_DENSITY, north)
+	_environment.fog_density = lerpf(_outdoor_fog_density, Tuning.NORTH_FOG_DENSITY, north)
 	# O console do Zelador (§7): "neblina off" mostra o mundo como ele é, cortado na distância.
 	if Story.has_flag(&"fog_off"):
 		_environment.fog_density = 0.0
 	_environment.fog_sky_affect = lerpf(_fog_sky_affect, 0.1, north)
-	_environment.fog_light_energy = lerpf(1.0, 0.55, _fog_indoor)
 	_day_night.void_amount = north * Tuning.VOID_SKY_DARKNESS
 
 
