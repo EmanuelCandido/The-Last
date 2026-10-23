@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 Events="*res://autoload/events.gd"
+Settings="*res://autoload/settings.gd"
 Wind="*res://autoload/wind.gd"
 Inventory="*res://autoload/inventory.gd"
 Clock="*res://autoload/clock.gd"
@@ -36,6 +37,10 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+
+[gui]
+
+theme/custom="res://assets/ui/ui_theme.tres"
 
 [input]
 
@@ -177,6 +182,8 @@ throw={
 3d/physics_engine="Jolt Physics"
 
 [rendering]
+
+textures/canvas_textures/default_texture_filter=0
 
 environment/ssao/quality=1
 anti_aliasing/quality/screen_space_aa=1

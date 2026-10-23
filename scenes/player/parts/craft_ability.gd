@@ -18,6 +18,7 @@ var _open := false
 var _idle := 0.0
 var _layer: CanvasLayer
 var _label: RichTextLabel
+var _footer: RichTextLabel
 
 @onready var _player: Player = get_parent()
 
@@ -128,47 +129,62 @@ func _select(index: int) -> void:
 func _refresh() -> void:
 	if _label == null or not _open:
 		return
-	var lines := PackedStringArray(["[b]FABRICAR[/b]"])
+	var ink := UiStyle.hex(UiStyle.INK)
+	var dim := UiStyle.hex(UiStyle.INK_DIM)
+	var faint := UiStyle.hex(UiStyle.INK_FAINT)
+	var accent := UiStyle.hex(UiStyle.ACCENT)
+	var lines := PackedStringArray()
 	for i in Recipes.LIST.size():
 		var recipe := Recipes.LIST[i]
 		var missing := Recipes.missing(recipe)
-		var color := "#f2ead6" if missing == "" else "#8a857a"
+		var ready := missing == ""
+		var name_color := (accent if i == selected else ink) if ready else faint
 		var marker := "›" if i == selected else " "
-		var detail := Recipes.cost_text(recipe) if missing == "" else missing
-		lines.append("[color=%s]%s %d  %s  [i]%s[/i][/color]" % [color, marker, i + 1, recipe.name, detail])
-	lines.append("[color=#b8b2a4][E] fazer   roda/setas escolher   [R] fechar[/color]")
+		var detail := Recipes.cost_text(recipe) if ready else missing
+		lines.append("[color=%s]%s %d  %s[/color]  [color=%s][i]%s[/i][/color]" % [
+			name_color, marker, i + 1, recipe.name, dim if ready else faint, detail])
 	_label.text = "\n".join(lines)
+	_footer.text = "[color=%s][lb]%s[rb][/color] fazer   [color=%s]roda/setas[/color] escolher   [color=%s][lb]%s[rb][/color] fechar" % [
+		accent, Settings.key_label(&"interact", true), accent, accent, Settings.key_label(&"craft", true)]
 
 
+## A lista: um painel escuro no canto, título em ocre, as receitas e as teclas embaixo.
 func _build_list() -> void:
 	_layer = CanvasLayer.new()
 	_layer.layer = 2
 	_layer.visible = false
 	add_child(_layer)
 	var panel := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.05, 0.045, 0.62)
-	style.set_content_margin_all(10.0)
-	style.set_corner_radius_all(2)
-	panel.add_theme_stylebox_override(&"panel", style)
+	panel.theme_type_variation = &"PanelDark"
 	panel.anchor_left = 1.0
 	panel.anchor_right = 1.0
 	panel.anchor_top = 1.0
 	panel.anchor_bottom = 1.0
-	panel.offset_left = -470.0
+	panel.offset_left = -500.0
 	panel.offset_right = -14.0
-	panel.offset_top = -230.0
-	panel.offset_bottom = -46.0
+	panel.offset_top = -60.0
+	panel.offset_bottom = -52.0
+	panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_layer.add_child(panel)
-	_label = RichTextLabel.new()
-	_label.bbcode_enabled = true
-	_label.scroll_active = false
-	_label.fit_content = true
-	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_label.add_theme_font_size_override(&"normal_font_size", 15)
-	_label.add_theme_font_size_override(&"bold_font_size", 15)
-	_label.add_theme_font_size_override(&"italics_font_size", 14)
-	_label.add_theme_constant_override(&"outline_size", 3)
-	_label.add_theme_color_override(&"font_outline_color", Color.BLACK)
-	panel.add_child(_label)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override(&"separation", 4)
+	panel.add_child(column)
+	var title := UiStyle.label("Fabricar", &"Heading", 16)
+	column.add_child(title)
+	column.add_child(UiStyle.separator())
+	_label = _rich_label()
+	column.add_child(_label)
+	column.add_child(UiStyle.separator())
+	_footer = _rich_label()
+	column.add_child(_footer)
+
+
+func _rich_label() -> RichTextLabel:
+	var label := RichTextLabel.new()
+	label.bbcode_enabled = true
+	label.scroll_active = false
+	label.fit_content = true
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return label

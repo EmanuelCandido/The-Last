@@ -58,7 +58,11 @@ func _init() -> void:
 	head.position.y = _eye
 	add_child(head)
 	camera = Camera3D.new()
-	camera.fov = 72.0
+	# Ari vê um pouco mais aberto que a câmera do goblin (primeira pessoa).
+	camera.fov = Settings.fov + 7.0
+	Settings.changed.connect(func(key: StringName) -> void:
+		if key == &"fov":
+			camera.fov = Settings.fov + 7.0)
 	camera.near = 0.03
 	head.add_child(camera)
 	_footsteps = Footsteps.new()
@@ -78,8 +82,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var motion := event as InputEventMouseMotion
-		_yaw -= motion.relative.x * MOUSE_SENSITIVITY
-		_pitch = clampf(_pitch - motion.relative.y * MOUSE_SENSITIVITY, -PITCH_LIMIT, PITCH_LIMIT)
+		var sensitivity := MOUSE_SENSITIVITY * Settings.mouse_sensitivity
+		var vertical := -1.0 if Settings.invert_y else 1.0
+		_yaw -= motion.relative.x * sensitivity
+		_pitch = clampf(_pitch - motion.relative.y * sensitivity * vertical, -PITCH_LIMIT, PITCH_LIMIT)
 	elif event.is_action_pressed("interact") and _interaction != null:
 		_interaction.interact(self)
 	elif event.is_action_pressed("sprint") and not Story.has_flag(&"leg_warned"):
@@ -309,7 +315,7 @@ func _update_interaction() -> void:
 		if angle < best:
 			best = angle
 			_interaction = item
-	var prompt: String = "" if _interaction == null else "[E] " + _interaction.interaction_prompt()
+	var prompt: String = "" if _interaction == null else "[%s] " % Settings.key_label(&"interact", true) + _interaction.interaction_prompt()
 	if prompt != _prompt:
 		_prompt = prompt
 		Events.prompt_changed.emit(prompt)

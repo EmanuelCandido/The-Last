@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://d05281y2uk3bu"
+path="res://.godot/imported/toca_bold.fnt-2f933d8d6b45db222cceec0cdb21b70d.fontdata"
+
+[deps]
+
+source_file="res://assets/ui/font/toca_bold.fnt"
+dest_files=["res://.godot/imported/toca_bold.fnt-2f933d8d6b45db222cceec0cdb21b70d.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=2

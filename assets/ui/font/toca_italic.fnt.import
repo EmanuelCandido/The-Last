@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://dccm513lskvf2"
+path="res://.godot/imported/toca_italic.fnt-5cf1711d3d6ba6732fb029c1038a30e2.fontdata"
+
+[deps]
+
+source_file="res://assets/ui/font/toca_italic.fnt"
+dest_files=["res://.godot/imported/toca_italic.fnt-5cf1711d3d6ba6732fb029c1038a30e2.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=2

@@ -79,6 +79,8 @@ func _stick_audio() -> void:
 func _dialog() -> Control:
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.theme = _system_theme()
+	center.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(440, 0)
 	var style := StyleBoxFlat.new()
@@ -100,6 +102,20 @@ func _dialog() -> Control:
 	for text: String in ["Fechar o programa", "Aguardar o programa responder"]:
 		box.add_child(_option(text))
 	return center
+
+
+## A caixa é do sistema, não do jogo: fonte do Windows e nada do Theme pixelado do projeto.
+func _system_theme() -> Theme:
+	var theme := Theme.new()
+	var font := SystemFont.new()
+	font.font_names = PackedStringArray(["Segoe UI", "Arial", "sans-serif"])
+	theme.default_font = font
+	theme.default_font_size = 15
+	theme.set_color(&"font_shadow_color", &"Label", Color.TRANSPARENT)
+	theme.set_color(&"font_shadow_color", &"Button", Color.TRANSPARENT)
+	for style: StringName in [&"normal", &"pressed", &"focus", &"disabled", &"hover_pressed"]:
+		theme.set_stylebox(style, &"Button", StyleBoxEmpty.new())
+	return theme
 
 
 func _label(text: String, font_size: int, color: Color) -> Label:

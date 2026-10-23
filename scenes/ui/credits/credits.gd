@@ -6,24 +6,26 @@ extends CanvasLayer
 
 signal finished
 
-const TITLE_COLOR := Color(0.85, 0.76, 0.48)
-const TEXT_COLOR := Color(0.82, 0.84, 0.8)
-
 ## Por cima do jogo (true) ou sobre o preto.
 var over_world := false
 
 var _column: VBoxContainer
-var _back: ColorRect
+var _back: Control
 var _time := 0.0
 var _done := false
 
 
 func _ready() -> void:
 	layer = 8
-	_back = ColorRect.new()
-	_back.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_back.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_back.color = Color(0.0, 0.0, 0.0, 0.35 if over_world else 1.0)
+	# Por cima do jogo, uma neblina escura em pontilhado; nos outros finais, o preto.
+	if over_world:
+		_back = UiStyle.fog_backdrop(0.5, 0.0, 0.1)
+	else:
+		var black := ColorRect.new()
+		black.set_anchors_preset(Control.PRESET_FULL_RECT)
+		black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		black.color = Color.BLACK
+		_back = black
 	add_child(_back)
 	_column = VBoxContainer.new()
 	_column.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -31,19 +33,13 @@ func _ready() -> void:
 	_column.add_theme_constant_override(&"separation", 6)
 	add_child(_column)
 	for line in StoryBeats.CREDITS.split("\n"):
-		var label := Label.new()
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.add_theme_color_override(&"font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
-		label.add_theme_constant_override(&"shadow_offset_x", 2)
-		label.add_theme_constant_override(&"shadow_offset_y", 2)
+		var label: Label
 		if line.begins_with("#"):
-			label.text = line.substr(1)
-			label.add_theme_font_size_override(&"font_size", 34 if label.text == "A TOCA" else 22)
-			label.add_theme_color_override(&"font_color", TITLE_COLOR)
+			var title := line.substr(1)
+			label = UiStyle.label(title, &"Title" if title == "A TOCA" else &"Heading")
 		else:
-			label.text = line
-			label.add_theme_font_size_override(&"font_size", 18)
-			label.add_theme_color_override(&"font_color", TEXT_COLOR)
+			label = UiStyle.label(line)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_column.add_child(label)
 	var screen := get_viewport().get_visible_rect().size
 	_column.size = Vector2(screen.x, 0.0)
@@ -81,7 +77,7 @@ func _finish() -> void:
 	var tween := create_tween().set_parallel()
 	tween.tween_property(_column, ^"modulate:a", 0.0, 1.2)
 	if over_world:
-		tween.tween_property(_back, ^"color:a", 0.0, 1.2)
+		tween.tween_property(_back, ^"modulate:a", 0.0, 1.2)
 	await tween.finished
 	finished.emit()
 	queue_free()

@@ -47,15 +47,19 @@ func _ready() -> void:
 	_subtitle.offset_right = 0.0
 	_subtitle.offset_top = -170.0
 	_subtitle.offset_bottom = -70.0
+	_subtitle.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_subtitle.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_subtitle.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_subtitle.add_theme_font_size_override(&"font_size", 22)
 	_subtitle.add_theme_color_override(&"font_color", Color(0.78, 0.95, 0.84))
 	_subtitle.add_theme_color_override(&"font_shadow_color", Color(0.0, 0.0, 0.0, 0.85))
 	_subtitle.add_theme_constant_override(&"shadow_offset_x", 2)
 	_subtitle.add_theme_constant_override(&"shadow_offset_y", 2)
+	_apply_text_scale()
+	Settings.changed.connect(func(key: StringName) -> void:
+		if key == &"text_scale_index":
+			_apply_text_scale())
 	_subtitle.modulate.a = 0.0
 	add_child(_subtitle)
 	_refresh()
@@ -64,6 +68,11 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	var size := get_viewport().get_visible_rect().size
 	_material.set_shader_parameter(&"aspect", size.x / maxf(size.y, 1.0))
+
+
+## A fonte é pixelada: 32 (o dobro da base) vezes o tamanho das Configurações.
+func _apply_text_scale() -> void:
+	_subtitle.add_theme_font_size_override(&"font_size", roundi(32.0 * Settings.text_scale()))
 
 
 ## Legenda de `seconds` segundos (entra e sai devagar).

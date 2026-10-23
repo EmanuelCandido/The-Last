@@ -34,7 +34,7 @@ func _ready() -> void:
 	add_child(trace)
 	_label = Label.new()
 	_label.position = Vector2(0.0, TRACE_SIZE.y + 2.0)
-	_label.add_theme_font_size_override(&"font_size", 13)
+	_label.add_theme_font_size_override(&"font_size", 16)
 	_label.add_theme_color_override(&"font_color", COLOR)
 	add_child(_label)
 	modulate.a = 0.0

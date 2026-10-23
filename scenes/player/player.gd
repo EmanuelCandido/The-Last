@@ -161,7 +161,8 @@ func _ready() -> void:
 		_footsteps.driven_by_animation = true
 	_last_yaw = _visual.rotation.y
 	_target_yaw = _visual.rotation.y
-	_camera_rest = {"fov": _camera.fov, "pivot": _camera_pivot.position.y}
+	_camera_rest = {"pivot": _camera_pivot.position.y}
+	_camera.fov = Settings.fov
 	_draw_sound = AudioStreamPlayer3D.new()
 	_draw_sound.bus = &"World"
 	_draw_sound.unit_size = 3.0
@@ -177,8 +178,9 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var motion := event as InputEventMouseMotion
-		var sensitivity := mouse_sensitivity * (0.6 if aiming else 1.0)
-		_rotate_camera(-motion.relative.x * sensitivity, -motion.relative.y * sensitivity)
+		var sensitivity := mouse_sensitivity * Settings.mouse_sensitivity * (0.6 if aiming else 1.0)
+		var vertical := -1.0 if Settings.invert_y else 1.0
+		_rotate_camera(-motion.relative.x * sensitivity, -motion.relative.y * sensitivity * vertical)
 	if not _can_act():
 		return
 	if event.is_action_pressed("interact") and _interaction != null and _interaction_ready:
@@ -190,7 +192,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	var look := Input.get_vector("camera_left", "camera_right", "camera_up", "camera_down")
 	if look != Vector2.ZERO:
-		_rotate_camera(-look.x * gamepad_look_speed * delta, -look.y * gamepad_look_speed * delta)
+		var vertical := -1.0 if Settings.invert_y else 1.0
+		_rotate_camera(-look.x * gamepad_look_speed * delta, -look.y * gamepad_look_speed * delta * vertical)
 	if lying:
 		velocity = Vector3.ZERO
 		_update_interaction()
@@ -706,7 +709,7 @@ func _update_interaction() -> void:
 		if _interaction == null:
 			_interaction = fallback
 		if _interaction != null:
-			prompt = ("[E] " if _interaction_ready else "") + _interaction.interaction_prompt()
+			prompt = ("[%s] " % Settings.key_label(&"interact", true) if _interaction_ready else "") + _interaction.interaction_prompt()
 		else:
 			var level := Game.current_level
 			if level != null and level.has_method("tree_near"):
@@ -767,7 +770,9 @@ func _update_camera(delta: float) -> void:
 	var weight := 1.0 - exp(-10.0 * delta)
 	_camera_length = lerpf(_camera_length, 1.5 if aiming else camera_distance, weight)
 	_camera_shoulder = lerpf(_camera_shoulder, 0.6 if aiming else shoulder_offset, weight)
-	_camera.fov = lerpf(_camera.fov, 50.0 - draw * 6.0 if aiming else _camera_rest.fov, weight)
+	# O campo de visão vem das Configurações; mirando, fecha e aproxima mais com a corda puxada.
+	var aim_fov := Settings.fov - Tuning.SETTINGS_AIM_FOV_DROP - draw * 6.0
+	_camera.fov = lerpf(_camera.fov, aim_fov if aiming else Settings.fov, weight)
 	_camera_pivot.position.y = lerpf(_camera_pivot.position.y, _camera_rest.pivot - (0.25 if _crouching else 0.0), weight)
 	_place_camera(delta)
 

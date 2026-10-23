@@ -554,3 +554,29 @@ const BOAR_CHARGE_RANGE := 12.0
 const BOAR_CHARGE_SPEED := 8.5
 const BOAR_DAMAGE := 22.0
 const BOAR_CHARGES := 2
+
+# --- Configurações (Settings) -------------------------------------------------------------------
+
+## Padrões da tela de Configurações (o que "Restaurar padrão" devolve). Volumes de 0 a 1.
+const SETTINGS_FULLSCREEN := false
+const SETTINGS_VSYNC := true
+## Escala da resolução 3D (1 = nativa; menos fica mais leve e mais pixelado) e os limites.
+const SETTINGS_RENDER_SCALE := 1.0
+const SETTINGS_RENDER_SCALE_RANGE := Vector2(0.5, 1.0)
+## Limite de FPS (0 = sem limite) e as opções da lista.
+const SETTINGS_MAX_FPS := 0
+const SETTINGS_FPS_OPTIONS: Array[int] = [0, 30, 60, 90, 120, 144, 165, 240]
+## Campo de visão da câmera do goblin em repouso (graus); mirando, fecha SETTINGS_AIM_FOV_DROP.
+const SETTINGS_FOV := 65.0
+const SETTINGS_FOV_RANGE := Vector2(55.0, 90.0)
+const SETTINGS_AIM_FOV_DROP := 15.0
+## Brilho (gama sobre a imagem 3D: mais de 1 clareia as sombras).
+const SETTINGS_BRIGHTNESS := 1.0
+const SETTINGS_BRIGHTNESS_RANGE := Vector2(0.6, 1.6)
+const SETTINGS_VOLUME := 1.0
+## Sensibilidade do mouse (multiplica a do Player e a de Ari) e os limites.
+const SETTINGS_MOUSE_SENSITIVITY := 1.0
+const SETTINGS_MOUSE_SENSITIVITY_RANGE := Vector2(0.25, 3.0)
+## Tamanho de avisos, prompt e legendas: as opções (escala da fonte) e o padrão (índice).
+const SETTINGS_TEXT_SCALES: Array[float] = [1.0, 1.5, 2.0]
+const SETTINGS_TEXT_SCALE := 0

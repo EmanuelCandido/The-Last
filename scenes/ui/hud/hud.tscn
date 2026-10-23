@@ -32,12 +32,10 @@ mouse_filter = 2
 [node name="DebugLabel" type="Label" parent="."]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 12.0
-offset_top = 8.0
-offset_right = 260.0
+offset_left = 14.0
+offset_top = 10.0
+offset_right = 280.0
 offset_bottom = 110.0
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 4
 
 [node name="Crosshair" type="Control" parent="."]
 unique_name_in_owner = true
@@ -56,38 +54,70 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Notice" type="Label" parent="."]
-unique_name_in_owner = true
+[node name="NoticeRow" type="HBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
-offset_top = 70.0
+offset_top = 64.0
 offset_bottom = 100.0
 grow_horizontal = 2
-theme_override_colors/font_color = Color(0.95, 0.92, 0.82, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 5
-theme_override_font_sizes/font_size = 18
+mouse_filter = 2
+alignment = 1
+
+[node name="NoticeBox" type="PanelContainer" parent="NoticeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"Smudge"
+
+[node name="Notice" type="Label" parent="NoticeRow/NoticeBox"]
+unique_name_in_owner = true
+layout_mode = 2
 horizontal_alignment = 1
 
-[node name="Prompt" type="Label" parent="."]
-unique_name_in_owner = true
+[node name="PromptRow" type="HBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 12
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -150.0
+offset_top = -160.0
 offset_bottom = -120.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_colors/font_color = Color(1, 1, 1, 0.9)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 5
-theme_override_font_sizes/font_size = 17
+mouse_filter = 2
+alignment = 1
+
+[node name="PromptBox" type="PanelContainer" parent="PromptRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 8
+mouse_filter = 2
+theme_type_variation = &"Smudge"
+
+[node name="Line" type="HBoxContainer" parent="PromptRow/PromptBox"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="PromptKey" type="PanelContainer" parent="PromptRow/PromptBox/Line"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_type_variation = &"Keycap"
+
+[node name="KeyLabel" type="Label" parent="PromptRow/PromptBox/Line/PromptKey"]
+unique_name_in_owner = true
+layout_mode = 2
 horizontal_alignment = 1
 
-[node name="Items" type="Label" parent="."]
+[node name="Prompt" type="Label" parent="PromptRow/PromptBox/Line"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+
+[node name="ItemsBox" type="PanelContainer" parent="."]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 3
@@ -95,28 +125,43 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -560.0
-offset_top = -36.0
-offset_right = -14.0
-offset_bottom = -10.0
+offset_left = -40.0
+offset_top = -40.0
+offset_right = -6.0
+offset_bottom = -6.0
 grow_horizontal = 0
 grow_vertical = 0
-theme_override_colors/font_color = Color(0.92, 0.88, 0.78, 0.9)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 4
-horizontal_alignment = 2
+mouse_filter = 2
+theme_type_variation = &"Smudge"
 
-[node name="ControlsHint" type="Label" parent="."]
+[node name="Items" type="RichTextLabel" parent="ItemsBox"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+autowrap_mode = 0
+
+[node name="HintBox" type="PanelContainer" parent="."]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 12.0
-offset_top = -36.0
-offset_right = 720.0
-offset_bottom = -10.0
+offset_left = 6.0
+offset_top = -40.0
+offset_right = 40.0
+offset_bottom = -6.0
 grow_vertical = 0
-theme_override_colors/font_color = Color(1, 1, 1, 0.85)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 4
-text = "WASD mover · Shift correr · Ctrl agachar · E pegar · F comer · Esc pausar (veja as Dicas)"
+mouse_filter = 2
+theme_type_variation = &"Smudge"
+
+[node name="ControlsHint" type="RichTextLabel" parent="HintBox"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+autowrap_mode = 0

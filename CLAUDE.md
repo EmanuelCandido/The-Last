@@ -24,6 +24,7 @@ $godot = "C:\Users\emano\Downloads\Godot_v4.7.1-stable_win64.exe\Godot_v4.7.1-st
 & $godot --path . -e                                                    # abre o editor
 python tools/generate_textures.py                                       # regera assets/textures/*.png
 python tools/generate_sounds.py                                         # regera assets/audio/**/*.wav
+python tools/generate_ui.py                                             # regera assets/ui/ (fonte Toca e texturas da interface)
 ```
 
 - **Argumentos do DevTools** (depois de `--`), documentados em `autoload/dev_tools.gd`:
@@ -35,7 +36,7 @@ python tools/generate_sounds.py                                         # regera
   - `--menu` (abre o menu principal; sem `--frames` nem `--screenshot` ele já abre sozinho) e `--welcome` (começa o Bem-vindo de volta);
   - `--run=roteiro.gd`.
 - **`--run`:** recebe um `RefCounted` com `func run() -> void` (pode usar `await`). É o jeito de testar mecânicas de ponta a ponta: pegar o arco, quebrar árvore, caçar, furtividade, assar, dormir, farejar, jogar pedra, fabricar.
-- Roteiros que dormem salvam de verdade em `%APPDATA%/Godot/app_userdata/Jogo Pessoal/save.json`. Apague esse save depois do teste. Os finais também escrevem `toca.cfg` na mesma pasta (o título do jogo); `MetaFiles.forget_endings()` limpa. Num roteiro (`DevTools.scripted`), o Final 3 não fecha o jogo.
+- Roteiros que dormem salvam de verdade em `%APPDATA%/Godot/app_userdata/Jogo Pessoal/save.json`. Apague esse save depois do teste. Roteiros que mexem nas Configurações gravam `settings.cfg` na mesma pasta (apague também). Os finais também escrevem `toca.cfg` na mesma pasta (o título do jogo); `MetaFiles.forget_endings()` limpa. Num roteiro (`DevTools.scripted`), o Final 3 não fecha o jogo.
 - **`--press`** gera eventos de ação de verdade. `--hold` só segura a ação e não dispara `_unhandled_input`, então E, R e o soco precisam de `--press`.
 - `--fixed-fps 60` deixa o teste determinístico: 60 frames equivalem a 1 s de jogo. Os bichos nascem com semente aleatória.
 - Depois de mexer em scripts ou cenas, rode o teste de fumaça. Erros aparecem como `SCRIPT ERROR`, `Parse Error` ou `ERROR:`.
@@ -48,7 +49,7 @@ python tools/generate_sounds.py                                         # regera
 ```
 docs/                roteiro.md (rascunho) e plano.md (plano fechado de história e mecânicas, em fases)
 data/                tuning.gd (todos os números de ajuste), story_beats.gd (acontecimentos da história) e recipes.gd (receitas)
-autoload/            Events, Wind, Inventory, Clock, Weather, Vitals, Story, Game, SaveSystem, MetaFiles, DevTools
+autoload/            Events, Settings, Wind, Inventory, Clock, Weather, Vitals, Story, Game, SaveSystem, MetaFiles, DevTools
 scenes/
   main/              cena raiz: LevelRoot + UI (HUD, ScreenFade, PauseMenu); abre o menu principal
   endings/           Endings (as cenas dos três finais) e WelcomeBack (o Bem-vindo de volta)
@@ -86,11 +87,14 @@ scenes/
                      terminal, servidor e a conversa) e Outside (Final 2: a escada e a cidade na neblina)
   ui/                HUD (ação, avisos, itens, mira), menu de pausa (com Dicas e a lista de Carregar), ScreenFade,
                      BlurredVision (visão borrada), VitalsHud (ECG e oxigênio no canto), FakeFreeze (o falso travamento),
-                     MainMenu, Credits e KeeperConsole (o console do Zelador no terminal)
+                     MainMenu, Credits, KeeperConsole (o console do Zelador no terminal), SettingsMenu (a tela de
+                     Configurações) e UiStyle (theme/: paleta, fundo de neblina, botões de menu)
 components/          Footsteps (passos por chão), OccludedAudio (som 3D abafado atrás de rocha), Senses (visão, audição e
                      térmico de quem vigia)
 assets/
   textures/ shaders/ gerados por tools/ (exceto shaders)
+  ui/                o Theme único (ui_theme.tres), a fonte pixelada Toca (font/, BMFont) e as texturas 9-patch da
+                     interface, gerados por tools/generate_ui.py (exceto o .tres)
   audio/             sintéticos gerados por tools/; audio/real/ = gravações reais CC0 (ver CREDITS.md)
   models/goblin/     goblin.glb + source/ (goblin.blend, polish_goblin.py, export_goblin.py)
 tools/               geradores Python de texturas e sons (numpy + Pillow)
@@ -98,6 +102,33 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 
 ## Arquitetura
 
+- **Configurações (`Settings`, autoload):** vídeo (tela cheia, vsync, escala 3D em `root.scaling_3d_scale`, limite de
+  FPS, campo de visão, brilho), áudio (geral, Ambience, World), controles (sensibilidade, inverter Y, teclas) e jogo
+  (tamanho de avisos/prompt/legendas, dicas de controle). Salvas em `user://settings.cfg`, fora do save; carregam no
+  início e valem na hora. Padrões em `Tuning.SETTINGS_*`.
+  - Quem muda chama `set_value(chave, valor)`, `set_volume(bus, 0..1)` ou `rebind(ação, evento)`; `reset_section`
+    devolve os padrões de uma aba (`InputMap.load_from_project_settings` nas teclas). Tudo emite `changed(chave)`.
+  - Leem: `Player` e `Ari` (`mouse_sensitivity`, `invert_y`, `fov`; mirando fecha `SETTINGS_AIM_FOV_DROP`), o HUD
+    (`text_scale()`, `show_hints`) e a `BlurredVision` (legendas em 32 × `text_scale()`).
+  - Volume geral é um `AudioEffectAmplify` no Master (o volume do Master é do ouvido, `Game.open_ears`); "Efeitos"
+    mexe em World e Shelter juntos (a tela não pode contar que o Abrigo existe). Brilho é uma curva de gama
+    (`brightness.gdshader`) num `CanvasLayer` de camada -1, abaixo de toda a interface.
+  - Teclas: `REMAPPABLE` lista as ações da tela; `rebind` troca a principal (primeira tecla ou botão do mouse) e
+    tira a mesma tecla das outras ações, que recebem a antiga (as duas trocam). Textos que mostram tecla usam
+    `key_label(ação)` ou `key_labels()` com `String.format` (`{interact}`, `{eat}`...): prompt do Player e de Ari,
+    dicas de controle, Dicas do pause, lista de fabricar e o disco da porta da ruína.
+- **Interface (`assets/ui/ui_theme.tres`, tema do projeto em `gui/theme/custom`):** pedra escura, linha de ferro
+  gasta, osso e ocre de vela, tudo pontilhado e com filtro nearest (`default_texture_filter` do canvas). A fonte
+  Toca é pixelada com base 16 (tamanhos bons: 16, 32, 48, 64), com negrito e itálico gerados e uma fonte do sistema
+  de reserva para letras que faltam.
+  - Variações: `Title` (64), `Heading` (32, ocre), `Hint` (apagado), `MenuItem` (botão de menu, 32, com a plaquinha
+    ocre no foco), `TabButton`, `PanelDark`, `Smudge` (mancha atrás dos textos do HUD) e `Keycap` (a tecla do prompt).
+  - `UiStyle` tem a paleta (`INK`, `INK_DIM`, `ACCENT`, `MOSS`... e `hex()` para BBCode), `fog_backdrop()` (neblina
+    escura em Bayer, `ui_fog.gdshader`, atrás dos menus e dos créditos), `menu_button()` e `separator()`.
+  - `SettingsMenu` abre por cima do `MainMenu` e do `PauseMenu` (quem abre esconde o próprio painel e volta no
+    sinal `closed`); Esc fecha ou cancela a troca de tecla. O HUD separa o "[E]" do prompt numa tecla desenhada.
+  - Fora do tema de propósito: a caixa do `FakeFreeze` (tema próprio com a fonte do Windows) e o `KeeperConsole`
+    (fonte monoespaçada do sistema).
 - **Main** passa o `LevelRoot` e a `UI` para o `Game` e abre o menu principal (`Game.open_menu`); nos testes do DevTools (`--frames`/`--screenshot`) carrega direto `Game.FIRST_LEVEL` (a floresta).
 - **Game:** `change_level(path)` troca a fase e cria o jogador no `PlayerSpawn`. Também cuida da pausa e do mouse.
 - **Events:** só sinais.
@@ -249,7 +280,9 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 
 ## Assets
 
-- **Texturas:** 100% procedurais (`tools/generate_textures.py`).
+- **Texturas:** 100% procedurais (`tools/generate_textures.py`; as da interface em `tools/generate_ui.py`).
+- **Fonte:** a Toca é desenhada pixel a pixel em `tools/generate_ui.py` (maiúsculas de 9 px, acentos compostos) e
+  sai em BMFont. Letra nova: acrescente em `GLYPHS` (ou `COMPOSED`) e rode o gerador.
 - **Sons:**
   - Gravações reais CC0 em `assets/audio/real/`:
     - passos em grama, terra, pedra e tronco, casco do cervo, impactos de flecha, golpe na madeira, rangido, coleta e faca (Kenney). Pedra e tronco passaram por passa-baixa, porque o goblin anda descalço;
@@ -275,5 +308,4 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 ## Ainda não existe
 
 - Combate corpo a corpo de verdade, diálogos, missões, atributos.
-- Configurações (vídeo, áudio e controles).
 - Subir degraus (step-up), água.

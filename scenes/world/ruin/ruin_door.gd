@@ -12,7 +12,7 @@ extends Node3D
 const OPEN_FLAG := &"ruin_door_open"
 const DOOR_SOUND := preload("res://assets/audio/sfx/stone_door.wav")
 const CLICK_SOUNDS := [preload("res://assets/audio/sfx/stone_click_1.wav"), preload("res://assets/audio/sfx/stone_click_2.wav")]
-const HINT := "%s      ←/→ disco  ·  ↑/↓ girar  ·  [E] empurrar  ·  [Espaço] sair"
+const HINT := "%s      ←/→ disco  ·  ↑/↓ girar  ·  [{interact}] empurrar  ·  [{jump}] sair"
 ## Onde ficam os discos, em relação à soleira (à direita de quem olha a porta).
 const DISCS_AT := Vector3(-0.82, 0.62, 0.02)
 const DISC_SPACING := 0.14
@@ -213,7 +213,7 @@ func _show_hint() -> void:
 	var shown := PackedStringArray()
 	for i in 4:
 		shown.append("[%d]" % digits[i] if i == selected else " %d " % digits[i])
-	Events.prompt_changed.emit(HINT % " ".join(shown))
+	Events.prompt_changed.emit((HINT % " ".join(shown)).format(Settings.key_labels()))
 
 
 func _refresh() -> void:

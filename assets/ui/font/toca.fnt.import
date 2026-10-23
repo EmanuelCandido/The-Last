@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://buuwuylmrj6tr"
+path="res://.godot/imported/toca.fnt-b32f30bd5fb0252e2368e004c50e8c01.fontdata"
+
+[deps]
+
+source_file="res://assets/ui/font/toca.fnt"
+dest_files=["res://.godot/imported/toca.fnt-b32f30bd5fb0252e2368e004c50e8c01.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=2

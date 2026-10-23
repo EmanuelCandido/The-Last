@@ -3,7 +3,10 @@ extends Control
 ## painel de desempenho (F3).
 ##
 ## Para não quebrar a imersão, as dicas de controle e os avisos somem sozinhos e a
-## mira só aparece mirando.
+## mira só aparece mirando. Os textos ficam sobre uma mancha escura pontilhada (variação Smudge
+## do Theme), que lê sobre a neblina clara; a tecla da ação aparece desenhada (Keycap).
+## Configurações: tamanho dos avisos e do prompt (Settings.text_scale) e dicas de controle ligadas
+## ou não (Settings.show_hints).
 
 ## Segundos até as dicas de controle sumirem.
 @export var hint_duration := 14.0
@@ -12,12 +15,19 @@ extends Control
 
 var _notice_tween: Tween
 var _hint_tween: Tween
+var _hint_alpha := 1.0
 
 @onready var _debug_label: Label = %DebugLabel
-@onready var _controls_hint: Label = $ControlsHint
+@onready var _hint_box: Control = %HintBox
+@onready var _controls_hint: RichTextLabel = %ControlsHint
+@onready var _prompt_box: Control = %PromptBox
+@onready var _prompt_key: Control = %PromptKey
+@onready var _key_label: Label = %KeyLabel
 @onready var _prompt: Label = %Prompt
+@onready var _notice_box: Control = %NoticeBox
 @onready var _notice: Label = %Notice
-@onready var _items: Label = %Items
+@onready var _items_box: Control = %ItemsBox
+@onready var _items: RichTextLabel = %Items
 @onready var _crosshair: Control = %Crosshair
 @onready var _vignette: ColorRect = %Vignette
 @onready var _vignette_material: ShaderMaterial = _vignette.material
@@ -25,13 +35,17 @@ var _hint_tween: Tween
 
 func _ready() -> void:
 	_debug_label.visible = false
-	_prompt.text = ""
-	_notice.modulate.a = 0.0
-	Events.prompt_changed.connect(func(text: String) -> void: _prompt.text = text)
+	_set_prompt("")
+	_notice_box.modulate.a = 0.0
+	Events.prompt_changed.connect(_set_prompt)
 	Events.notification_shown.connect(_show_notice)
 	Inventory.changed.connect(func(_item: StringName, _amount: int) -> void: _refresh_items())
 	_crosshair.draw.connect(_draw_crosshair)
+	_key_label.add_theme_color_override(&"font_color", UiStyle.ACCENT)
+	Settings.changed.connect(_on_settings_changed)
 	_refresh_items()
+	_refresh_hint()
+	_apply_text_scale()
 	var vitals := VitalsHud.new()
 	vitals.name = "Vitals"
 	add_child(vitals)
@@ -54,9 +68,10 @@ func _process(_delta: float) -> void:
 	# cenas do mistério (o travamento, a memória), no menu e com o goblin da IA, nada do HUD.
 	var watching := Game.cutscene or Game.menu_open or Game.welcome
 	var real := Game.awake or Game.in_flash() or watching
-	_items.visible = not real
-	_controls_hint.visible = not real
-	_prompt.visible = not watching
+	_items_box.visible = not real and _items.text != ""
+	_hint_box.visible = not real and Settings.show_hints and _hint_alpha > 0.0
+	_hint_box.modulate.a = _hint_alpha
+	_prompt_box.get_parent().visible = not watching
 	_update_vignette()
 	if not _debug_label.visible:
 		return
@@ -71,28 +86,77 @@ func _process(_delta: float) -> void:
 func _show_hint() -> void:
 	if _hint_tween != null:
 		_hint_tween.kill()
-	_controls_hint.modulate.a = 1.0
+	_hint_alpha = 1.0
 	_hint_tween = create_tween()
 	_hint_tween.tween_interval(hint_duration)
-	_hint_tween.tween_property(_controls_hint, "modulate:a", 0.0, 2.0)
+	_hint_tween.tween_property(self, ^"_hint_alpha", 0.0, 2.0)
 
 
-## Ponto no centro e um anel que fecha conforme a corda é puxada.
+## As dicas de controle com as teclas de agora: "[W A S D] mover · [Shift] correr...".
+func _refresh_hint() -> void:
+	var keys := Settings.key_labels()
+	var walk := "%s %s %s %s" % [keys["move_forward"], keys["move_left"], keys["move_back"], keys["move_right"]]
+	var parts := PackedStringArray()
+	for pair: Array in [[walk, "mover"], [keys["sprint"], "correr"], [keys["crouch"], "agachar"],
+			[keys["interact"], "pegar"], [keys["eat"], "comer"], [keys["pause"], "pausar (veja as Dicas)"]]:
+		parts.append("[color=%s]%s[/color] %s" % [UiStyle.hex(UiStyle.ACCENT), pair[0], pair[1]])
+	_controls_hint.text = "  ·  ".join(parts)
+
+
+## "[E] Pegar o arco": a tecla vai para a tecla desenhada, o resto para o texto.
+func _set_prompt(text: String) -> void:
+	var key := ""
+	if text.begins_with("[") and text.find("]") > 0:
+		key = text.substr(1, text.find("]") - 1)
+		text = text.substr(text.find("]") + 1).strip_edges()
+	_prompt.text = text
+	_key_label.text = key
+	_prompt_key.visible = key != ""
+	_prompt_box.visible = text != "" or key != ""
+
+
+## Mira: um ponto e quatro traços que fecham conforme a corda é puxada, tudo em pixels inteiros.
 func _draw_crosshair() -> void:
-	var center := _crosshair.size * 0.5
+	var center := (_crosshair.size * 0.5).floor()
 	var draw_amount := Game.player.draw if Game.player != null else 0.0
-	_crosshair.draw_circle(center, 1.6, Color(1.0, 1.0, 1.0, 0.8))
-	_crosshair.draw_arc(center, lerpf(15.0, 4.0, draw_amount), 0.0, TAU, 24, Color(1.0, 1.0, 1.0, 0.35 + 0.4 * draw_amount), 1.2)
+	var gap := roundf(lerpf(12.0, 3.0, draw_amount))
+	var ink := Color(UiStyle.INK, 0.55 + 0.4 * draw_amount)
+	var shade := Color(0.0, 0.0, 0.0, 0.5)
+	_crosshair.draw_rect(Rect2(center - Vector2(1.0, 1.0), Vector2(3.0, 3.0)), shade)
+	_crosshair.draw_rect(Rect2(center, Vector2(1.0, 1.0)), Color(UiStyle.INK, 0.9))
+	for direction: Vector2 in [Vector2.RIGHT, Vector2.LEFT, Vector2.DOWN, Vector2.UP]:
+		var start := center + direction * gap
+		var tick := Rect2(start, direction * 4.0 + Vector2(1.0, 1.0) * (Vector2.ONE - direction.abs())).abs()
+		_crosshair.draw_rect(tick.grow(1.0), shade)
+		_crosshair.draw_rect(tick, ink)
 
 
 func _show_notice(text: String) -> void:
 	_notice.text = text
 	if _notice_tween != null:
 		_notice_tween.kill()
-	_notice.modulate.a = 1.0
+	_notice_box.modulate.a = 1.0
 	_notice_tween = create_tween()
 	_notice_tween.tween_interval(notice_duration)
-	_notice_tween.tween_property(_notice, "modulate:a", 0.0, 1.2)
+	_notice_tween.tween_property(_notice_box, "modulate:a", 0.0, 1.2)
+
+
+func _on_settings_changed(key: StringName) -> void:
+	match key:
+		&"text_scale_index":
+			_apply_text_scale()
+		&"keys":
+			_refresh_hint()
+		&"show_hints":
+			if Settings.show_hints:
+				_show_hint()
+
+
+## Avisos e prompt no tamanho escolhido (a fonte é pixelada: 16 é o tamanho de base).
+func _apply_text_scale() -> void:
+	var font_size := roundi(16.0 * Settings.text_scale())
+	for label: Label in [_notice, _prompt, _key_label]:
+		label.add_theme_font_size_override(&"font_size", font_size)
 
 
 ## Vida baixa ou fome machucando: a borda da tela escurece e pulsa no ritmo do coração
@@ -109,10 +173,11 @@ func _update_vignette() -> void:
 	_vignette_material.set_shader_parameter(&"aspect", size.x / maxf(size.y, 1.0))
 
 
+## "Flechas 6 · Madeira 2": o nome apagado e a quantidade clara.
 func _refresh_items() -> void:
 	var parts := PackedStringArray()
 	for item: StringName in Inventory.HUD_ORDER:
 		var amount := Inventory.count(item)
 		if amount > 0 or (item == &"arrow" and Inventory.has(&"bow")):
-			parts.append("%s: %d" % [Inventory.NAMES[item], amount])
-	_items.text = "    ".join(parts)
+			parts.append("[color=%s]%s[/color] %d" % [UiStyle.hex(UiStyle.INK_DIM), Inventory.NAMES[item], amount])
+	_items.text = "  ·  ".join(parts)
