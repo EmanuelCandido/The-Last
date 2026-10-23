@@ -1,6 +1,11 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/hud/hud.gd" id="1_hud"]
+[ext_resource type="Shader" path="res://assets/shaders/vignette.gdshader" id="2_vignette"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vignette"]
+shader = ExtResource("2_vignette")
+shader_parameter/amount = 0.0
 
 [node name="HUD" type="Control"]
 layout_mode = 3
@@ -11,6 +16,18 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_hud")
+
+[node name="Vignette" type="ColorRect" parent="."]
+unique_name_in_owner = true
+visible = false
+material = SubResource("ShaderMaterial_vignette")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
 [node name="DebugLabel" type="Label" parent="."]
 unique_name_in_owner = true
@@ -102,4 +119,4 @@ grow_vertical = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.85)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 4
-text = "WASD mover · Shift correr · Ctrl agachar · E pegar · Esc pausar (veja as Dicas)"
+text = "WASD mover · Shift correr · Ctrl agachar · E pegar · F comer · Esc pausar (veja as Dicas)"

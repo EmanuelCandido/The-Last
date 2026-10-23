@@ -30,8 +30,10 @@ python tools/generate_sounds.py                                         # regera
   - `--frames`, `--hold`, `--press`, `--give`;
   - `--load`, `--save`, `--pause`, `--tips`;
   - `--screenshot`, `--skip-intro`, `--teleport=x,z`, `--camera=yaw,pitch`;
+  - `--set=story.act:2,story.flag:moss_fell,vitals.satiety:10,clock.hour:19` (põe o estado global em qualquer ponto);
   - `--run=roteiro.gd`.
-- **`--run`:** recebe um `RefCounted` com `func run() -> void` (pode usar `await`). É o jeito de testar mecânicas de ponta a ponta: pegar o arco, quebrar árvore, caçar, furtividade.
+- **`--run`:** recebe um `RefCounted` com `func run() -> void` (pode usar `await`). É o jeito de testar mecânicas de ponta a ponta: pegar o arco, quebrar árvore, caçar, furtividade, assar, dormir.
+- Roteiros que dormem salvam de verdade em `%APPDATA%/Godot/app_userdata/Jogo Pessoal/save.json`. Apague esse save depois do teste.
 - **`--press`** gera eventos de ação de verdade. `--hold` só segura a ação e não dispara `_unhandled_input`, então E, R e o soco precisam de `--press`.
 - `--fixed-fps 60` deixa o teste determinístico: 60 frames equivalem a 1 s de jogo. Os bichos nascem com semente aleatória.
 - Depois de mexer em scripts ou cenas, rode o teste de fumaça. Erros aparecem como `SCRIPT ERROR`, `Parse Error` ou `ERROR:`.
@@ -42,18 +44,21 @@ python tools/generate_sounds.py                                         # regera
 ## Estrutura
 
 ```
-autoload/            Events, Wind, Inventory, Game, SaveSystem, DevTools
+docs/                roteiro.md (rascunho) e plano.md (plano fechado de história e mecânicas, em fases)
+data/                tuning.gd (todos os números de ajuste) e story_beats.gd (acontecimentos da história)
+autoload/            Events, Wind, Inventory, Clock, Vitals, Story, Game, SaveSystem, DevTools
 scenes/
   main/              cena raiz: LevelRoot + UI (HUD, ScreenFade, PauseMenu)
   player/            goblin: player.gd (movimento, arco, soco, interação), goblin_animator.gd
                      (animação procedural no esqueleto) e goblin_look.gd (texturas)
-  items/             arco (pickup na caverna), HeldBow (arco na mão, corda que puxa), flecha (projétil), BowMesh (malhas)
+  player/parts/      mecânicas novas do goblin como nós filhos: EatAbility (F), BodyFeedback (fome)
+  items/             arco (pickup na caverna), HeldBow (arco na mão, corda que puxa), flecha (projétil), BowMesh e MeatMesh (malhas)
   levels/forest/     fase da floresta: forest.tscn/gd e ForestLayout (pontos-chave do mapa)
   levels/test_level/ fase de teste antiga (blocos CSG)
   world/terrain/     Terrain: relevo, malha em blocos, HeightMapShape3D, mapa de abrigo do vento
-  world/cave/        Cave: casca de rocha procedural + fogueira, pele, arco, gotejamento
+  world/cave/        Cave: casca de rocha procedural + fogueira, pele de dormir, riscos na parede (WallMarks), arco, gotejamento
   world/vegetation/  TreeBuilder (malhas por código) e Vegetation (espalha, instancia, derruba árvores)
-  world/props/       fogueira, folhas caindo
+  world/props/       fogueira (lenha, assar), folhas caindo
   world/ambience/    Ambience: vento 3D, folhas nas árvores, chamados de bichos
   animals/           Animal (sentidos, fuga, ferimento, caça), Deer, Rabbit, CrowFlock
   ui/                HUD (ação, avisos, itens, mira), menu de pausa (com Dicas), ScreenFade
@@ -74,7 +79,13 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - `noise_made(pos, raio)`: barulho que assusta bichos;
   - `notification_shown`: avisos na tela;
   - `prompt_changed`: ação disponível agora.
-- **Inventory:** quantidade por item (`bow`, `arrow`, `wood`, `meat`, `hide`). Emite `changed` e vai junto no save.
+- **Inventory:** quantidade por item (`bow`, `arrow`, `wood`, `meat`, `cooked_meat`, `hide`). Emite `changed` e vai junto no save.
+- **Plano e maleabilidade:** `docs/plano.md` é a fonte da história e das mecânicas, dividida em fases (F1 feita). Números ficam em `Tuning` (`data/tuning.gd`), nunca soltos no código. Acontecimentos da história ficam em `StoryBeats` (`data/story_beats.gd`): cada beat tem gatilho (`on`), condições (`when`) e ações (`do`). Os sistemas reagem a flags (`Story.flag_changed`), sem saber qual beat as ligou.
+- **Story:** ato, ciclo (347), riscos deste ciclo (`marks`) e antigos (`old_marks`), flags, contadores (`deer_harvested`...) e anotações (`notes`, que viram a seção ANOTAÇÕES das Dicas). Avalia os beats quando acontece `start`, `slept`, `woke`, `died`, `harvested` ou `ate`.
+- **Clock:** dia e hora (1 h de jogo = 60 s). Para enquanto `Game.resting`. Dormir pula o tempo de uma vez e emite `skipped(horas)` (a fogueira queima a lenha). Por enquanto não há visual de noite (fase F2).
+- **Vitals:** o corpo de Ari: saciedade, vida e enjoo. Fome zerada machuca; queda acima de 8 m/s machuca (`Player`); vida 0 emite `Events.player_died`. Sem barra no HUD: o corpo avisa (ronco, mão na barriga, borda escura da tela com vida baixa).
+- **Dormir e morrer (`Game.pass_out(reason)`):** mesma sequência. A tela escurece, o som fecha (`close_ears`), o relógio vai para as 6h30, e então Vitals descansa (sono) ou revive com a carne perdida (morte). O goblin volta para a pele e roda o `wake`. Emite `slept` e `woke_up(reason)`. Dormir salva.
+- **Save:** além dos nós `persist` da fase, o `SaveSystem` salva os autoloads de `_globals()` (Inventory, Story, Clock, Vitals). Chave faltando carrega o padrão, então saves antigos abrem.
 - **Wind:** força num ponto = `abrigo(p) × clima(t) × (0.35 + 0.9 × rajada(p, t))`.
   - A rajada é o `macro_noise.png` arrastado na direção do vento: as frentes de rajada atravessam a grama como ondas.
   - O abrigo vem do mapa `Terrain.build_wind_exposure()`: mata fechada, vales e caverna abrigam.
@@ -82,7 +93,12 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - O som, as folhas caindo e a poeira no ar usam `strength_at`.
 - **Câmera:** braço próprio (`CameraPivot/CameraArm`), sem SpringArm. Em `_place_camera`, uma esfera de 0,22 m vai da nuca até o ombro (deslocamento lateral real, não `h_offset`) e de lá para trás, só contra a camada 1. Ao bater, encolhe na hora; quando abre, volta devagar. Colada no goblin, ele fica transparente e some abaixo de 0,6 m. A casca da caverna tem `backface_collision` para a esfera não passar pelo verso dos triângulos.
 - **Passos:** `Footsteps.surface_under()` lança um raio curto para baixo; se acertar uma colisão com meta `surface` (pedras `stone`, troncos `wood`, de `Vegetation._add_shape_collider`), vale ela, senão o `surface_at` do terreno (`cave` no salão da caverna, `stone`, `dirt`, `grass`).
-- **Interação:** nós no grupo `interactable` implementam `interaction_prompt() -> String` e `interact(player)`. São o arco no chão, flecha fincada e bicho abatido. O Player pega o mais próximo dentro de 1,8 m.
+- **Interação:** nós no grupo `interactable` implementam `interaction_prompt() -> String` e `interact(player)`. São o arco no chão, flecha fincada, bicho abatido, fogueira e pele de dormir. O Player pega o mais próximo dentro de 1,8 m.
+  - Opcionais: `interaction_enabled()` (false = só mostra o texto, sem [E]), `interaction_action()` (`{action, duration, at}`: a animação e quando chamar `interact`; padrão `pickup`) e `interaction_started(player)`.
+  - Ganha o mais próximo que pode ser feito; os desabilitados só aparecem se não houver outro.
+  - Partes do goblin (`scenes/player/parts/`) usam `Player.can_act()`, `perform(action, duração, eventos)` e `hold_in_hand(nó, segundos)`.
+- **Fogueira:** lenha 0–3 (começa com 1), queima 1 a cada 6 min, inclusive dormindo. E acende ou põe lenha e assa carne (animação `cook`, a carne escurece na mão). Chama, luz e estalos crescem com a lenha.
+- **Riscos na parede (`WallMarks`):** um por noite dormida, em grupos de 5, colados na rocha por raios (na primeira volta da física). Os antigos ficam sob um musgo (`moss_patch.gdshader`) que despenca quando o flag `moss_fell` liga: no 7º risco com um cervo coletado, ou no 10º. Isso abre o Ato II.
 - **Árvores:** `Vegetation.trees` registra cada árvore em pé (posição, raio do tronco, seca ou não, instância no MultiMesh e colisão). `hit_tree()` derruba as secas depois de 4 golpes: a instância some, a colisão sai e uma cópia tomba.
 - **Animação do goblin (`GoblinAnimator`):** 100% procedural, direto no esqueleto; as animações do glb ficam paradas.
   - Cada frame monta uma *pose* (dicionário: altura do quadril, alvo de cada pé, ângulos de tronco, cabeça, braços e orelhas) e só no fim converte em rotações de osso (`_rotate`: eixos do modelo em repouso, carregados pelo pai).
@@ -96,7 +112,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - Pés no chão (`_ground_feet`): um raio por pé acha a altura e a inclinação do chão embaixo dele (degrau, pedra, encosta). O quadril desce para o pé mais baixo com apoio; pé sem chão fica pendurado, e com só um pé apoiado o peso vai para ele. `foot_supported` é lido pelo Player.
   - Coluna: o giro do tronco se divide entre `tronco` (lombar) e `peito`; por cima entram `spine_arch` (costas redondas em cima, lombar arqueada), `spine_bend` (curva de lado em S) e `neck_fwd` (`pescoco`). A soma lombar + peito é o giro antigo + arch / 2, então as poses dos braços continuam calibradas.
   - Borda (`_balance_overlay`): com `teeter` > 0 abre e gira os braços, joga o corpo para longe do vazio e olha para baixo.
-  - Ações cronometradas com eventos: `wake` (acordar), `pickup`, `harvest` (coletar caça) e `punch`. O Player só pega o item ou acerta o golpe no evento, quando a mão chega. Cada ação mexe o corpo todo (quadril, coluna, pescoço), com preparação e continuação: o soco arma girando quadril e ombro para trás e solta com o quadril na frente; pegar dobra no quadril com as costas curvas e sobe com o peito na frente.
+  - Ações cronometradas com eventos: `wake` (acordar), `pickup`, `harvest` (coletar caça), `punch`, `eat`, `cook` e `lie_down` (deitar para dormir). Faminto, a mania mais comum parado é a mão na barriga (`starving`). O Player só pega o item ou acerta o golpe no evento, quando a mão chega. Cada ação mexe o corpo todo (quadril, coluna, pescoço), com preparação e continuação: o soco arma girando quadril e ombro para trás e solta com o quadril na frente; pegar dobra no quadril com as costas curvas e sobe com o peito na frente.
   - Mecânica do corpo (`_body_mechanics`, depois das ações e antes do equilíbrio): (1) dobradiça, em que a inclinação acima de 0,2 rad vai em parte para a bacia (`pelvis_pitch`), o quadril recua (`pelvis_z`) e as costas arredondam; (2) braços, em que esticar um traz o ombro (giro do peito) e erguer acima do ombro inclina o tronco; (3) molas, em que o tronco segue o quadril por uma mola (~2,4 Hz), comprimindo a coluna (`_squash`) nos passos e na aterrissagem, e a velocidade do peito segue a do corpo (~1,2 Hz), inclinando ao arrancar e ao frear. A cabeça compensa a mola. Sinal de giro: `torso_yaw`/`pelvis_yaw` positivos levam o ombro/quadril direito para a frente (vira para a esquerda, +X).
   - Precisa dos ossos `perna/canela/pe`, `braco/antebraco/mao`, `orelha`, `tronco`, `peito`, `pescoco`, `cabeca` e `quadril`. Sem eles o animador desliga sozinho.
 - **Equilíbrio (`Player._update_balance`):** no chão, se não há chão logo embaixo do centro do corpo, ele está na borda. O equilíbrio cai (mais rápido com um pé solto ou andando para o vazio; sem nenhum pé apoiado cai em ~0,25 s) e volta se ele andar para dentro ou se agachar. Se acabar, ele tomba para o lado do vazio (`_tipping`, sem `floor_snap`).
@@ -168,8 +184,8 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 
 ## Ainda não existe
 
-- Comer, fome e vida do goblin.
+- O resto do plano (`docs/plano.md`, fases F2–F8): noite visual, frio, lobos, rastros, farejar, fabricar, Vigilância, mundo real, Zelador e finais.
 - Combate corpo a corpo de verdade, diálogos, missões, atributos.
 - Menu principal e configurações (vídeo, áudio e controles).
-- Subir degraus (step-up), água, ciclo de dia e noite.
+- Subir degraus (step-up), água.
 - A ruína medieval (`ForestLayout.RUINS`).

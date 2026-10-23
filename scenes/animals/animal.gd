@@ -51,6 +51,8 @@ const HOOF_SOUND := preload("res://assets/audio/real/hoof_dirt.ogg")
 @export var dead_height := 0.22
 ## Grupo da manada ("" = vive sozinho).
 @export var herd := ""
+## Espécie, para a história contar o que foi caçado ("deer", "rabbit").
+@export var kind := &""
 
 var terrain: Terrain
 var home := Vector2.ZERO
@@ -183,7 +185,13 @@ func interaction_prompt() -> String:
 	return "Coletar carne e couro" if state == State.DEAD else ""
 
 
+## O goblin ajoelha e corta a caça; a carne só sai no fim.
+func interaction_action() -> Dictionary:
+	return {"action": &"harvest", "duration": 2.4, "at": 1.9}
+
+
 func interact(_player: Node) -> void:
+	Events.animal_harvested.emit(kind)
 	var arrows := 0
 	for child in body_node().find_children("*", "", true, false):
 		if child is Arrow:

@@ -8,7 +8,8 @@ const NAMES := {
 	&"bow": "Arco",
 	&"arrow": "Flechas",
 	&"wood": "Madeira",
-	&"meat": "Carne",
+	&"meat": "Carne crua",
+	&"cooked_meat": "Carne assada",
 	&"hide": "Couro",
 }
 

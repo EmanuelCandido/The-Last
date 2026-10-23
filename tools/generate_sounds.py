@@ -330,6 +330,68 @@ def rabbit_squeal():
     return tone(freq, ((1, 1.0), (2, 0.3))) * np.sin(np.pi * t / t[-1]) ** 0.5
 
 
+# --- Corpo, fogo e caverna (sobrevivência) ------------------------------------------
+
+def stomach_growl(variant):
+    """Ronco da barriga: um tom grave que sobe e desce, borbulhando, com bolhas soltas."""
+    rng = np.random.default_rng(140 + variant)
+    dur = rng.uniform(1.1, 1.6)
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    f = rng.uniform(70, 105) * (1 + 0.3 * np.sin(TAU * rng.uniform(0.6, 1.2) * t + rng.uniform(0, TAU))
+                                + 0.08 * np.sin(TAU * rng.uniform(5, 8) * t))
+    voice = tone(f, ((1, 1.0), (2, 0.6), (3, 0.35), (4, 0.2), (5, 0.1)))
+    # Borbulha: o tom vem em golfadas irregulares, não contínuo.
+    gurgle = (0.55 + 0.45 * np.sin(TAU * rng.uniform(9, 15) * t + 2.0 * np.sin(TAU * 3.1 * t))) ** 2
+    bubble = lambda: tone(np.full(int(0.05 * SR), rng.uniform(180, 420))) * np.exp(-np.arange(int(0.05 * SR)) / SR / 0.012)
+    bubbles = place_events(n, rng.uniform(0, n, rng.integers(5, 10)), bubble)
+    env = np.sin(np.pi * t / dur) ** 0.7 * (1 - 0.4 * smoothstep(0.5, 0.7, t / dur) * smoothstep(0.9, 0.7, t / dur))
+    x = formants(voice * gurgle, [(160, 70, 1.0), (380, 110, 0.6), (700, 150, 0.2)]) * env
+    return band_oneshot(peak_norm(x) + 0.25 * peak_norm(bubbles) * env, 40, 1200)
+
+
+def chew(variant):
+    """Mastigar carne: mordidas úmidas e abafadas, cada uma com um estalo de fibra."""
+    rng = np.random.default_rng(150 + variant)
+    n = int(0.9 * SR)
+    out = np.zeros(n)
+    for k in range(4):
+        start = int((0.08 + k * 0.2 + rng.uniform(-0.03, 0.03)) * SR)
+        squish = band_oneshot(burst(rng, 0.12, rng.uniform(0.03, 0.05), 0.008), 300, 2500) * rng.uniform(0.6, 1.0)
+        fiber = band_oneshot(burst(rng, 0.02, 0.004, 0.0005), 1500, 6000) * rng.uniform(0.2, 0.5)
+        thump = tone(np.full(int(0.08 * SR), rng.uniform(90, 130))) * np.exp(-np.arange(int(0.08 * SR)) / SR / 0.02)
+        for ev, gain in ((squish, 1.0), (fiber, 0.6), (thump, 0.4)):
+            end = min(n, start + len(ev))
+            out[start:end] += gain * peak_norm(ev)[: end - start]
+    return out
+
+
+def sizzle_loop(seconds=6):
+    """Carne chiando no fogo: chiado agudo que oscila e estalinhos de gordura."""
+    rng = np.random.default_rng(160)
+    n = seconds * SR
+    hiss = band(periodic_noise(n, rng), 2500, 9500) * slow_env(n, rng, 6, 30, 0.45, 1.0)
+    pops = place_events(n, rng.uniform(0, n, 22 * seconds),
+                        lambda: burst(rng, rng.uniform(0.002, 0.008), rng.uniform(0.0005, 0.002), 0.0001) * rng.lognormal(0, 0.7))
+    pops = band(pops, 1500, 8000)
+    return rms_norm(hiss) * 0.6 + 0.5 * peak_norm(pops)
+
+
+def moss_fall():
+    """Musgo descolando da rocha: um rasgo úmido, terra esfarelando e o baque mole no chão."""
+    rng = np.random.default_rng(170)
+    n = int(2.0 * SR)
+    t = np.arange(n) / SR
+    tear = band_oneshot(rng.standard_normal(n), 400, 3000) * smoothstep(0.0, 0.08, t) * (1 - smoothstep(0.25, 0.45, t))
+    crumbs = place_events(n, rng.uniform(0.05 * SR, 1.1 * SR, 60), lambda: burst(rng, 0.015, 0.003, 0.0003) * rng.uniform(0.1, 0.6))
+    crumbs = band_oneshot(crumbs, 1200, 7000)
+    hit_t = np.maximum(t - 0.8, 0)
+    thud = band_oneshot(rng.standard_normal(n), 50, 500) * np.exp(-hit_t / 0.12) * (t >= 0.8)
+    patter = place_events(n, rng.uniform(0.85 * SR, 1.6 * SR, 25), lambda: burst(rng, 0.02, 0.005, 0.0005) * rng.uniform(0.1, 0.4))
+    patter = band_oneshot(patter, 600, 4000)
+    return 0.5 * peak_norm(tear) + 0.45 * peak_norm(crumbs) + peak_norm(thud) + 0.35 * peak_norm(patter)
+
+
 def main():
     print("Gerando sons em", ROOT)
     write_wav(ROOT / "ambience" / "wind_loop.wav", wind_loop(), loop=True)
@@ -348,6 +410,11 @@ def main():
     write_wav(ROOT / "sfx" / "tree_fall.wav", tree_fall())
     write_wav(ROOT / "animals" / "deer_snort.wav", deer_snort())
     write_wav(ROOT / "animals" / "rabbit_squeal.wav", rabbit_squeal())
+    for v in range(1, 3):
+        write_wav(ROOT / "sfx" / f"stomach_growl_{v}.wav", stomach_growl(v))
+        write_wav(ROOT / "sfx" / f"chew_{v}.wav", chew(v))
+    write_wav(ROOT / "ambience" / "sizzle_loop.wav", sizzle_loop(), loop=True)
+    write_wav(ROOT / "sfx" / "moss_fall.wav", moss_fall())
 
 
 if __name__ == "__main__":

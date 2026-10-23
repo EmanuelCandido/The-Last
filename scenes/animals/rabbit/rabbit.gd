@@ -18,6 +18,7 @@ func _init() -> void:
 	sight_range = 30.0
 	hearing_range = 22.0
 	smell_range = 30.0
+	kind = &"rabbit"
 	eye_height = 0.3
 	calm_distance = 35.0
 	max_health = 0.5

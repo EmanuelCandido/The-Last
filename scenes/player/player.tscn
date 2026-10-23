@@ -3,6 +3,8 @@
 [ext_resource type="Script" path="res://scenes/player/player.gd" id="1_player"]
 [ext_resource type="PackedScene" path="res://assets/models/goblin/goblin.glb" id="2_goblin"]
 [ext_resource type="Script" path="res://components/footsteps.gd" id="3_footsteps"]
+[ext_resource type="Script" path="res://scenes/player/parts/eat_ability.gd" id="4_eat"]
+[ext_resource type="Script" path="res://scenes/player/parts/body_feedback.gd" id="5_body"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.26
@@ -42,3 +44,9 @@ unit_size = 4.0
 max_distance = 30.0
 bus = &"World"
 script = ExtResource("3_footsteps")
+
+[node name="EatAbility" type="Node" parent="."]
+script = ExtResource("4_eat")
+
+[node name="BodyFeedback" type="Node" parent="."]
+script = ExtResource("5_body")

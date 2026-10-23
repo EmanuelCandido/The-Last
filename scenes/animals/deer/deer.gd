@@ -27,6 +27,7 @@ func _init() -> void:
 	dead_height = 0.22
 	gallop_stride = 1.7
 	herd = "deer"
+	kind = &"deer"
 
 
 func body_node() -> Node3D:

@@ -41,6 +41,8 @@ const CARRY_SWING := 0.4
 const BOW_CANT := 0.15
 ## Raio em volta do corpo onde se procura o vazio na borda (m).
 const EDGE_PROBE := 0.32
+## Ação padrão para interagir com algo que não diz a sua (interaction_action): abaixar e pegar.
+const DEFAULT_INTERACTION := {"action": &"pickup", "duration": 1.1, "at": 0.5}
 
 @export_group("Movimento")
 @export var walk_speed := 2.6
@@ -91,6 +93,8 @@ var _last_yaw := 0.0
 ## curva piscava entre dois valores, desenhando o goblin "duplo".
 var _target_yaw := 0.0
 var _interaction: Node3D
+## A interação mais próxima pode ser feita agora (senão só mostra o texto, sem [E]).
+var _interaction_ready := false
 var _tree_target := -1
 var _prompt := ""
 var _pine_warning_cooldown := 0.0
@@ -163,7 +167,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_rotate_camera(-motion.relative.x * sensitivity, -motion.relative.y * sensitivity)
 	if not _can_act():
 		return
-	if event.is_action_pressed("interact") and _interaction != null:
+	if event.is_action_pressed("interact") and _interaction != null and _interaction_ready:
 		_start_interaction(_interaction)
 	elif event.is_action_pressed("craft"):
 		_craft_arrows()
@@ -207,8 +211,11 @@ func _physics_process(delta: float) -> void:
 	if not aiming and direction.length_squared() > 0.01:
 		_target_yaw = atan2(direction.x, direction.z)
 
-	if is_on_floor() and not _was_on_floor and _animator != null:
-		_animator.notify_landing(_fall_speed)
+	if is_on_floor() and not _was_on_floor:
+		if _animator != null:
+			_animator.notify_landing(_fall_speed)
+		if _fall_speed > Tuning.FALL_DAMAGE_SPEED:
+			Vitals.damage((_fall_speed - Tuning.FALL_DAMAGE_SPEED) * Tuning.FALL_DAMAGE_PER_MS, &"fall")
 	if is_on_floor():
 		_fall_speed = 0.0
 	_was_on_floor = is_on_floor()
@@ -232,6 +239,7 @@ func _process(delta: float) -> void:
 		_animator.on_floor = is_on_floor()
 		_animator.crouching = _crouching
 		_animator.aiming = aiming
+		_animator.starving = Vitals.is_starving()
 		_animator.draw = draw
 		_animator.reload = clampf(_reload / RELOAD_TIME, 0.0, 1.0)
 		_animator.aim_pitch = _camera_arm.rotation.x
@@ -257,6 +265,34 @@ func wake_up() -> void:
 func respawn() -> void:
 	global_transform = _spawn_transform
 	velocity = Vector3.ZERO
+
+
+## Liga ou desliga o controle do jogador (dormindo, cenas). A câmera continua livre.
+func set_controls_enabled(enabled: bool) -> void:
+	_controls_enabled = enabled
+
+
+## Livre para fazer uma ação agora (usado pelas partes em scenes/player/parts/).
+func can_act() -> bool:
+	return _can_act()
+
+
+## Faz uma ação cronometrada do corpo (ver GoblinAnimator.play_action). Sem animador,
+## os eventos acontecem na hora.
+func perform(action: StringName, duration: float, events: Array = []) -> void:
+	velocity = Vector3(0.0, velocity.y, 0.0)
+	if _animator == null:
+		for event: Array in events:
+			(event[1] as Callable).call()
+		return
+	_animator.play_action(action, duration, events)
+
+
+## Põe algo na mão direita por `seconds` segundos (a carne ao comer e ao assar).
+func hold_in_hand(item: Node3D, seconds: float) -> Node3D:
+	_attach_node(item, "braco_D*mao")
+	get_tree().create_timer(seconds, false).timeout.connect(item.queue_free)
+	return item
 
 
 func is_crouching() -> bool:
@@ -499,20 +535,40 @@ func _attach_node(node: Node3D, socket_pattern: String) -> Node3D:
 
 # --- Interação: pegar coisas, quebrar árvore, fazer flecha -----------------------
 
+## Interagíveis (grupo "interactable") implementam:
+##   interaction_prompt() -> String        texto da ação; vazio = nada a fazer agora
+## e, se quiserem:
+##   interaction_enabled() -> bool         false = só mostra o texto, sem [E] (ex.: falta algo)
+##   interaction_action() -> Dictionary    {"action", "duration", "at"}: a animação e quando
+##                                         interact() é chamado (padrão: DEFAULT_INTERACTION)
+##   interaction_started(player)           chamado quando a animação começa
+## Ganha o mais próximo que pode ser feito; se nenhum pode, o mais próximo com texto.
 func _update_interaction() -> void:
 	_interaction = null
+	_interaction_ready = false
 	_tree_target = -1
 	var prompt := ""
 	if _can_act():
 		var best := interact_distance
+		var best_ready := interact_distance
+		var fallback: Node3D
 		for node in get_tree().get_nodes_in_group(&"interactable"):
 			var item := node as Node3D
 			var distance := item.global_position.distance_to(global_position)
-			if distance < best and item.interaction_prompt() != "":
-				best = distance
+			if distance >= interact_distance or item.interaction_prompt() == "":
+				continue
+			var ready: bool = not item.has_method("interaction_enabled") or item.interaction_enabled()
+			if ready and distance < best_ready:
+				best_ready = distance
 				_interaction = item
+			elif not ready and distance < best:
+				best = distance
+				fallback = item
+		_interaction_ready = _interaction != null
+		if _interaction == null:
+			_interaction = fallback
 		if _interaction != null:
-			prompt = "[E] " + _interaction.interaction_prompt()
+			prompt = ("[E] " if _interaction_ready else "") + _interaction.interaction_prompt()
 		else:
 			var level := Game.current_level
 			if level != null and level.has_method("tree_near"):
@@ -524,22 +580,18 @@ func _update_interaction() -> void:
 		Events.prompt_changed.emit(prompt)
 
 
-## Vira para o item, abaixa e pega: o item só é pego quando a mão chega nele.
+## Vira para o item e faz a ação dele: o item só reage quando a mão chega nele.
 func _start_interaction(item: Node3D) -> void:
 	var to_item := item.global_position - global_position
 	_visual.rotation.y = atan2(to_item.x, to_item.z)
 	_target_yaw = _visual.rotation.y
-	velocity = Vector3(0.0, velocity.y, 0.0)
-	if _animator == null:
-		item.interact(self)
-		return
+	var spec: Dictionary = item.interaction_action() if item.has_method("interaction_action") else DEFAULT_INTERACTION
 	var grab := func() -> void:
 		if is_instance_valid(item):
 			item.interact(self)
-	if item is Animal:
-		_animator.play_action(&"harvest", 2.4, [[1.9, grab]])
-	else:
-		_animator.play_action(&"pickup", 1.1, [[0.5, grab]])
+	if item.has_method("interaction_started"):
+		item.interaction_started(self)
+	perform(spec.action, spec.duration, [[spec.at, grab]])
 
 
 func _punch() -> void:

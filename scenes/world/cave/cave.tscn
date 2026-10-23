@@ -9,6 +9,8 @@
 [ext_resource type="Texture2D" path="res://assets/textures/bark.png" id="7_bark"]
 [ext_resource type="Script" path="res://components/occluded_audio.gd" id="8_occluded"]
 [ext_resource type="PackedScene" path="res://scenes/items/bow_pickup.tscn" id="9_bow"]
+[ext_resource type="Script" path="res://scenes/world/cave/sleeping_pelt.gd" id="10_pelt"]
+[ext_resource type="Script" path="res://scenes/world/cave/wall_marks.gd" id="11_marks"]
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_sack"]
 radius = 0.3
@@ -93,6 +95,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.3, 0, -1.0)
 [node name="Pelt" type="MeshInstance3D" parent="."]
 transform = Transform3D(0.98, 0, 0.199, 0, 1, 0, -0.199, 0, 0.98, 1.0, 0.03, -2.2)
 mesh = SubResource("BoxMesh_pelt")
+script = ExtResource("10_pelt")
+
+[node name="WallMarks" type="Node3D" parent="."]
+script = ExtResource("11_marks")
 
 [node name="Sack" type="MeshInstance3D" parent="."]
 transform = Transform3D(1.1, 0, 0, 0, 0.9, 0, 0, 0, 1, 2.4, 0.22, -0.4)

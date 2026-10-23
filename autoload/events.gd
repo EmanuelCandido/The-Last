@@ -23,3 +23,18 @@ signal notification_shown(text: String)
 
 ## Texto da ação disponível agora ("[E] Pegar o arco"); vazio = nenhuma.
 signal prompt_changed(text: String)
+
+## O goblin dormiu uma noite na pele (a tela está escura; ainda não acordou).
+signal slept
+
+## O goblin começou a acordar na pele. `reason`: "sleep" (dormiu) ou "death" (morreu).
+signal woke_up(reason: StringName)
+
+## A vida acabou. `cause`: "hunger", "fall", "nausea"...
+signal player_died(cause: StringName)
+
+## O goblin coletou um bicho abatido. `kind`: "deer", "rabbit"...
+signal animal_harvested(kind: StringName)
+
+## O goblin comeu. `food`: o item do inventário ("meat", "cooked_meat").
+signal ate(food: StringName)

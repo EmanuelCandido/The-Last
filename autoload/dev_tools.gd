@@ -15,6 +15,8 @@ extends Node
 ##   --give=<item>:<n>,...  põe itens no inventário (ex.: bow:1,arrow:6,wood:2)
 ##   --press=<ações>      aperta e solta ações uma vez depois das --hold (ex.: interact)
 ##   --tips               com --pause, abre a tela de Dicas
+##   --set=<a.b:v>,...    muda o estado global (ex.: story.act:2,story.flag:moss_fell,
+##                        vitals.satiety:10,clock.hour:19); autoloads em SET_TARGETS
 ##   --run=<script.gd>    roda um roteiro de teste: um RefCounted com `func run() -> void`
 ##                        (pode usar await); roda depois do aquecimento e antes das --hold
 ##
@@ -55,6 +57,9 @@ func _run(args: Dictionary) -> void:
 		for entry in String(args["give"]).split(",", false):
 			var parts := entry.split(":")
 			Inventory.add(StringName(parts[0]), int(parts[1]) if parts.size() > 1 else 1)
+	if args.has("set"):
+		for entry in String(args["set"]).split(",", false):
+			_set_value(entry)
 	if args.has("run"):
 		var script := load(String(args["run"])) as GDScript
 		if script == null:
@@ -112,6 +117,17 @@ func _press(action: String) -> void:
 		event.pressed = pressed
 		Input.parse_input_event(event)
 		await get_tree().physics_frame
+
+
+## "story.act:2" -> Story.debug_set("act", "2").
+func _set_value(entry: String) -> void:
+	var targets := {"story": Story, "clock": Clock, "vitals": Vitals}
+	var parts := entry.split(":", true, 1)
+	var path := parts[0].split(".", true, 1)
+	if parts.size() < 2 or path.size() < 2 or not targets.has(path[0]):
+		push_error("[DevTools] --set inválido: %s (use alvo.chave:valor; alvos: %s)" % [entry, ", ".join(targets.keys())])
+		return
+	targets[path[0]].debug_set(path[1], parts[1])
 
 
 func _teleport(xz: PackedFloat64Array) -> void:

@@ -40,6 +40,8 @@ var velocity_local := Vector3.ZERO
 var on_floor := true
 var crouching := false
 var aiming := false
+## Faminto: parado, a mania mais comum vira pôr a mão na barriga.
+var starving := false
 var draw := 0.0
 ## Buscando outra flecha na aljava (1 = acabou de atirar, 0 = flecha na corda).
 var reload := 0.0
@@ -569,6 +571,69 @@ func _action_pose(action: StringName, t: float, base: Dictionary) -> Dictionary:
 			p.elbow_l = _curve(t, [[0.0, 0.2], [2.8, 0.1], [4.3, 0.3], [4.9, 0.6], [5.6, 0.15]])
 			p.ear_l = _curve(t, [[0.0, 0.5], [2.6, 0.5], [3.6, 0.1], [5.6, 0.0]])
 			p.ear_r = p.ear_l
+		&"eat":
+			# A outra mão segura o pedaço perto do peito; a direita leva à boca duas vezes,
+			# a cabeça desce ao encontro e mastiga, com as costas curvadas sobre a comida.
+			var bite := _curve(t, [[0.0, 0.0], [0.35, 1.0], [0.55, 0.75], [0.8, 1.0], [1.3, 0.85], [1.6, 0.0]])
+			var chew := smoothstep(0.85, 0.95, t) * (1.0 - smoothstep(1.35, 1.5, t))
+			p.arm_r_fwd = lerpf(base.arm_r_fwd, 0.62, bite)
+			p.arm_r_out = lerpf(base.arm_r_out, 0.0, bite)
+			p.arm_r_twist = 0.85 * bite
+			p.arm_r_yaw = 0.1 * bite
+			p.elbow_r = lerpf(base.elbow_r, 1.75, bite)
+			p.hand_r = lerpf(base.hand_r, 0.6, bite)
+			var hold := _curve(t, [[0.0, 0.0], [0.3, 1.0], [1.35, 1.0], [1.6, 0.0]])
+			p.arm_l_fwd = lerpf(base.arm_l_fwd, 0.4, hold)
+			p.elbow_l = lerpf(base.elbow_l, 1.05, hold)
+			p.hand_l = lerpf(base.hand_l, 0.55, hold)
+			p.torso_pitch = base.torso_pitch + 0.1 * hold
+			p.spine_arch = base.spine_arch + 0.1 * hold
+			p.neck_fwd = base.neck_fwd + 0.08 * bite
+			p.head_pitch = base.head_pitch + 0.32 * bite + sin(t * 19.0) * 0.035 * chew
+			p.head_roll = base.head_roll + 0.06 * _action_var * bite
+			p.ear_l = base.ear_l + 0.12 * bite + sin(t * 19.0) * 0.04 * chew
+			p.ear_r = base.ear_r + 0.1 * bite + sin(t * 19.0 + 0.6) * 0.04 * chew
+		&"cook":
+			# Acocorado na frente do fogo, com a carne espetada na mão direita: vira o pedaço
+			# de tempos em tempos, a cabeça acompanha e no meio para e escuta a floresta.
+			var crouch := _curve(t, [[0.0, 0.0], [0.6, 1.0], [5.5, 1.0], [6.0, 0.0]])
+			var turning := sin(t * 2.2) * smoothstep(0.8, 1.2, t) * (1.0 - smoothstep(5.2, 5.5, t))
+			var listen := smoothstep(2.9, 3.1, t) * (1.0 - smoothstep(3.7, 3.9, t))
+			p.pelvis_y = lerpf(base.pelvis_y, 0.18, crouch)
+			p.foot_l_z = lerpf(base.foot_l_z, 0.13, crouch)
+			p.foot_r_z = lerpf(base.foot_r_z, -0.06, crouch)
+			p.leg_l_out = base.leg_l_out + 0.12 * crouch
+			p.leg_r_out = base.leg_r_out + 0.12 * crouch
+			p.torso_pitch = lerpf(base.torso_pitch, 0.55, crouch) - 0.3 * listen
+			p.spine_arch = lerpf(base.spine_arch, 0.3, crouch) - 0.15 * listen
+			p.neck_fwd = base.neck_fwd + 0.1 * crouch
+			p.arm_r_fwd = lerpf(base.arm_r_fwd, 1.15, crouch)
+			p.elbow_r = lerpf(base.elbow_r, 0.45, crouch)
+			p.arm_r_twist = 0.5 * turning * crouch
+			p.hand_r = lerpf(base.hand_r, 0.5, crouch)
+			# A outra mão apoia no joelho.
+			p.arm_l_fwd = lerpf(base.arm_l_fwd, 0.6, crouch)
+			p.elbow_l = lerpf(base.elbow_l, 0.6, crouch)
+			p.head_pitch = lerpf(base.head_pitch, 0.25, crouch) - 0.3 * listen
+			p.head_yaw = base.head_yaw + 0.06 * turning + (0.35 + 0.2 * _action_var) * listen
+			p.ear_l = base.ear_l - 0.3 * listen
+			p.ear_r = base.ear_r - 0.3 * listen
+		&"lie_down":
+			# Ajoelha, apoia as mãos no chão e vai se deitando (a tela já está escurecendo).
+			var kneel := smoothstep(0.0, 0.9, t)
+			var down := smoothstep(0.8, 2.0, t)
+			p.pelvis_y = lerpf(base.pelvis_y, 0.17, kneel) - 0.06 * down
+			p.foot_l_z = lerpf(base.foot_l_z, 0.12, kneel)
+			p.foot_r_z = lerpf(base.foot_r_z, -0.12, kneel)
+			p.torso_pitch = lerpf(base.torso_pitch, 0.7, kneel) + 0.4 * down
+			p.spine_arch = lerpf(base.spine_arch, 0.3, kneel)
+			p.head_pitch = lerpf(base.head_pitch, 0.25, kneel)
+			p.arm_l_fwd = lerpf(base.arm_l_fwd, 1.1, kneel)
+			p.arm_r_fwd = lerpf(base.arm_r_fwd, 1.0, kneel)
+			p.elbow_l = lerpf(base.elbow_l, 0.25, kneel)
+			p.elbow_r = lerpf(base.elbow_r, 0.3, kneel)
+			p.ear_l = base.ear_l + 0.3 * kneel
+			p.ear_r = base.ear_r + 0.3 * kneel
 	return p
 
 
@@ -610,9 +675,13 @@ func _idle_overlay(delta: float, pose: Dictionary) -> Dictionary:
 		_idle_time += delta
 	if _fidget == &"":
 		if _idle_time > _next_fidget:
-			_fidget = [&"scratch", &"sniff", &"look_back", &"claws"].pick_random()
+			# Faminto, metade das vezes ele põe a mão na barriga.
+			if starving and randf() < 0.5:
+				_fidget = &"belly"
+			else:
+				_fidget = [&"scratch", &"sniff", &"look_back", &"claws"].pick_random()
 			_fidget_time = 0.0
-			_fidget_duration = {&"scratch": 2.8, &"sniff": 2.2, &"look_back": 2.8, &"claws": 2.6}[_fidget]
+			_fidget_duration = {&"scratch": 2.8, &"sniff": 2.2, &"look_back": 2.8, &"claws": 2.6, &"belly": 3.0}[_fidget]
 			_fidget_side = [-1.0, 1.0].pick_random()
 		return pose
 	_fidget_time += delta
@@ -679,6 +748,22 @@ func _idle_overlay(delta: float, pose: Dictionary) -> Dictionary:
 			p.head_pitch = pose.head_pitch + 0.55
 			p.head_yaw = -0.25
 			p.head_roll = pose.head_roll + 0.1
+		&"belly":
+			# Mão na barriga, corpo dobrado em volta dela e a cabeça baixa; esfrega devagar.
+			var rub := smoothstep(0.6, 0.8, t) * (1.0 - smoothstep(2.3, 2.5, t))
+			p.arm_r_fwd = 0.42
+			p.arm_r_out = -0.04 + sin(t * 3.0) * 0.03 * rub
+			p.arm_r_twist = 0.7
+			p.elbow_r = 1.45 + sin(t * 3.0 + 0.8) * 0.08 * rub
+			p.hand_r = 0.15
+			p.torso_pitch = pose.torso_pitch + 0.14
+			p.spine_arch = pose.spine_arch + 0.12
+			p.neck_fwd = pose.neck_fwd + 0.05
+			p.head_pitch = pose.head_pitch + 0.3
+			p.head_roll = pose.head_roll - 0.06
+			p.pelvis_y = pose.pelvis_y - 0.008
+			p.ear_l = 0.3
+			p.ear_r = 0.25
 	pose = _mix(pose, p, envelope * idle)
 	if t >= _fidget_duration or idle < 0.3:
 		_fidget = &""

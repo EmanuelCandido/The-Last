@@ -1,10 +1,11 @@
 extends Control
 ## Menu de pausa: continuar, salvar, carregar, dicas e sair. Só aparece com o jogo pausado.
 
-## Mini tutorial mostrado em "Dicas" (BBCode).
+## Mini tutorial mostrado em "Dicas" (BBCode). As anotações da história (Story.notes)
+## entram embaixo, em outra cor.
 const TIPS := """[b]CONTROLES[/b]
 WASD — andar  ·  Shift — correr  ·  Ctrl — agachar  ·  Espaço — pular
-E — pegar e coletar  ·  R — fazer flechas (1 madeira = 3 flechas)
+E — pegar, coletar, usar a fogueira, dormir  ·  F — comer  ·  R — fazer flechas (1 madeira = 3 flechas)
 Botão direito — mirar com o arco
 Botão esquerdo, mirando — segure para puxar a corda, solte para atirar
 Botão esquerdo sem mirar — golpear (quebra árvores secas)
@@ -28,7 +29,17 @@ Esc — pausar  ·  F3 — desempenho
 [b]MADEIRA E FLECHAS[/b]
 • Árvores secas, sem folhas, quebram com alguns golpes (botão esquerdo bem perto do tronco). Pinheiros vivos são duros demais.
 • Cada árvore seca dá madeira. Aperte R para fazer 3 flechas com 1 madeira.
-• Árvore caindo faz muito barulho: os bichos por perto fogem."""
+• Árvore caindo faz muito barulho: os bichos por perto fogem.
+
+[b]FOME, FOGO E SONO[/b]
+• O goblin sente fome com o tempo. A barriga ronca quando é hora de comer; se a fome apertar demais, ela começa a machucar.
+• Aperte F para comer. Carne crua mata pouco a fome e às vezes faz mal; assada, enche a barriga.
+• Na fogueira da caverna (E): ponha madeira para a chama crescer e asse a carne crua. A lenha queima com o tempo, até de noite; sem lenha ficam só as brasas, e brasa não assa nada.
+• À noite (ou cansado depois de muito tempo acordado), deite na pele da caverna (E) para dormir até amanhecer. Dormir cura, se a barriga não estiver vazia, e salva o jogo.
+• Cair de muito alto machuca. Com a vida baixa, a borda da tela escurece.
+• Se o goblin morrer, ele acorda na toca na manhã seguinte, mas perde a carne que levava."""
+## Cor das anotações que o próprio Ari deixou.
+const NOTES_COLOR := "#d9c27a"
 
 @onready var _panel: Control = %Panel
 @onready var _tips: Control = %Tips
@@ -39,11 +50,13 @@ Esc — pausar  ·  F3 — desempenho
 @onready var _quit_button: Button = %QuitButton
 @onready var _back_button: Button = %BackButton
 @onready var _status_label: Label = %StatusLabel
+@onready var _state_label: Label = %StateLabel
+@onready var _tips_text: RichTextLabel = %TipsText
 
 
 func _ready() -> void:
 	hide()
-	(%TipsText as RichTextLabel).text = TIPS
+	_tips_text.text = TIPS
 	Events.game_paused.connect(_on_game_paused)
 	_resume_button.pressed.connect(Game.set_paused.bind(false))
 	_save_button.pressed.connect(_on_save_pressed)
@@ -58,7 +71,25 @@ func _on_game_paused(paused: bool) -> void:
 	if paused:
 		_status_label.text = ""
 		_load_button.disabled = not SaveSystem.has_save()
+		_state_label.text = _state_text()
+		_tips_text.text = _tips_with_notes()
 		show_tips(false)
+
+
+## "Dia 4 · fim da tarde · Com fome".
+func _state_text() -> String:
+	var parts := PackedStringArray(["Dia %d" % Clock.day, Clock.period_name()])
+	parts.append_array(Vitals.status_words())
+	return " · ".join(parts)
+
+
+func _tips_with_notes() -> String:
+	if Story.notes.is_empty():
+		return TIPS
+	var lines := PackedStringArray()
+	for note in Story.notes:
+		lines.append("[i]%s[/i]" % note)
+	return TIPS + "\n\n[color=%s][b]ANOTAÇÕES[/b]\n%s[/color]" % [NOTES_COLOR, "\n".join(lines)]
 
 
 ## Mostra a tela de Dicas (true) ou volta ao menu (false).

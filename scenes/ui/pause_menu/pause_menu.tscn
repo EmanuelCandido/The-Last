@@ -51,6 +51,12 @@ theme_override_font_sizes/font_size = 28
 text = "Pausado"
 horizontal_alignment = 1
 
+[node name="StateLabel" type="Label" parent="Center/Panel/Margin/Items"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.82, 0.72, 1)
+horizontal_alignment = 1
+
 [node name="ResumeButton" type="Button" parent="Center/Panel/Margin/Items"]
 unique_name_in_owner = true
 layout_mode = 2

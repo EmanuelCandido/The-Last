@@ -17,6 +17,8 @@ var _notice_tween: Tween
 @onready var _notice: Label = %Notice
 @onready var _items: Label = %Items
 @onready var _crosshair: Control = %Crosshair
+@onready var _vignette: ColorRect = %Vignette
+@onready var _vignette_material: ShaderMaterial = _vignette.material
 
 
 func _ready() -> void:
@@ -43,6 +45,7 @@ func _process(_delta: float) -> void:
 	_crosshair.visible = aiming
 	if aiming:
 		_crosshair.queue_redraw()
+	_update_vignette()
 	if not _debug_label.visible:
 		return
 	_debug_label.text = "FPS: %d\nDraw calls: %d\nTriângulos: %d\nMemória: %.1f MB" % [
@@ -71,9 +74,23 @@ func _show_notice(text: String) -> void:
 	_notice_tween.tween_property(_notice, "modulate:a", 0.0, 1.2)
 
 
+## Vida baixa ou fome machucando: a borda da tela escurece e pulsa no ritmo do coração
+## (mais rápido quanto pior).
+func _update_vignette() -> void:
+	var hurt := clampf((Tuning.LOW_HEALTH - Vitals.health) / Tuning.LOW_HEALTH, 0.0, 1.0)
+	if Vitals.satiety <= 0.0:
+		hurt = maxf(hurt, 0.3)
+	_vignette.visible = hurt > 0.0 and Game.player != null
+	if not _vignette.visible:
+		return
+	var beat := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 1000.0 * TAU * lerpf(1.1, 2.0, hurt))
+	_vignette_material.set_shader_parameter(&"amount", hurt * (0.8 + 0.2 * beat))
+	_vignette_material.set_shader_parameter(&"aspect", size.x / maxf(size.y, 1.0))
+
+
 func _refresh_items() -> void:
 	var parts := PackedStringArray()
-	for item: StringName in [&"arrow", &"wood", &"meat", &"hide"]:
+	for item: StringName in [&"arrow", &"wood", &"meat", &"cooked_meat", &"hide"]:
 		var amount := Inventory.count(item)
 		if amount > 0 or (item == &"arrow" and Inventory.has(&"bow")):
 			parts.append("%s: %d" % [Inventory.NAMES[item], amount])
