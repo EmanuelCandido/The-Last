@@ -13,6 +13,7 @@ const LIMB_RADIUS := 0.6
 const LIMB_ANGLE := 30.0
 
 static var _arrow: ArrayMesh
+static var _feathered_arrow: ArrayMesh
 
 
 ## Arco inteiro com a corda reta (no chão da caverna). Na mão, o HeldBow monta as partes.
@@ -81,8 +82,11 @@ static func build_quiver() -> ArrayMesh:
 
 
 ## Malha da flecha (compartilhada por todas as flechas).
-static func arrow() -> ArrayMesh:
-	if _arrow != null:
+## Flecha de 38 cm; a emplumada leva penas pretas de corvo.
+static func arrow(feathered := false) -> ArrayMesh:
+	if feathered and _feathered_arrow != null:
+		return _feathered_arrow
+	if not feathered and _arrow != null:
 		return _arrow
 	var builder := TreeBuilder.Builder.new()
 	var half := ARROW_LENGTH * 0.5
@@ -90,10 +94,14 @@ static func arrow() -> ArrayMesh:
 	TreeBuilder.add_branch(shaft, Vector3(0.0, 0.0, half), Vector3(0.0, 0.0, -half), 0.005, 0.005, 4)
 	var flint := builder.tool_for(_flat(Color(0.2, 0.2, 0.22)))
 	TreeBuilder.add_branch(flint, Vector3(0.0, 0.0, -half), Vector3(0.0, 0.0, -half - 0.05), 0.011, 0.001, 4)
-	var feathers := builder.tool_for(_flat(Color(0.7, 0.68, 0.62)))
-	_add_fletching(feathers, Vector3(0.0, 0.0, half - 0.09), Vector3(0.0, 0.0, half - 0.01), 0.017)
-	_arrow = builder.commit()
-	return _arrow
+	var feathers := builder.tool_for(_flat(Color(0.08, 0.08, 0.1) if feathered else Color(0.7, 0.68, 0.62)))
+	_add_fletching(feathers, Vector3(0.0, 0.0, half - 0.11 if feathered else half - 0.09), Vector3(0.0, 0.0, half - 0.01), 0.022 if feathered else 0.017)
+	var mesh := builder.commit()
+	if feathered:
+		_feathered_arrow = mesh
+	else:
+		_arrow = mesh
+	return mesh
 
 
 ## Três penas em volta de um eixo (de `from` até `to`), como cartões de dois lados.

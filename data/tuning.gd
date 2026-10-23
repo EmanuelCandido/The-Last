@@ -143,3 +143,81 @@ const WOLF_BITE_RANGE := 1.3
 const WOLF_FIRE_FEAR := 6.0
 ## De quanto em quanto tempo a matilha arrasta a área de caça para onde sentiu o goblin.
 const WOLF_HOME_DRIFT_SECONDS := 25.0
+
+# --- Rastros (§4.8) --------------------------------------------------------------------
+
+## Distância (m) entre duas pegadas, quanto tempo ficam no chão e quantas existem ao mesmo tempo.
+const TRACK_SPACING := 0.9
+const TRACK_SECONDS := 120.0
+const TRACK_POOL := 200
+
+# --- Farejar (§4.8) ---------------------------------------------------------------------
+
+## Segurando X: no máximo isto de segundos por vez, e só depois de soltar fareja de novo.
+const SNIFF_MAX_SECONDS := 6.0
+## Bichos até esta distância soltam trilha de cheiro, se o vento traz o cheiro deles.
+const SNIFF_RANGE := 45.0
+## O vento precisa vir do bicho para o goblin: cosseno mínimo entre o vento e bicho→goblin.
+const SNIFF_DOWNWIND := 0.35
+## O som abafa enquanto fareja (dB e corte do passa-baixa, Hz).
+const SNIFF_MUFFLE_DB := -12.0
+const SNIFF_MUFFLE_HZ := 1400.0
+
+# --- Fôlego (§4.9) ---------------------------------------------------------------------
+
+## Prender o ar (Q): segundos até não aguentar mais e soltar alto.
+const BREATH_MAX_SECONDS := 12.0
+## Ao soltar sem aguentar: alcance do barulho (m) e segundos ofegando com a mira tremendo.
+const BREATH_GASP_NOISE := 6.0
+const BREATH_GASP_SECONDS := 3.0
+## Parado e ofegante (depois de correr), o goblin respira alto: barulho máximo da respiração (0..1).
+const PANTING_NOISE := 0.25
+## No ritual (Ato III) o ar não acaba: segundos agachado e parado para acordar no Abrigo (F6).
+const RITUAL_BREATH_SECONDS := 20.0
+
+# --- Pedras (§4.11) ---------------------------------------------------------------------
+
+const STONE_MAX := 5
+## Velocidade do arremesso (m/s), quanto sobe acima da mira e o alcance do barulho onde cai (m).
+const STONE_SPEED := 14.0
+const STONE_LOFT := 0.12
+const STONE_NOISE := 12.0
+## Ação de arremessar: duração e o instante em que a pedra sai da mão.
+const THROW_TIME := 0.7
+const THROW_RELEASE_AT := 0.32
+
+# --- Lama (§4.11) -----------------------------------------------------------------------
+
+## Esfregar lama: duração da ação. A camuflagem vai de 1 a 0 em MUD_SECONDS (1 dia de jogo),
+## MUD_RUN_FACTOR vezes mais rápido correndo.
+const MUD_RUB_TIME := 3.0
+const MUD_SECONDS := 24.0 * SECONDS_PER_HOUR
+const MUD_RUN_FACTOR := 4.0
+## Com lama cheia, a visibilidade e o alcance do cheiro são multiplicados por isto.
+const MUD_VISIBILITY := 0.65
+const MUD_SCENT := 0.5
+
+# --- Fabricar (§4.10) -------------------------------------------------------------------
+
+## Ação de fabricar (animação craft) e o instante em que a coisa fica pronta.
+const CRAFT_TIME := 2.0
+const CRAFT_DONE_AT := 1.7
+## A lista some sozinha depois disto sem mexer nela (s).
+const CRAFT_LIST_SECONDS := 8.0
+## Flecha emplumada: fração da gravidade e multiplicador de dano.
+const FEATHERED_GRAVITY := 0.6
+const FEATHERED_DAMAGE := 1.15
+## Corvo abatido: penas que rende.
+const CROW_FEATHERS := 2
+## Um corvo novo volta ao bando depois disto (s).
+const CROW_RESPAWN_SECONDS := 300.0
+## Laço: chance de pegar um coelho em SNARE_HOURS horas de jogo armado, e a que distância de
+## uma pegada de coelho dá para armar (m). Só pega com o goblin longe (m), para não ver surgir.
+const SNARE_CHANCE := 0.6
+const SNARE_HOURS := 24.0
+const SNARE_TRACK_DISTANCE := 1.6
+const SNARE_UNSEEN_DISTANCE := 25.0
+## Tocha: segundos acesa e quanto mais fácil os bichos veem o goblin com ela (de noite não
+## vale o desconto do escuro).
+const TORCH_SECONDS := 240.0
+const TORCH_VISIBILITY := 1.8

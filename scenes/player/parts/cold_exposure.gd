@@ -59,7 +59,7 @@ func _update_breath(delta: float) -> void:
 	var at := _player.global_position
 	var chilly := maxf(Clock.night() * (1.0 - _indoor(at)), smoothstep(30.0, 60.0, Vitals.cold))
 	_breath_time = fmod(_breath_time + delta * (1.6 if _player.noise_level() > 0.5 else 1.0), BREATH_PERIOD)
-	_breath.emitting = chilly > 0.35 and _breath_time > BREATH_PERIOD * 0.6
+	_breath.emitting = chilly > 0.35 and _breath_time > BREATH_PERIOD * 0.6 and not _player.breath_held
 
 
 func _update_warning(delta: float) -> void:

@@ -32,7 +32,7 @@ python tools/generate_sounds.py                                         # regera
   - `--screenshot`, `--skip-intro`, `--teleport=x,z`, `--camera=yaw,pitch`;
   - `--set=story.act:2,story.flag:moss_fell,vitals.satiety:10,clock.hour:19` (põe o estado global em qualquer ponto);
   - `--run=roteiro.gd`.
-- **`--run`:** recebe um `RefCounted` com `func run() -> void` (pode usar `await`). É o jeito de testar mecânicas de ponta a ponta: pegar o arco, quebrar árvore, caçar, furtividade, assar, dormir.
+- **`--run`:** recebe um `RefCounted` com `func run() -> void` (pode usar `await`). É o jeito de testar mecânicas de ponta a ponta: pegar o arco, quebrar árvore, caçar, furtividade, assar, dormir, farejar, jogar pedra, fabricar.
 - Roteiros que dormem salvam de verdade em `%APPDATA%/Godot/app_userdata/Jogo Pessoal/save.json`. Apague esse save depois do teste.
 - **`--press`** gera eventos de ação de verdade. `--hold` só segura a ação e não dispara `_unhandled_input`, então E, R e o soco precisam de `--press`.
 - `--fixed-fps 60` deixa o teste determinístico: 60 frames equivalem a 1 s de jogo. Os bichos nascem com semente aleatória.
@@ -45,23 +45,27 @@ python tools/generate_sounds.py                                         # regera
 
 ```
 docs/                roteiro.md (rascunho) e plano.md (plano fechado de história e mecânicas, em fases)
-data/                tuning.gd (todos os números de ajuste) e story_beats.gd (acontecimentos da história)
+data/                tuning.gd (todos os números de ajuste), story_beats.gd (acontecimentos da história) e recipes.gd (receitas)
 autoload/            Events, Wind, Inventory, Clock, Vitals, Story, Game, SaveSystem, DevTools
 scenes/
   main/              cena raiz: LevelRoot + UI (HUD, ScreenFade, PauseMenu)
   player/            goblin: player.gd (movimento, arco, soco, interação), goblin_animator.gd
                      (animação procedural no esqueleto) e goblin_look.gd (texturas)
-  player/parts/      mecânicas novas do goblin como nós filhos: EatAbility (F), BodyFeedback (fome), ColdExposure (frio)
-  items/             arco (pickup na caverna), HeldBow (arco na mão, corda que puxa), flecha (projétil), BowMesh e MeatMesh (malhas)
+  player/parts/      mecânicas novas do goblin como nós filhos: EatAbility (F), BodyFeedback (fome), ColdExposure (frio),
+                     SniffAbility (X), BreathControl (Q), StoneThrow (G), MudCamouflage, CraftAbility (R), TorchCarry,
+                     SnareSetter e LeatherClothes
+  items/             arco (pickup na caverna), HeldBow (arco na mão, corda que puxa), flecha (projétil), pedra jogada,
+                     tocha, BowMesh e MeatMesh (malhas)
   levels/forest/     fase da floresta: forest.tscn/gd e ForestLayout (pontos-chave do mapa)
   levels/test_level/ fase de teste antiga (blocos CSG)
   world/terrain/     Terrain: relevo, malha em blocos, HeightMapShape3D, mapa de abrigo do vento
   world/cave/        Cave: casca de rocha procedural + fogueira, pele de dormir, riscos na parede (WallMarks), arco, gotejamento
   world/vegetation/  TreeBuilder (malhas por código) e Vegetation (espalha, instancia, derruba árvores)
-  world/props/       fogueira (lenha, assar), folhas caindo
+  world/props/       fogueira (lenha, assar), folhas caindo, monte de pedras, poça de lama, laço (Snare e SnareField)
+  world/tracks/      Tracks: pegadas dos bichos (MultiMesh)
   world/ambience/    Ambience: vento 3D, folhas nas árvores, chamados de bichos (de dia e de noite)
   world/day_night/   DayNight: sol, céu e neblina pela hora (Clock.night)
-  animals/           Animal (sentidos, fuga, ferimento, caça), Deer, Rabbit, CrowFlock, Wolf e WolfPack
+  animals/           Animal (sentidos, fuga, ferimento, caça), Deer, Rabbit, CrowFlock e Crow, Wolf e WolfPack
   ui/                HUD (ação, avisos, itens, mira), menu de pausa (com Dicas), ScreenFade
 components/          Footsteps (passos por chão), OccludedAudio (som 3D abafado atrás de rocha)
 assets/
@@ -80,8 +84,8 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - `noise_made(pos, raio)`: barulho que assusta bichos;
   - `notification_shown`: avisos na tela;
   - `prompt_changed`: ação disponível agora.
-- **Inventory:** quantidade por item (`bow`, `arrow`, `wood`, `meat`, `cooked_meat`, `hide`). Emite `changed` e vai junto no save.
-- **Plano e maleabilidade:** `docs/plano.md` é a fonte da história e das mecânicas, dividida em fases (F1 feita). Números ficam em `Tuning` (`data/tuning.gd`), nunca soltos no código. Acontecimentos da história ficam em `StoryBeats` (`data/story_beats.gd`): cada beat tem gatilho (`on`), condições (`when`) e ações (`do`). Os sistemas reagem a flags (`Story.flag_changed`), sem saber qual beat as ligou.
+- **Inventory:** quantidade por item (`bow`, `arrow`, `feathered_arrow`, `wood`, `stone`, `meat`, `cooked_meat`, `hide`, `feather`, `snare`, `clothes`). Emite `changed` e vai junto no save. `Inventory.HUD_ORDER` diz o que aparece no HUD.
+- **Plano e maleabilidade:** `docs/plano.md` é a fonte da história e das mecânicas, dividida em fases (F1 a F3 feitas). Receitas ficam em `Recipes` (`data/recipes.gd`). Números ficam em `Tuning` (`data/tuning.gd`), nunca soltos no código. Acontecimentos da história ficam em `StoryBeats` (`data/story_beats.gd`): cada beat tem gatilho (`on`), condições (`when`) e ações (`do`). Os sistemas reagem a flags (`Story.flag_changed`), sem saber qual beat as ligou.
 - **Story:** ato, ciclo (347), riscos deste ciclo (`marks`) e antigos (`old_marks`), flags, contadores (`deer_harvested`...) e anotações (`notes`, que viram a seção ANOTAÇÕES das Dicas). Avalia os beats quando acontece `start`, `slept`, `woke`, `died`, `harvested` ou `ate`.
 - **Clock:** dia e hora (1 h de jogo = 60 s). Para enquanto `Game.resting`. Dormir pula o tempo de uma vez e emite `skipped(horas)` (a fogueira queima a lenha, a matilha some). `night()` vai de 0 (dia) a 1 (noite fechada, 20h30–5h), suave no anoitecer e no amanhecer.
 - **Dia e noite (`DayNight`):** sol, cor e energia do céu e cor da neblina misturam `Tuning.DAY_LIGHT` e `NIGHT_LIGHT` por `Clock.night()`, com lusco-fusco quente no meio. A luz ambiente vem do céu, então a noite escurece tudo o que o fogo não ilumina. De noite os bichos enxergam pior o goblin (`Tuning.NIGHT_VISIBILITY`).
@@ -96,10 +100,14 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - O som, as folhas caindo e a poeira no ar usam `strength_at`.
 - **Câmera:** braço próprio (`CameraPivot/CameraArm`), sem SpringArm. Em `_place_camera`, uma esfera de 0,22 m vai da nuca até o ombro (deslocamento lateral real, não `h_offset`) e de lá para trás, só contra a camada 1. Ao bater, encolhe na hora; quando abre, volta devagar. Colada no goblin, ele fica transparente e some abaixo de 0,6 m. A casca da caverna tem `backface_collision` para a esfera não passar pelo verso dos triângulos.
 - **Passos:** `Footsteps.surface_under()` lança um raio curto para baixo; se acertar uma colisão com meta `surface` (pedras `stone`, troncos `wood`, de `Vegetation._add_shape_collider`), vale ela, senão o `surface_at` do terreno (`cave` no salão da caverna, `stone`, `dirt`, `grass`).
-- **Interação:** nós no grupo `interactable` implementam `interaction_prompt() -> String` e `interact(player)`. São o arco no chão, flecha fincada, bicho abatido, fogueira e pele de dormir. O Player pega o mais próximo dentro de 1,8 m.
+- **Interação:** nós no grupo `interactable` implementam `interaction_prompt() -> String` e `interact(player)`. São o arco no chão, flecha fincada, bicho abatido, corvo caído, fogueira, pele de dormir, monte de pedras, pedra jogada, poça de lama, tocha fincada e laço. O Player pega o mais próximo dentro de 1,8 m.
   - Opcionais: `interaction_enabled()` (false = só mostra o texto, sem [E]), `interaction_action()` (`{action, duration, at}`: a animação e quando chamar `interact`; padrão `pickup`) e `interaction_started(player)`.
   - Ganha o mais próximo que pode ser feito; os desabilitados só aparecem se não houver outro.
-  - Partes do goblin (`scenes/player/parts/`) usam `Player.can_act()`, `perform(action, duração, eventos)` e `hold_in_hand(nó, segundos)`.
+  - Partes do goblin (`scenes/player/parts/`) usam:
+    - ações: `Player.can_act()`, `perform(action, duração, eventos)`, `hold_in_hand(nó, segundos)`, `hand_socket()`, `face(direção)`, `aim_direction()`, `facing()` e `exert(cansaço)`;
+    - estados que o corpo mostra: `sniffing`, `breath_held` e `torch_held`;
+    - multiplicadores nos sentidos dos bichos, por nome: `visibility_factors`, `noise_factors` e `scent_factors` (ex.: `&"mud": 0.65`; tirar a chave tira o efeito).
+  - Uma parte também pode ser interagível: a `SnareSetter` (Node3D `top_level`) se põe sobre a pegada de coelho mais perto.
 - **Fogueira:** lenha 0–3 (começa com 1), queima 1 a cada 6 min, inclusive dormindo. E acende ou põe lenha e assa carne (animação `cook`, a carne escurece na mão). Chama, luz e estalos crescem com a lenha.
 - **Riscos na parede (`WallMarks`):** um por noite dormida, em grupos de 5, colados na rocha por raios (na primeira volta da física). Os antigos ficam sob um musgo (`moss_patch.gdshader`) que despenca quando o flag `moss_fell` liga: no 7º risco com um cervo coletado, ou no 10º. Isso abre o Ato II.
 - **Árvores:** `Vegetation.trees` registra cada árvore em pé (posição, raio do tronco, seca ou não, instância no MultiMesh e colisão). `hit_tree()` derruba as secas depois de 4 golpes: a instância some, a colisão sai e uma cópia tomba.
@@ -125,6 +133,15 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - Depois do tiro, `RELOAD_TIME` (0,75 s): a mão vai até a aljava (`GoblinAnimator.reload`) e só então a próxima flecha aparece na corda, com o som de encaixe.
 - **Grama no relevo:** `Terrain.publish_height_texture()` publica as alturas como global `terrain_height`. Com `follow_ground = 1` (grama e samambaia), o `foliage.gdshader` sobe ou desce cada vértice com o chão embaixo dele.
 - **Lobos:** `WolfPack` (filho de Animals) traz `Tuning.WOLF_COUNT` lobos a partir do dia 3: uivo de aviso às 20h30 da borda do vale (`Ambience.howl_from`), chegada às 21h, saída às 5h30, e somem se o goblin dorme. `Wolf extends Animal` reaproveita os sentidos e troca a reação: ronda (a área de caça escorrega para o goblin), espreita a 9 m rosnando, caça e morde. Não chega a menos de 6 m de fogo aceso e, ao contrário dos outros bichos, pode entrar na caverna. Uma flechada o faz fugir e ir embora; duas matam.
+- **Pegadas (`Tracks`):** bicho com `track_size` deixa uma pegada a cada `Tuning.TRACK_SPACING` andados (alternando os lados da fila com `track_side`). O MultiMesh tem um pool de `Tuning.TRACK_POOL` e o shader (`track_print.gdshader`) desenha casco, pata de coelho ou de lobo e apaga pela idade. `Tracks.nearest(espécie, ponto, raio)` acha a pegada fresca mais perto (o laço usa). Dormir envelhece todas.
+- **Farejar (`SniffAbility`, X):** agachado e parado, até `Tuning.SNIFF_MAX_SECONDS`. Fecha o som com `Game.close_ears`, mostra riscos de vento e uma trilha de cheiro (partículas por cima de tudo, a 1 m do chão) de cada bicho até `Tuning.SNIFF_RANGE` cujo cheiro o vento traz.
+- **Fôlego (`BreathControl`, Q):** prendendo o ar, parado não faz barulho (a respiração ofegante depois de correr faz) e o arco puxado não treme; o coração bate cada vez mais rápido. Passando do limite, bufa (`noise_made`) e fica ofegante.
+- **Pedras e susto:** G joga uma `ThrownStone` (`StoneThrow`); onde ela bate faz `noise_made` de `Tuning.STONE_NOISE`. O `Animal` guarda o susto (`_startle`, 3 s): o perigo fica sendo o lugar do barulho (ou de onde a manada se assustou) até ele ver o goblin com clareza. É o que deixa tocar a manada.
+- **Lama:** `MudPuddle` ("Esfregar lama", ação `rub_mud`) põe `Vitals.mud` em 1; `MudCamouflage` gasta em um dia (mais rápido correndo), põe os multiplicadores de visibilidade e cheiro e a global de shader `goblin_mud` (manchas no `goblin_skin.gdshader`).
+- **Fabricar (`CraftAbility`, R):** lista no canto com `Recipes.LIST`. O tempo não para; a animação `craft` dura `Tuning.CRAFT_TIME` e o custo sai no fim. Emite `Events.crafted(id)`, que o Story conta.
+- **Tocha (`Torch`, `TorchCarry`):** na mão direita, segue o socket da mão. É fogo (grupo `fire`): esquenta e afasta lobo. Os bichos veem mais o goblin (`Tuning.TORCH_VISIBILITY`). Mirando, ela é fincada no chão.
+- **Laço (`Snare`, `SnareField`):** armado sobre pegada de coelho; `SnareField` (persist) sorteia a captura com o goblin longe, e as horas dormidas contam de uma vez. Pegou: um `Rabbit` morto (`Animal.kill()`) fica no laço para coletar.
+- **Corvos:** cada corvo do `CrowFlock` é um `Crow` com área de acerto (camada 4). Flechada derruba; no chão, E dá penas. A `Arrow` acerta qualquer área cujo dono tenha `take_hit` e devolve o próprio tipo de flecha (`Arrow.collect_from`).
 - **Bichos** (`Animal`):
   - visão em cone com linha de visada e movimento pesando mais que forma parada; pastando enxergam mal;
   - audição do `noise_level()` do jogador e de `noise_made`;
@@ -188,7 +205,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 
 ## Ainda não existe
 
-- O resto do plano (`docs/plano.md`, fases F3–F8): rastros, farejar, fabricar (com a roupa de couro), Vigilância, mundo real, Zelador e finais.
+- O resto do plano (`docs/plano.md`, fases F4–F8): pistas do Ato I, Vigilância, cervo branco, ruína, mundo real, Zelador e finais.
 - Combate corpo a corpo de verdade, diálogos, missões, atributos.
 - Menu principal e configurações (vídeo, áudio e controles).
 - Subir degraus (step-up), água.

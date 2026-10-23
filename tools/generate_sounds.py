@@ -486,6 +486,106 @@ def teeth_chatter():
     return band_oneshot(clicks, 1500, 7000) * smoothstep(0.0, 0.1, t) * (1 - smoothstep(1.1, 1.4, t))
 
 
+# --- Caça completa ------------------------------------------------------------------
+
+def heartbeat():
+    """Uma batida do coração ouvida por dentro: dois baques graves e abafados (tum-tum)."""
+    rng = np.random.default_rng(230)
+    n = int(0.5 * SR)
+    t = np.arange(n) / SR
+    out = np.zeros(n)
+    for start, gain, f0 in ((0.0, 1.0, 52), (0.17, 0.65, 46)):
+        local = np.maximum(t - start, 0)
+        thump = tone(f0 * (1 + 0.6 * np.exp(-local / 0.02))) * (t >= start) * np.exp(-local / 0.06) * np.minimum(local / 0.004, 1)
+        out += gain * thump
+    out += 0.08 * band_oneshot(rng.standard_normal(n), 30, 200) * np.exp(-t / 0.08)
+    return band_oneshot(out, 20, 260)
+
+
+def breath_in():
+    """Puxar o ar pelo nariz e prender: um chiado curto que sobe e corta seco."""
+    rng = np.random.default_rng(240)
+    n = int(0.55 * SR)
+    t = np.arange(n) / SR
+    air = formants(rng.standard_normal(n), [(900, 300, 1.0), (2400, 500, 0.6), (4200, 700, 0.3)])
+    return band_oneshot(air, 300, 6000) * smoothstep(0.0, 0.35, t) * (1 - smoothstep(0.46, 0.5, t))
+
+
+def gasp():
+    """Soltar o ar preso: um bufo forte pela boca e duas puxadas ofegantes."""
+    rng = np.random.default_rng(250)
+    parts = []
+    for dur, lo, hi, gain in ((0.45, 200, 3500, 1.0), (0.3, 400, 5000, 0.55), (0.32, 400, 5000, 0.5)):
+        n = int(dur * SR)
+        t = np.arange(n) / SR
+        air = formants(rng.standard_normal(n), [(700, 250, 1.0), (1500, 400, 0.7), (2800, 600, 0.3)])
+        env = smoothstep(0.0, 0.04, t) * np.exp(-t / (dur * 0.45))
+        parts.append(gain * peak_norm(band_oneshot(air, lo, hi)) * env)
+        parts.append(silence(0.12))
+    return concat(*parts)
+
+
+def sniff():
+    """Farejar: três fungadas curtas e úmidas, a última mais longa."""
+    rng = np.random.default_rng(260)
+    parts = []
+    for dur in (0.09, 0.08, 0.16):
+        n = int(dur * SR)
+        t = np.arange(n) / SR
+        air = formants(rng.standard_normal(n), [(1800, 500, 1.0), (3500, 700, 0.6)])
+        parts.append(peak_norm(band_oneshot(air, 600, 7000)) * np.sin(np.pi * t / dur) ** 0.6)
+        parts.append(silence(0.06))
+    return concat(*parts)
+
+
+def stone_throw():
+    """Pedra saindo da mão: um zunido curto de ar."""
+    rng = np.random.default_rng(270)
+    n = int(0.35 * SR)
+    t = np.arange(n) / SR
+    whoosh = band_oneshot(rng.standard_normal(n), 250, 1800) * np.sin(np.pi * np.minimum(t / 0.3, 1)) ** 2
+    return whoosh
+
+
+def stone_hit(variant):
+    """Pedra caindo: o estalo seco no chão e um rolar curto de cascalho."""
+    rng = np.random.default_rng(280 + variant)
+    n = int(0.7 * SR)
+    t = np.arange(n) / SR
+    clack = band_oneshot(burst(rng, 0.05, 0.008, 0.0003), 900, 6000)
+    thud = band_oneshot(burst(rng, 0.12, 0.03, 0.001), 60, 600)
+    rolls = place_events(n, rng.uniform(0.06 * SR, 0.45 * SR, 14), lambda: burst(rng, 0.012, 0.003, 0.0003) * rng.uniform(0.1, 0.5))
+    rolls = band_oneshot(rolls, 1200, 6000) * (1 - smoothstep(0.3, 0.6, t))
+    out = 0.5 * peak_norm(rolls)
+    out[: len(clack)] += peak_norm(clack)
+    out[: len(thud)] += 0.7 * peak_norm(thud)
+    return out
+
+
+def mud_rub():
+    """Esfregar lama na pele: chapinhadas moles e o deslizar úmido das mãos."""
+    rng = np.random.default_rng(290)
+    n = int(2.6 * SR)
+    t = np.arange(n) / SR
+    slide = band_oneshot(rng.standard_normal(n), 150, 1500) * (0.4 + 0.6 * np.abs(np.sin(TAU * 1.6 * t))) ** 2
+    squelch = lambda: band_oneshot(burst(rng, 0.1, 0.03, 0.005), 200, 1800) * (1 + 0.5 * np.sin(TAU * rng.uniform(30, 60) * np.arange(int(0.1 * SR)) / SR))
+    squelches = place_events(n, rng.uniform(0, n - 0.12 * SR, 9), squelch)
+    env = smoothstep(0.0, 0.2, t) * (1 - smoothstep(2.3, 2.6, t))
+    return (0.4 * peak_norm(slide) + peak_norm(squelches)) * env
+
+
+def snare_snap():
+    """Laço fechando: o galho que segura solta com um estalo e a corda chicoteia."""
+    rng = np.random.default_rng(300)
+    n = int(0.5 * SR)
+    t = np.arange(n) / SR
+    snap = band_oneshot(burst(rng, 0.03, 0.005, 0.0002), 1500, 8000)
+    whip = band_oneshot(rng.standard_normal(n), 800, 4000) * smoothstep(0.02, 0.05, t) * np.exp(-np.maximum(t - 0.05, 0) / 0.05)
+    out = 0.5 * peak_norm(whip)
+    out[: len(snap)] += peak_norm(snap)
+    return out
+
+
 def main():
     print("Gerando sons em", ROOT)
     write_wav(ROOT / "ambience" / "wind_loop.wav", wind_loop(), loop=True)
@@ -516,6 +616,15 @@ def main():
     write_wav(ROOT / "animals" / "wolf_bite.wav", wolf_bite())
     write_wav(ROOT / "animals" / "wolf_yelp.wav", wolf_yelp())
     write_wav(ROOT / "sfx" / "teeth_chatter.wav", teeth_chatter())
+    write_wav(ROOT / "sfx" / "heartbeat.wav", heartbeat())
+    write_wav(ROOT / "sfx" / "breath_in.wav", breath_in())
+    write_wav(ROOT / "sfx" / "gasp.wav", gasp())
+    write_wav(ROOT / "sfx" / "sniff.wav", sniff())
+    write_wav(ROOT / "sfx" / "stone_throw.wav", stone_throw())
+    for v in range(1, 3):
+        write_wav(ROOT / "sfx" / f"stone_hit_{v}.wav", stone_hit(v))
+    write_wav(ROOT / "sfx" / "mud_rub.wav", mud_rub())
+    write_wav(ROOT / "sfx" / "snare_snap.wav", snare_snap())
 
 
 if __name__ == "__main__":

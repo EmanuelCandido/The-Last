@@ -19,18 +19,12 @@ const BOW_RELEASE_SOUNDS := [
 	preload("res://assets/audio/real/bow_release_3.wav"), preload("res://assets/audio/real/bow_release_4.wav"),
 	preload("res://assets/audio/real/bow_release_5.wav"),
 ]
-const CRAFT_SOUNDS := [
-	preload("res://assets/audio/real/craft_1.ogg"), preload("res://assets/audio/real/craft_2.ogg"),
-	preload("res://assets/audio/real/craft_3.ogg"),
-]
 ## Camadas que a mira e as flechas enxergam: mundo, árvores e bichos.
 const AIM_MASK := 1 | 2 | 8
 ## A câmera só bate no mundo (terreno, caverna, pedras): tronco fino na frente não a empurra.
 const CAMERA_MASK := 1
 ## Raio da esfera que testa o caminho da câmera (folga entre a lente e a rocha).
 const CAMERA_RADIUS := 0.22
-## Flechas feitas com 1 madeira.
-const ARROWS_PER_WOOD := 3
 ## Segundos para tirar outra flecha da aljava e encaixar na corda depois de atirar.
 const RELOAD_TIME := 0.75
 ## Arco carregado: deitado para a frente, a ponta de cima CARRY_RISE (rad) acima da
@@ -77,6 +71,19 @@ const DEFAULT_INTERACTION := {"action": &"pickup", "duration": 1.1, "at": 0.5}
 var aiming := false
 ## Quanto a corda está puxada (0..1).
 var draw := 0.0
+
+## Estados que as partes (scenes/player/parts/) ligam e o corpo mostra.
+## Farejando (SniffAbility): agachado, parado, sem barulho.
+var sniffing := false
+## Prendendo o ar (BreathControl): a respiração para e o arco não treme.
+var breath_held := false
+## Com a tocha acesa na mão (TorchCarry).
+var torch_held := false
+## Multiplicadores que as partes põem nos sentidos dos bichos, por nome (ex.: &"mud": 0.65).
+## Tirar a chave tira o efeito.
+var visibility_factors := {}
+var noise_factors := {}
+var scent_factors := {}
 
 var _spawn_transform: Transform3D
 var _controls_enabled := true
@@ -169,8 +176,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("interact") and _interaction != null and _interaction_ready:
 		_start_interaction(_interaction)
-	elif event.is_action_pressed("craft"):
-		_craft_arrows()
 	elif event.is_action_pressed("attack") and not aiming:
 		_punch()
 
@@ -181,8 +186,8 @@ func _physics_process(delta: float) -> void:
 		_rotate_camera(-look.x * gamepad_look_speed * delta, -look.y * gamepad_look_speed * delta)
 
 	var free := _can_act()
-	_crouching = free and Input.is_action_pressed("crouch")
-	aiming = free and Inventory.has(&"bow") and Input.is_action_pressed("aim")
+	_crouching = free and (Input.is_action_pressed("crouch") or sniffing)
+	aiming = free and not sniffing and Inventory.has(&"bow") and Input.is_action_pressed("aim")
 
 	if is_on_floor():
 		if free and Input.is_action_just_pressed("jump") and not _crouching:
@@ -241,6 +246,9 @@ func _process(delta: float) -> void:
 		_animator.aiming = aiming
 		_animator.starving = Vitals.is_starving()
 		_animator.shiver = smoothstep(Tuning.COLD_SHIVER, 90.0, Vitals.cold)
+		_animator.sniffing = sniffing
+		_animator.breath_held = breath_held
+		_animator.holding_torch = torch_held
 		_animator.draw = draw
 		_animator.reload = clampf(_reload / RELOAD_TIME, 0.0, 1.0)
 		_animator.aim_pitch = _camera_arm.rotation.x
@@ -296,18 +304,62 @@ func hold_in_hand(item: Node3D, seconds: float) -> Node3D:
 	return item
 
 
+## Põe `item` preso à mão (direita ou esquerda) até alguém tirar. Devolve o item.
+func attach_to_hand(item: Node3D, right := true) -> Node3D:
+	return _attach_node(item, "braco_D*mao" if right else "braco_E*mao")
+
+
+## Nó que acompanha a mão direita (ou a esquerda), para quem segue a mão sem ser filho dela.
+func hand_socket(right := true) -> Node3D:
+	var socket := _model.find_child("braco_D*mao" if right else "braco_E*mao", true, false) as Node3D
+	return socket if socket != null else _visual
+
+
+func skeleton() -> Skeleton3D:
+	return _skeleton
+
+
+## Para onde o corpo está virado (direção no chão, no mundo).
+func facing() -> Vector3:
+	var forward := _visual.global_basis.z
+	return Vector3(forward.x, 0.0, forward.z).normalized()
+
+
+## Para onde a câmera aponta (direção no mundo).
+func aim_direction() -> Vector3:
+	return -_camera.global_basis.z
+
+
+## Vira o corpo para `direction` na hora (só o giro no chão conta).
+func face(direction: Vector3) -> void:
+	if Vector2(direction.x, direction.z).length_squared() < 0.0001:
+		return
+	_visual.rotation.y = atan2(direction.x, direction.z)
+	_target_yaw = _visual.rotation.y
+
+
+## Cansa o corpo (0..1): ofega parado, respira alto e a mira treme até passar.
+func exert(amount: float) -> void:
+	if _animator != null:
+		_animator.add_exertion(amount)
+
+
 func is_crouching() -> bool:
 	return _crouching
 
 
 ## Barulho que o goblin faz agora (0 parado .. 1 correndo). Os bichos ouvem isso.
+## Parado e ofegante, a respiração se ouve; prendendo o ar, não.
 func noise_level() -> float:
-	var speed := Vector2(velocity.x, velocity.z).length()
-	if speed < 0.3 or not is_on_floor():
+	if not is_on_floor():
 		return 0.0
-	if _crouching:
-		return 0.1
-	return clampf(speed / sprint_speed, 0.3, 1.0)
+	var speed := Vector2(velocity.x, velocity.z).length()
+	var noise := 0.0
+	if speed >= 0.3:
+		noise = 0.1 if _crouching else clampf(speed / sprint_speed, 0.3, 1.0)
+	elif not breath_held and _animator != null:
+		noise = _animator.exertion() * Tuning.PANTING_NOISE
+	return noise * _product(noise_factors)
 
 
 ## Quão fácil é ver o goblin (0..1): agachado e parado no capim quase some.
@@ -318,7 +370,19 @@ func visibility() -> float:
 		value *= 1.0 - float(level.cover_at(global_position)) * (1.0 if _crouching else 0.4)
 	if Vector2(velocity.x, velocity.z).length() < 0.3:
 		value *= 0.6
-	return value * lerpf(1.0, Tuning.NIGHT_VISIBILITY, Clock.night())
+	return value * lerpf(1.0, Tuning.NIGHT_VISIBILITY, Clock.night()) * _product(visibility_factors)
+
+
+## Quanto o cheiro do goblin vai longe (1 = normal). Os bichos multiplicam o faro por isto.
+func scent_level() -> float:
+	return _product(scent_factors)
+
+
+static func _product(factors: Dictionary) -> float:
+	var value := 1.0
+	for key: Variant in factors:
+		value *= float(factors[key])
+	return value
 
 
 ## Aponta a câmera (graus). Yaw 0 olha para -Z.
@@ -407,6 +471,8 @@ func _can_act() -> bool:
 
 
 func _current_speed() -> float:
+	if sniffing:
+		return 0.0
 	if aiming:
 		return aim_speed
 	if _crouching:
@@ -419,7 +485,7 @@ func _current_speed() -> float:
 func _update_bow(delta: float) -> void:
 	if _reload > 0.0:
 		_reload -= delta
-		if _reload <= 0.0 and aiming and Inventory.has(&"arrow"):
+		if _reload <= 0.0 and aiming and _arrow_item() != &"":
 			OccludedAudio.play_at(self, BOW_NOCK_SOUNDS.pick_random(), global_position + Vector3.UP * 0.7, &"World", -4.0, 2.5)
 	if not aiming:
 		_was_aiming = false
@@ -430,7 +496,7 @@ func _update_bow(delta: float) -> void:
 	if not _was_aiming:
 		_was_aiming = true
 		# Ao erguer o arco, o goblin encaixa uma flecha na corda.
-		if Inventory.has(&"arrow") and _reload <= 0.0:
+		if _arrow_item() != &"" and _reload <= 0.0:
 			OccludedAudio.play_at(self, BOW_NOCK_SOUNDS.pick_random(), global_position + Vector3.UP * 0.7, &"World", -4.0, 2.5)
 	if Input.is_action_pressed("attack") and _arrow_nocked():
 		if draw == 0.0:
@@ -443,21 +509,31 @@ func _update_bow(delta: float) -> void:
 			_shoot()
 		draw = 0.0
 		_draw_sound.stop()
-	elif Input.is_action_just_pressed("attack") and not Inventory.has(&"arrow"):
-		Events.notification_shown.emit("Sem flechas. Aperte R para fazer flechas com madeira.")
+	elif Input.is_action_just_pressed("attack") and _arrow_item() == &"":
+		Events.notification_shown.emit("Sem flechas. Aperte R e faça flechas com madeira.")
 
 
 func _arrow_nocked() -> bool:
-	return _reload <= 0.0 and Inventory.has(&"arrow")
+	return _reload <= 0.0 and _arrow_item() != &""
+
+
+## A flecha que vai na corda: a emplumada primeiro, depois a comum; vazio = nenhuma.
+func _arrow_item() -> StringName:
+	for item: StringName in [&"feathered_arrow", &"arrow"]:
+		if Inventory.has(item):
+			return item
+	return &""
 
 
 func _shoot() -> void:
-	if not Inventory.remove(&"arrow"):
+	var item := _arrow_item()
+	if item == &"" or not Inventory.remove(item):
 		return
 	_reload = RELOAD_TIME
 	# A flecha sai de onde está na corda, no arco, e vai para o centro da tela.
 	var origin := _bow.global_position
 	var arrow := Arrow.new()
+	arrow.item = item
 	Game.current_level.add_child(arrow)
 	arrow.launch(origin, _aim_point() - origin, draw, [get_rid()])
 	OccludedAudio.play_at(self, BOW_RELEASE_SOUNDS.pick_random(), origin, &"World", lerpf(-8.0, -1.0, draw), 4.0, randf_range(0.96, 1.04))
@@ -534,7 +610,7 @@ func _attach_node(node: Node3D, socket_pattern: String) -> Node3D:
 	return node
 
 
-# --- Interação: pegar coisas, quebrar árvore, fazer flecha -----------------------
+# --- Interação: pegar coisas e quebrar árvore -------------------------------------
 
 ## Interagíveis (grupo "interactable") implementam:
 ##   interaction_prompt() -> String        texto da ação; vazio = nada a fazer agora
@@ -603,15 +679,6 @@ func _punch() -> void:
 		return
 	_punching = true
 	_animator.play_action(&"punch", 0.5, [[0.24, _land_punch], [0.5, func() -> void: _punching = false]])
-
-
-func _craft_arrows() -> void:
-	if not Inventory.remove(&"wood"):
-		Events.notification_shown.emit("Precisa de madeira. Quebre árvores secas para conseguir.")
-		return
-	Inventory.add(&"arrow", ARROWS_PER_WOOD)
-	OccludedAudio.play_at(self, CRAFT_SOUNDS.pick_random(), global_position + Vector3.UP * 0.6, &"World", -4.0, 3.0)
-	Events.notification_shown.emit("+%d flechas" % ARROWS_PER_WOOD)
 
 
 func _land_punch() -> void:

@@ -6,6 +6,14 @@
 [ext_resource type="Script" path="res://scenes/player/parts/eat_ability.gd" id="4_eat"]
 [ext_resource type="Script" path="res://scenes/player/parts/body_feedback.gd" id="5_body"]
 [ext_resource type="Script" path="res://scenes/player/parts/cold_exposure.gd" id="6_cold"]
+[ext_resource type="Script" path="res://scenes/player/parts/sniff_ability.gd" id="7_sniff"]
+[ext_resource type="Script" path="res://scenes/player/parts/breath_control.gd" id="8_breath"]
+[ext_resource type="Script" path="res://scenes/player/parts/stone_throw.gd" id="9_throw"]
+[ext_resource type="Script" path="res://scenes/player/parts/mud_camouflage.gd" id="10_mud"]
+[ext_resource type="Script" path="res://scenes/player/parts/craft_ability.gd" id="11_craft"]
+[ext_resource type="Script" path="res://scenes/player/parts/torch_carry.gd" id="12_torch"]
+[ext_resource type="Script" path="res://scenes/player/parts/snare_setter.gd" id="13_snare"]
+[ext_resource type="Script" path="res://scenes/player/parts/leather_clothes.gd" id="14_clothes"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.26
@@ -54,3 +62,27 @@ script = ExtResource("5_body")
 
 [node name="ColdExposure" type="Node" parent="."]
 script = ExtResource("6_cold")
+
+[node name="SniffAbility" type="Node" parent="."]
+script = ExtResource("7_sniff")
+
+[node name="BreathControl" type="Node" parent="."]
+script = ExtResource("8_breath")
+
+[node name="StoneThrow" type="Node" parent="."]
+script = ExtResource("9_throw")
+
+[node name="MudCamouflage" type="Node" parent="."]
+script = ExtResource("10_mud")
+
+[node name="CraftAbility" type="Node" parent="."]
+script = ExtResource("11_craft")
+
+[node name="TorchCarry" type="Node" parent="."]
+script = ExtResource("12_torch")
+
+[node name="SnareSetter" type="Node3D" parent="."]
+script = ExtResource("13_snare")
+
+[node name="LeatherClothes" type="Node" parent="."]
+script = ExtResource("14_clothes")

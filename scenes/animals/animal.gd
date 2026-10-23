@@ -21,6 +21,9 @@ const SENSE_INTERVAL := 0.15
 const SIGHT_MASK := 1 | 2
 const SUSPICIOUS := 0.35
 const FLEE := 0.8
+## Quanto dura o susto de um barulho e quanto o goblin precisa ser visto para passar por cima dele.
+const STARTLE_SECONDS := 3.0
+const STARTLE_OVERRIDE := 1.0
 const HIT_LAYER := 8
 const PICKUP_SOUND := preload("res://assets/audio/real/pickup_5.ogg")
 ## Passo em terra, mais agudo: batida de casco correndo.
@@ -33,6 +36,10 @@ const HOOF_SOUND := preload("res://assets/audio/real/hoof_dirt.ogg")
 @export var home_radius := 22.0
 ## Distância (m) entre batidas de casco correndo; 0 = sem som.
 @export var gallop_stride := 0.0
+## Tamanho da pegada (largura, comprimento em m); zero = não deixa pegadas.
+@export var track_size := Vector2.ZERO
+## Quanto cada pegada sai para o lado do caminho (m), alternando: a fila de cascos.
+@export var track_side := 0.0
 
 @export_group("Sentidos")
 @export var sight_range := 45.0
@@ -68,11 +75,16 @@ var _yaw := 0.0
 var _rng := RandomNumberGenerator.new()
 var _sense_timer := 0.0
 var _threat := Vector2.ZERO
+## Susto de um barulho (s): enquanto dura, o perigo é o lugar do barulho, a não ser que o
+## goblin apareça com clareza. É o que deixa a pedra tocar a manada para longe dela.
+var _startle := 0.0
 var _stamina := 1.0
 var _zigzag := 0.0
 var _zigzag_timer := 0.0
 var _bleed_timer := 0.0
 var _stride := 0.0
+var _track_distance := 0.0
+var _track_left := false
 var _hitbox: Area3D
 var _voice: OccludedAudio
 var _hooves: OccludedAudio
@@ -91,6 +103,7 @@ func setup(world_terrain: Terrain, home_position: Vector2, rng_seed: int) -> voi
 
 func _ready() -> void:
 	health = max_health
+	add_to_group(&"animals")
 	if herd != "":
 		add_to_group(herd)
 	_build_body()
@@ -109,6 +122,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if terrain == null or state == State.DEAD:
 		return
+	_startle = maxf(_startle - delta, 0.0)
 	_sense_timer -= delta
 	if _sense_timer <= 0.0:
 		_sense_timer = SENSE_INTERVAL
@@ -154,11 +168,11 @@ func _vital_multiplier(_local_point: Vector3) -> float:
 	return 1.0
 
 
-## Uma flechada: `power` é a força do disparo (0..1).
-func take_hit(power: float, point: Vector3, _direction: Vector3) -> void:
+## Uma flechada: `power` é a força do disparo (0..1); `damage` multiplica o dano (flecha emplumada).
+func take_hit(power: float, point: Vector3, _direction: Vector3, damage := 1.0) -> void:
 	if state == State.DEAD:
 		return
-	health -= lerpf(0.6, 1.4, power) * _vital_multiplier(to_local(point))
+	health -= lerpf(0.6, 1.4, power) * damage * _vital_multiplier(to_local(point))
 	if Game.player != null:
 		_threat = Vector2(Game.player.global_position.x, Game.player.global_position.z)
 	_play_voice(_hurt_sound())
@@ -174,11 +188,27 @@ func alarm(threat: Vector2) -> void:
 	if state == State.DEAD or state == State.FLEE:
 		return
 	_threat = threat
+	# Foge para longe de onde a manada se assustou, junto com ela.
+	_startle = STARTLE_SECONDS
 	awareness = maxf(awareness, 1.0)
 	# Leva um instante para reagir ao susto do vizinho.
 	get_tree().create_timer(_rng.randf_range(0.1, 0.5)).timeout.connect(func() -> void:
 		if state != State.DEAD and state != State.FLEE:
 			_enter(State.FLEE))
+
+
+## Morre na hora, sem susto nem barulho (o coelho pego no laço).
+func kill() -> void:
+	if state == State.DEAD:
+		return
+	health = 0.0
+	state = State.DEAD
+	speed = 0.0
+	_hitbox.queue_free()
+	add_to_group(&"interactable")
+	var body := body_node()
+	body.rotation.z = PI * 0.5
+	body.position.y = dead_height
 
 
 func interaction_prompt() -> String:
@@ -192,14 +222,11 @@ func interaction_action() -> Dictionary:
 
 func interact(_player: Node) -> void:
 	Events.animal_harvested.emit(kind)
-	var arrows := 0
-	for child in body_node().find_children("*", "", true, false):
-		if child is Arrow:
-			arrows += 1
-	Inventory.add(&"meat", meat)
-	Inventory.add(&"hide", hide)
-	if arrows > 0:
-		Inventory.add(&"arrow", arrows)
+	var arrows := Arrow.collect_from(body_node())
+	if meat > 0:
+		Inventory.add(&"meat", meat)
+	if hide > 0:
+		Inventory.add(&"hide", hide)
 	var message := "+%d carne, +%d couro" % [meat, hide]
 	if arrows > 0:
 		message += ", +%d flecha%s" % [arrows, "s" if arrows > 1 else ""]
@@ -219,6 +246,7 @@ func _sense(dt: float) -> void:
 	var to_player := target - eye
 	var distance := to_player.length()
 	var stimulus := 0.0
+	var seen := 0.0
 
 	if distance < sight_range:
 		var forward := Vector3(sin(_yaw), 0.0, cos(_yaw))
@@ -230,20 +258,25 @@ func _sense(dt: float) -> void:
 			sight *= 1.0 if angle < 60.0 else 0.5
 			if state == State.GRAZE:
 				sight *= 0.35
-			stimulus += sight * 3.0
+			seen = sight * 3.0
+			stimulus += seen
 
 	if distance < hearing_range:
 		stimulus += player.noise_level() * (1.0 - distance / hearing_range) * 2.0
 
 	var from_player := Vector2(global_position.x - player.global_position.x, global_position.z - player.global_position.z)
-	var scent_range := smell_range * Wind.intensity + 10.0
+	# Coberto de lama, o goblin cheira menos (Player.scent_level).
+	var scent_range := (smell_range * Wind.intensity + 10.0) * player.scent_level()
 	if from_player.length() < scent_range:
 		var downwind := from_player.normalized().dot(Wind.direction)
 		if downwind > 0.6:
 			stimulus += (downwind - 0.6) / 0.4 * (1.0 - from_player.length() / scent_range) * 1.5
 
 	if stimulus > 0.05:
-		_threat = Vector2(player.global_position.x, player.global_position.z)
+		# Assustado com um barulho, só olha para o goblin se o vir com clareza (cheiro e
+		# passos não dizem de onde vem o perigo).
+		if _startle <= 0.0 or seen > STARTLE_OVERRIDE:
+			_threat = Vector2(player.global_position.x, player.global_position.z)
 		awareness = minf(awareness + stimulus * dt, 1.5)
 	else:
 		awareness = maxf(awareness - dt * (0.08 if state == State.FLEE else 0.12), 0.0)
@@ -262,6 +295,7 @@ func _on_noise(at: Vector3, radius: float) -> void:
 		return
 	awareness = minf(awareness + (1.0 - distance / radius) * 1.2, 1.5)
 	_threat = Vector2(at.x, at.z)
+	_startle = STARTLE_SECONDS
 
 
 # --- Decisão ---------------------------------------------------------------------
@@ -362,6 +396,7 @@ func _move(delta: float, here: Vector2) -> void:
 		next = here
 	position = Vector3(next.x, terrain.get_height(next.x, next.y), next.y)
 	rotation.y = _yaw
+	_leave_tracks(speed * delta)
 
 	if gallop_stride > 0.0 and speed > walk_speed * 2.0:
 		_stride += speed * delta
@@ -369,6 +404,21 @@ func _move(delta: float, here: Vector2) -> void:
 			_stride = 0.0
 			_hooves.pitch_scale = _rng.randf_range(1.2, 1.5)
 			_hooves.play()
+
+
+## A cada Tuning.TRACK_SPACING andados, uma pegada (alternando os lados da fila).
+func _leave_tracks(moved: float) -> void:
+	if track_size == Vector2.ZERO:
+		return
+	_track_distance += moved
+	if _track_distance < Tuning.TRACK_SPACING:
+		return
+	_track_distance = 0.0
+	_track_left = not _track_left
+	var side := Vector3(cos(_yaw), 0.0, -sin(_yaw)) * track_side * (1.0 if _track_left else -1.0)
+	var at := position + side
+	at.y = terrain.get_height(at.x, at.z)
+	Tracks.stamp(at, terrain.get_normal(at.x, at.z), _yaw + _rng.randf_range(-0.15, 0.15), track_size, kind)
 
 
 func _bleed(delta: float) -> void:

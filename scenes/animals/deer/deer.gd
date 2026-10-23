@@ -26,6 +26,8 @@ func _init() -> void:
 	hide = 1
 	dead_height = 0.22
 	gallop_stride = 1.7
+	track_size = Vector2(0.2, 0.25)
+	track_side = 0.09
 	herd = "deer"
 	kind = &"deer"
 

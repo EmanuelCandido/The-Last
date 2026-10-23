@@ -55,6 +55,8 @@ func _init() -> void:
 	hide = 2
 	dead_height = 0.16
 	gallop_stride = 1.1
+	track_size = Vector2(0.2, 0.23)
+	track_side = 0.07
 	herd = "wolves"
 	kind = &"wolf"
 
@@ -99,8 +101,8 @@ func _vital_multiplier(local_point: Vector3) -> float:
 	return 1.0
 
 
-func take_hit(power: float, point: Vector3, direction: Vector3) -> void:
-	super.take_hit(power, point, direction)
+func take_hit(power: float, point: Vector3, direction: Vector3, damage := 1.0) -> void:
+	super.take_hit(power, point, direction, damage)
 	# Ferido, não volta: vai embora da noite.
 	if state != State.DEAD:
 		leaving = true
@@ -199,6 +201,7 @@ func _move(delta: float, here: Vector2) -> void:
 		speed = 0.0
 	position = Vector3(next.x, terrain.get_height(next.x, next.y), next.y)
 	rotation.y = _yaw
+	_leave_tracks(speed * delta)
 	if gallop_stride > 0.0 and speed > walk_speed * 2.0:
 		_stride += speed * delta
 		if _stride >= gallop_stride:

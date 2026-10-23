@@ -12,7 +12,13 @@ const NAMES := {
 	&"cooked_meat": "Carne assada",
 	&"hide": "Couro",
 	&"clothes": "Roupa de couro",
+	&"feathered_arrow": "Flechas emplumadas",
+	&"feather": "Penas",
+	&"stone": "Pedras",
+	&"snare": "Laços",
 }
+## Ordem dos itens na linha do HUD (o que não está aqui não aparece: arco e roupa se veem no goblin).
+const HUD_ORDER: Array[StringName] = [&"arrow", &"feathered_arrow", &"stone", &"wood", &"meat", &"cooked_meat", &"hide", &"feather", &"snare"]
 
 var _items := {}
 

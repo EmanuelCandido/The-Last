@@ -90,7 +90,7 @@ func _update_vignette() -> void:
 
 func _refresh_items() -> void:
 	var parts := PackedStringArray()
-	for item: StringName in [&"arrow", &"wood", &"meat", &"cooked_meat", &"hide"]:
+	for item: StringName in Inventory.HUD_ORDER:
 		var amount := Inventory.count(item)
 		if amount > 0 or (item == &"arrow" and Inventory.has(&"bow")):
 			parts.append("%s: %d" % [Inventory.NAMES[item], amount])

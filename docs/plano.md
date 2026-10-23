@@ -251,13 +251,15 @@ O jogo do goblin precisa ser bom sozinho: é ele que segura as primeiras horas. 
 
 ### 4.8 Rastrear e farejar (F3)
 
-- **Pegadas:** cervos e coelhos deixam pegadas a cada 0,9 m. Ficam 120 s, num pool de 200 em MultiMesh. Junto com o rastro de sangue que já existe, dá para seguir um bicho ferido.
+- **Pegadas:** cervos, coelhos e lobos deixam pegadas a cada 0,9 m. Ficam 120 s, num pool de 200 em MultiMesh. Junto com o rastro de sangue que já existe, dá para seguir um bicho ferido.
+  - **Feito (F3):** `Tracks` (`scenes/world/tracks/`), desenho no `track_print.gdshader` (marca escura com borda clara). Com o tamanho real (8–10 cm) não se liam a 3 m da câmera: ficaram maiores que o real (20–34 cm), de propósito. A pegada vem 7 cm na direção da câmera no shader, senão some enterrada na malha do terreno.
 - **Farejar (segurar X):**
   - o goblin agacha com a pose `sniff`;
   - o som abafa (−12 dB e passa-baixa);
   - o vento fica visível como partículas finas;
   - cada bicho a até 45 m **contra o vento** (o cheiro dele vem até você) solta uma trilha de cheiro.
   - Máximo de 6 s. Barulho zero enquanto fareja.
+  - **Feito (F3):** `SniffAbility`. A trilha corre a 1 m do chão (no capim alto ela sumia), por cima de tudo (é um sentido, não algo do mundo), e some a 1,5 m do goblin.
 
 ### 4.9 Prender o ar (F3, vira o ritual no Ato III)
 
@@ -266,6 +268,7 @@ O jogo do goblin precisa ser bom sozinho: é ele que segura as primeiras horas. 
   - O tremor do braço no arco puxado para.
   - Ouve-se o coração batendo baixinho.
 - **Passando de 12 s:** solta o ar alto (`noise_made` de 6 m) e ofega por 3 s, com a mira tremendo.
+- **Feito (F3):** `BreathControl`. Para prender o ar valer algo parado, a respiração passou a fazer barulho: depois de correr, parado e ofegante, o goblin respira alto (até 0,25 de barulho, `Tuning.PANTING_NOISE`). O ritual (20 s, `Tuning.RITUAL_BREATH_SECONDS`) entra na F6 por `BreathControl.max_seconds()`.
 - **Ritual de acordar (Ato III):**
   - **onde:** num lugar de ritual, que é o fundo escuro da caverna ou o sarcófago;
   - **como:** agachado, parado, segurando Q por **20 s** (ali o ar não acaba);
@@ -285,6 +288,13 @@ R abre uma lista pequena no canto da tela. O tempo não para (imersão), e fabri
 | Tocha | 1 madeira | Luz por 4 min; os bichos veem você de mais longe |
 
 - **Penas:** um corvo abatido com flecha rende 2. Cada corvo morto soma +5 de Vigilância (a partir do Ato II), a ironia de arrancar penas dos espiões.
+- **Feito (F3):**
+  - as receitas são dados em `data/recipes.gd` (`Recipes.LIST`); a lista é a `CraftAbility` (R abre e fecha, roda/setas escolhem, E ou o número fabricam; o custo sai no fim da animação);
+  - flecha emplumada é o item `feathered_arrow` e vai primeiro na corda;
+  - o laço é armado sobre pegadas de coelho pela `SnareSetter` e os laços ficam no `SnareField` (salvo); só pega com o goblin a mais de 25 m, e dormindo as horas contam de uma vez;
+  - a roupa aparece como um manto curto de pele nos ombros (`LeatherClothes`), e o trapo vira couro;
+  - a tocha é fogo de verdade (grupo `fire`): esquenta e lobo não chega. Ao mirar o arco, o goblin a finca no chão (E pega de volta);
+  - os corvos viraram `Crow` (área de acerto); o corvo coletado soma o contador `crow_harvested`, que a Vigilância (F4) vai ler. Fabricar soma `<receita>_crafted`.
 
 ### 4.11 Camuflagem e distração (F3)
 
@@ -298,6 +308,11 @@ R abre uma lista pequena no canto da tela. O tempo não para (imersão), e fabri
   - G arremessa a 14 m/s na direção da câmera;
   - onde cai, faz `noise_made` de 9 m;
   - os bichos olham para o barulho e se afastam **dele**, não de você (`Animal.alarm(threat)` já recebe a origem). Serve para tocar a manada para perto.
+- **Feito (F3):**
+  - `StoneThrow`, `ThrownStone` (quica uma vez, dá para pegar de volta), `StonePile` (`ForestLayout.STONE_PILES`);
+  - `MudPuddle` (`ForestLayout.MUD_SPOTS`), `MudCamouflage` e `Vitals.mud` (vai no save);
+  - **balanceamento:** com 9 m o cervo só fugia se a pedra caísse a menos de 3 m dele. Ficou **12 m** (foge a até ~4,5 m e desconfia a até ~8 m);
+  - **susto (`Animal._startle`, 3 s):** depois de um barulho, ou do alarme da manada, o perigo fica sendo o lugar do barulho. Só ver o goblin com clareza tira a atenção dele (cheiro e passos não dizem de onde vem o perigo). Sem isso, a manada fugia do goblin no tique seguinte.
 
 ---
 
@@ -566,7 +581,7 @@ Cada fase termina jogável, com teste de fumaça, roteiro `--run` e print confer
 |---|---|---|
 | **F1: Fundação e sobrevivência** ✅ feita | `Tuning`, `StoryBeats`, `Story`, `Clock`, `Vitals`; save genérico; `--set`; fome, comer cru e assado; vida, queda, morte e acordar; fogueira com lenha e assar; dormir na pele; riscos na parede; musgo e o beat `moss_falls`; vinheta de vida baixa; Dicas e estado no pause | Roteiro: caçar, assar, comer, dormir 7 vezes; o musgo cai e começa o Ato II; save e load preservam tudo |
 | **F2: Noite e perigo** ✅ feita | Dia e noite visual, sons da noite, frio (efeito da roupa), lobos, uivo de aviso, `shiver` | Print de noite com fogueira legível; lobo persegue e foge do fogo |
-| **F3: Caça completa** | Pegadas, farejar, prender o ar, pedras, lama, lista de fabricar (com a roupa de couro), penas, laço, tocha | Seguir um cervo ferido pelas pegadas; tocar a manada com pedra |
+| **F3: Caça completa** ✅ feita | Pegadas, farejar, prender o ar, pedras, lama, lista de fabricar (com a roupa de couro), penas, laço, tocha | Seguir um cervo ferido pelas pegadas; tocar a manada com pedra |
 | **F4: Rachaduras** | Pistas do Ato I, Vigilância, corvos espiões, cervo branco, ruína (malha, porta, teclado), pintura, sala-espelho, sarcófago | Do musgo até a porta aberta, com os 4 beats de pista disparando |
 | **F5: O Abrigo** | Cena do Abrigo, controle em primeira pessoa, troca de mundo, flashes 1–3, shader de visão borrada | Flash 1 ao dormir no Ato II; ida e volta sem perder estado |
 | **F6: O Zelador** | Componente `Senses`, IA e ronda do Zelador, lucidez, captura, R1–R4 e os efeitos na floresta, Reciclagem | Fazer R1–R4 em sequência; ser pego desfaz o certo |

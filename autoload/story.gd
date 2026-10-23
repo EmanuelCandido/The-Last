@@ -33,6 +33,7 @@ func _ready() -> void:
 	Events.player_died.connect(func(cause: StringName) -> void: trigger(&"died", cause))
 	Events.ate.connect(func(food: StringName) -> void: trigger(&"ate", food))
 	Events.animal_harvested.connect(_on_harvested)
+	Events.crafted.connect(func(recipe: StringName) -> void: add_count(StringName("%s_crafted" % recipe)))
 
 
 func has_flag(flag: StringName) -> bool:

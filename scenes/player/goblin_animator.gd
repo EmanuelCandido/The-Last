@@ -44,6 +44,12 @@ var aiming := false
 var starving := false
 ## Frio (0..1): o corpo treme e, parado, ele se abraça e encolhe.
 var shiver := 0.0
+## Farejando: agachado, focinho erguido, fungadas curtas, cabeça varrendo o vento.
+var sniffing := false
+## Prendendo o ar: a respiração para (o peito fica cheio) e o arco puxado não treme.
+var breath_held := false
+## Tocha acesa na mão direita: o braço a segura erguida à frente.
+var holding_torch := false
 var draw := 0.0
 ## Buscando outra flecha na aljava (1 = acabou de atirar, 0 = flecha na corda).
 var reload := 0.0
@@ -94,7 +100,7 @@ var _rest_leg := Vector2.ZERO
 
 var _time := 0.0
 var _phase := 0.0
-var _weights := {"move": 0.0, "run": 0.0, "crouch": 0.0, "aim": 0.0, "air": 0.0}
+var _weights := {"move": 0.0, "run": 0.0, "crouch": 0.0, "aim": 0.0, "air": 0.0, "sniff": 0.0, "breath": 0.0, "torch": 0.0}
 var _planted := [true, true]
 var _land := 0.0
 var _land_eased := 0.0
@@ -181,6 +187,16 @@ func setup(target: Skeleton3D) -> bool:
 	return true
 
 
+## Cansaço (0..1): ofega e apoia as mãos nos joelhos parado; a mira treme.
+func exertion() -> float:
+	return _exertion
+
+
+## Cansa o corpo de uma vez (soltar o ar preso, um susto).
+func add_exertion(amount: float) -> void:
+	_exertion = clampf(maxf(_exertion, amount), 0.0, 1.0)
+
+
 ## Começa uma ação. `events` = [[segundos, Callable], ...], chamados uma vez no tempo certo.
 func play_action(action: StringName, duration: float, events: Array = []) -> void:
 	_action = action
@@ -215,6 +231,8 @@ func update(delta: float) -> void:
 	var pose := _locomotion(delta)
 	pose = _idle_overlay(delta, pose)
 	_cold_overlay(pose)
+	_sniff_overlay(pose)
+	_torch_overlay(pose)
 	_aim_overlay(pose)
 	if _action != &"":
 		_action_time += delta
@@ -346,10 +364,12 @@ func _locomotion(delta: float) -> Dictionary:
 		_exertion = move_toward(_exertion, 1.0, delta * 0.12)
 	else:
 		_exertion = move_toward(_exertion, 0.0, delta * 0.07)
-	_breath_phase += delta * lerpf(2.0, 6.5, _exertion)
+	var held: float = _weights.breath
+	_breath_phase += delta * lerpf(2.0, 6.5, _exertion) * (1.0 - held)
 	var idle := 1.0 - move
-	var breath := sin(_breath_phase)
-	var deep := lerpf(1.0, 2.6, _exertion)
+	# Prendendo o ar, o peito fica parado cheio (no alto da inspiração).
+	var breath := lerpf(sin(_breath_phase), 1.0, held)
+	var deep := lerpf(lerpf(1.0, 2.6, _exertion), 1.4, held)
 	pose.torso_pitch += breath * 0.012 * deep
 	# Ao puxar o ar, o peito sobe e as costas esticam um pouco.
 	pose.spine_arch -= breath * 0.025 * deep
@@ -450,7 +470,9 @@ func _aim_overlay(pose: Dictionary) -> void:
 	pose.foot_l_yaw -= 0.1 * stance
 	pose.foot_r_yaw += 0.25 * stance
 	# Segurando a corda no fim, o braço cansa e treme cada vez mais.
-	var tired := 0.004 + 0.03 * smoothstep(1.0, 4.0, _hold_time)
+	var tired := 0.004 + 0.03 * smoothstep(1.0, 4.0, _hold_time) + 0.05 * _exertion
+	# Prendendo o ar, o braço firma; ofegante, a mira dança.
+	tired = lerpf(tired, 0.0008, float(_weights.breath))
 	var shake := (_wave(20, 9.0) * 0.6 + _wave(21, 14.0) * 0.4) * tired * draw
 	_bow_shake = Vector3(_wave(22, 11.0) * tired * draw, shake, 0.0) * 0.35
 	# Depois do tiro a mão da corda sobe por cima do ombro até a aljava e volta com a flecha.
@@ -621,6 +643,104 @@ func _action_pose(action: StringName, t: float, base: Dictionary) -> Dictionary:
 			p.head_yaw = base.head_yaw + 0.06 * turning + (0.35 + 0.2 * _action_var) * listen
 			p.ear_l = base.ear_l - 0.3 * listen
 			p.ear_r = base.ear_r - 0.3 * listen
+		&"throw":
+			# Arremesso por cima: o braço vai para trás do ombro com o cotovelo dobrado, o quadril
+			# e o peito giram para trás e o outro braço aponta o alvo; solta com o quadril na
+			# frente, o braço chicoteia e o corpo cai sobre o pé da frente.
+			var force := 1.0 + 0.15 * _action_var
+			p.pelvis_yaw = _curve(t, [[0.0, 0.0], [0.24, -0.25], [0.34, 0.2 * force], [0.45, 0.22], [0.7, 0.0]])
+			p.torso_yaw = base.torso_yaw + _curve(t, [[0.0, 0.0], [0.24, -0.5], [0.34, 0.45 * force], [0.45, 0.5], [0.7, 0.0]])
+			p.torso_pitch = base.torso_pitch + _curve(t, [[0.0, 0.0], [0.24, -0.12], [0.34, 0.25], [0.45, 0.3], [0.7, 0.0]])
+			p.spine_arch = base.spine_arch + _curve(t, [[0.0, 0.0], [0.24, -0.12], [0.34, 0.1], [0.7, 0.0]])
+			p.pelvis_y = base.pelvis_y + _curve(t, [[0.0, 0.0], [0.24, -0.02], [0.34, -0.035], [0.7, 0.0]])
+			p.arm_r_fwd = _curve(t, [[0.0, base.arm_r_fwd], [0.24, 2.6], [0.32, 1.9], [0.38, 1.1], [0.5, 0.6], [0.7, base.arm_r_fwd]])
+			p.arm_r_yaw = _curve(t, [[0.0, 0.0], [0.24, 0.35], [0.36, 0.0], [0.7, 0.0]])
+			p.elbow_r = _curve(t, [[0.0, base.elbow_r], [0.24, 2.0], [0.32, 1.0], [0.38, 0.15], [0.5, 0.3], [0.7, base.elbow_r]])
+			p.hand_r = _curve(t, [[0.0, base.hand_r], [0.24, 0.6], [0.34, -0.3], [0.7, base.hand_r]])
+			p.arm_l_fwd = _curve(t, [[0.0, base.arm_l_fwd], [0.24, 1.2], [0.34, 0.3], [0.45, -0.2], [0.7, base.arm_l_fwd]])
+			p.elbow_l = _curve(t, [[0.0, base.elbow_l], [0.24, 0.3], [0.45, 1.0], [0.7, base.elbow_l]])
+			p.foot_l_z = base.foot_l_z + _curve(t, [[0.0, 0.0], [0.24, 0.06], [0.36, 0.14], [0.55, 0.12], [0.7, 0.0]])
+			p.foot_r_toe = base.foot_r_toe + _curve(t, [[0.0, 0.0], [0.34, 0.3], [0.55, 0.15], [0.7, 0.0]])
+			p.head_yaw = base.head_yaw - (p.pelvis_yaw + p.torso_yaw - base.torso_yaw) * 0.85
+			p.head_pitch = base.head_pitch + _curve(t, [[0.0, 0.0], [0.24, -0.15], [0.4, 0.05], [0.7, 0.0]])
+			p.ear_l = base.ear_l + _curve(t, [[0.0, 0.0], [0.34, 0.3], [0.7, 0.0]])
+			p.ear_r = base.ear_r + _curve(t, [[0.0, 0.0], [0.34, 0.3], [0.7, 0.0]])
+		&"craft":
+			# Acocorado, as duas mãos trabalham juntas na frente da barriga: a direita puxa e
+			# torce (raspa, amarra), a esquerda segura; a cabeça baixa olha o trabalho e, no
+			# meio, ergue um pouco e escuta.
+			var low := _curve(t, [[0.0, 0.0], [0.35, 1.0], [_action_duration - 0.3, 1.0], [_action_duration, 0.0]])
+			var work := smoothstep(0.35, 0.5, t) * (1.0 - smoothstep(_action_duration - 0.45, _action_duration - 0.3, t))
+			var listen := smoothstep(0.95, 1.05, t) * (1.0 - smoothstep(1.25, 1.35, t))
+			var pull := sin(t * 10.0)
+			p.pelvis_y = lerpf(base.pelvis_y, 0.2, low)
+			p.foot_l_z = lerpf(base.foot_l_z, 0.1, low)
+			p.foot_r_z = lerpf(base.foot_r_z, -0.05, low)
+			p.leg_l_out = base.leg_l_out + 0.1 * low
+			p.leg_r_out = base.leg_r_out + 0.1 * low
+			p.torso_pitch = lerpf(base.torso_pitch, 0.5, low) - 0.2 * listen
+			p.spine_arch = lerpf(base.spine_arch, 0.32, low) - 0.1 * listen
+			p.neck_fwd = base.neck_fwd + 0.1 * low
+			p.head_pitch = lerpf(base.head_pitch, 0.42, low) - 0.3 * listen
+			p.head_yaw = base.head_yaw + (0.3 + 0.15 * _action_var) * listen
+			p.arm_l_fwd = lerpf(base.arm_l_fwd, 0.8, low)
+			p.arm_l_out = lerpf(base.arm_l_out, 0.0, low)
+			p.arm_l_twist = -0.5 * low
+			p.elbow_l = lerpf(base.elbow_l, 1.25, low)
+			p.hand_l = lerpf(base.hand_l, 0.55, low)
+			p.arm_r_fwd = lerpf(base.arm_r_fwd, 0.75, low) + pull * 0.12 * work * (1.0 - listen)
+			p.arm_r_out = lerpf(base.arm_r_out, 0.0, low)
+			p.arm_r_twist = lerpf(0.0, 0.6, low) + sin(t * 10.0 + 1.2) * 0.25 * work
+			p.elbow_r = lerpf(base.elbow_r, 1.3, low) - pull * 0.25 * work * (1.0 - listen)
+			p.hand_r = lerpf(base.hand_r, 0.4, low)
+			p.torso_yaw = base.torso_yaw + pull * 0.04 * work
+			p.ear_l = base.ear_l - 0.3 * listen
+			p.ear_r = base.ear_r - 0.3 * listen
+		&"rub_mud":
+			# Agacha na poça, pega lama com as duas mãos e esfrega: a direita no braço e no peito,
+			# a esquerda no rosto e atrás da orelha; depois troca. Levanta sacudindo as mãos.
+			var low := _curve(t, [[0.0, 0.0], [0.4, 1.0], [2.6, 1.0], [3.0, 0.0]])
+			var scoop := smoothstep(0.25, 0.45, t) * (1.0 - smoothstep(0.65, 0.85, t))
+			var rub_a := smoothstep(0.8, 1.0, t) * (1.0 - smoothstep(1.65, 1.85, t))
+			var rub_b := smoothstep(1.75, 1.95, t) * (1.0 - smoothstep(2.55, 2.75, t))
+			var shake := smoothstep(2.6, 2.7, t) * (1.0 - smoothstep(2.85, 3.0, t))
+			var stroke := sin(t * 11.0)
+			p.pelvis_y = lerpf(base.pelvis_y, 0.21, low)
+			p.foot_l_z = lerpf(base.foot_l_z, 0.1, low)
+			p.foot_r_z = lerpf(base.foot_r_z, -0.06, low)
+			p.leg_l_out = base.leg_l_out + 0.12 * low
+			p.leg_r_out = base.leg_r_out + 0.12 * low
+			p.torso_pitch = lerpf(base.torso_pitch, 0.45, low) + 0.35 * scoop
+			p.spine_arch = lerpf(base.spine_arch, 0.28, low) + 0.1 * scoop
+			p.head_pitch = lerpf(base.head_pitch, 0.2, low) + 0.25 * scoop - 0.2 * rub_b
+			p.head_roll = base.head_roll + 0.2 * rub_b - 0.12 * rub_a
+			p.head_yaw = base.head_yaw + 0.25 * rub_a
+			# Pegar a lama: as duas mãos descem até o chão.
+			p.arm_l_fwd = lerpf(base.arm_l_fwd, 0.9, scoop)
+			p.arm_r_fwd = lerpf(base.arm_r_fwd, 0.9, scoop)
+			p.elbow_l = lerpf(base.elbow_l, 0.2, scoop)
+			p.elbow_r = lerpf(base.elbow_r, 0.2, scoop)
+			# Direita esfrega o braço esquerdo e o peito (cruza o corpo).
+			p.arm_r_fwd = lerpf(p.arm_r_fwd, 0.55 + stroke * 0.15, rub_a)
+			p.arm_r_out = lerpf(base.arm_r_out, -0.3, rub_a)
+			p.arm_r_twist = lerpf(0.0, 0.9, rub_a)
+			p.elbow_r = lerpf(p.elbow_r, 1.5 + stroke * 0.2, rub_a)
+			p.arm_l_fwd = lerpf(p.arm_l_fwd, 0.5, rub_a)
+			p.elbow_l = lerpf(p.elbow_l, 0.9, rub_a)
+			# Esquerda no rosto e atrás da orelha; a direita esfrega a coxa.
+			p.arm_l_fwd = lerpf(p.arm_l_fwd, 1.4, rub_b)
+			p.arm_l_out = lerpf(base.arm_l_out, 0.2, rub_b)
+			p.arm_l_twist = lerpf(0.0, -1.2, rub_b)
+			p.arm_l_yaw = lerpf(0.0, -0.6 + stroke * 0.12, rub_b)
+			p.elbow_l = lerpf(p.elbow_l, 2.2 + stroke * 0.12, rub_b)
+			p.arm_r_fwd = lerpf(p.arm_r_fwd, 0.35 + stroke * 0.12, rub_b)
+			p.arm_r_out = lerpf(p.arm_r_out, 0.15, rub_b)
+			p.elbow_r = lerpf(p.elbow_r, 0.6, rub_b)
+			# Sacode as mãos.
+			p.hand_l = base.hand_l + sin(t * 30.0) * 0.5 * shake
+			p.hand_r = base.hand_r + sin(t * 30.0 + 1.0) * 0.5 * shake
+			p.ear_l = base.ear_l + 0.25 * rub_b - 0.1 * rub_a
+			p.ear_r = base.ear_r + 0.2 * low
 		&"lie_down":
 			# Ajoelha, apoia as mãos no chão e vai se deitando (a tela já está escurecendo).
 			var kneel := smoothstep(0.0, 0.9, t)
@@ -672,7 +792,7 @@ func _idle_overlay(delta: float, pose: Dictionary) -> Dictionary:
 			"hand_l": 0.5, "hand_r": 0.45, "ear_l": 0.35, "ear_r": 0.3,
 		}), panting)
 
-	if _action != &"" or idle < 0.9 or _exertion > 0.4:
+	if _action != &"" or idle < 0.9 or _exertion > 0.4 or sniffing:
 		_idle_time = 0.0
 	else:
 		_idle_time += delta
@@ -795,6 +915,42 @@ func _cold_overlay(pose: Dictionary) -> void:
 	pose.neck_fwd += 0.05 * hug
 	pose.head_pitch += 0.1 * hug
 	pose.pelvis_y -= 0.01 * hug
+
+
+## Farejando (agachado e parado): o focinho sobe atrás do cheiro, em fungadas curtas; a
+## cabeça varre o vento de um lado ao outro, as orelhas vão para trás e uma mão toca o chão.
+func _sniff_overlay(pose: Dictionary) -> void:
+	var w: float = _weights.sniff
+	if w < 0.001:
+		return
+	var puff := absf(sin(_time * 15.0)) * absf(sin(_time * 2.6))
+	var sweep := sin(_time * 0.8) * 0.45 + _wave(30, 0.6) * 0.1
+	pose.torso_pitch += 0.12 * w
+	pose.spine_arch += 0.06 * w
+	pose.neck_fwd += 0.16 * w
+	pose.head_pitch += (-0.3 + puff * 0.06) * w
+	pose.head_yaw = lerpf(pose.head_yaw, sweep, w)
+	pose.torso_yaw += sweep * 0.15 * w
+	pose.arm_l_fwd += 0.35 * w
+	pose.elbow_l -= 0.45 * w
+	pose.hand_l += 0.3 * w
+	pose.ear_l = lerpf(pose.ear_l, -0.4 + puff * 0.05, w)
+	pose.ear_r = lerpf(pose.ear_r, -0.38, w)
+
+
+## Tocha acesa: a mão direita a leva erguida um pouco à frente do ombro (o fogo longe do
+## rosto). Mirando, o arco manda (a tocha já foi fincada no chão).
+func _torch_overlay(pose: Dictionary) -> void:
+	var w: float = _weights.torch * (1.0 - float(_weights.aim))
+	if w < 0.001:
+		return
+	pose.arm_r_fwd = lerpf(pose.arm_r_fwd, 0.85 + _wave(31, 1.2) * 0.04, w)
+	pose.arm_r_out = lerpf(pose.arm_r_out, 0.22, w)
+	pose.arm_r_yaw = lerpf(pose.arm_r_yaw, 0.0, w)
+	pose.arm_r_twist = lerpf(pose.arm_r_twist, 0.3, w)
+	pose.elbow_r = lerpf(pose.elbow_r, 1.1, w)
+	pose.hand_r = lerpf(pose.hand_r, 0.5, w)
+	pose.head_roll -= 0.04 * w
 
 
 ## Mecânica do corpo, por cima de qualquer pose (andar, ação, mania, mira): o tronco reage
@@ -985,6 +1141,9 @@ func _update_weights(delta: float) -> void:
 	_approach("crouch", 1.0 if crouching else 0.0, 8.0, delta)
 	_approach("aim", 1.0 if aiming else 0.0, 10.0, delta)
 	_approach("air", 0.0 if on_floor else 1.0, 8.0, delta)
+	_approach("sniff", 1.0 if sniffing else 0.0, 7.0, delta)
+	_approach("breath", 1.0 if breath_held else 0.0, 9.0, delta)
+	_approach("torch", 1.0 if holding_torch else 0.0, 6.0, delta)
 
 
 func _approach(key: String, target: float, rate: float, delta: float) -> void:

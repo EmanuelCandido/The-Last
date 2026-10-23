@@ -23,6 +23,7 @@ func _ready() -> void:
 	Wind.set_exposure(_terrain.build_wind_exposure(), Rect2(-half, -half, half * 2.0, half * 2.0))
 	_ambience.vegetation = _vegetation
 	_spawn_animals()
+	_place_props()
 	var spawn := ForestLayout.SPAWN
 	_spawn.position = Vector3(spawn.x, _terrain.get_height(spawn.x, spawn.y) + 0.1, spawn.y)
 	print("[Floresta] Mundo gerado em %d ms." % (Time.get_ticks_msec() - started))
@@ -96,13 +97,39 @@ func _spawn_animals() -> void:
 	for home: Vector2 in [Vector2(4.0, 54.0), Vector2(-8.0, 30.0), Vector2(6.0, 18.0), Vector2(12.0, 40.0), Vector2(-6.0, -8.0), Vector2(30.0, -30.0)]:
 		_spawn_animal(Rabbit.new(), home)
 	var crows := CrowFlock.new()
+	crows.name = "Crows"
 	crows.terrain = _terrain
 	_animals.add_child(crows)
+	var tracks := Tracks.new()
+	tracks.name = "Tracks"
+	_animals.add_child(tracks)
+	var snares := SnareField.new()
+	snares.name = "Snares"
+	snares.terrain = _terrain
+	_animals.add_child(snares)
 	var wolves := WolfPack.new()
 	wolves.name = "WolfPack"
 	wolves.terrain = _terrain
 	wolves.ambience = _ambience
 	_animals.add_child(wolves)
+
+
+## Poças de lama e montes de pedra soltas pelo vale (ForestLayout).
+func _place_props() -> void:
+	var props := Node3D.new()
+	props.name = "Props"
+	add_child(props)
+	var height_at := _terrain.get_height
+	for spot: Vector2 in ForestLayout.MUD_SPOTS:
+		var puddle := MudPuddle.new()
+		props.add_child(puddle)
+		puddle.position = Vector3(spot.x, _terrain.get_height(spot.x, spot.y), spot.y)
+		puddle.build(height_at)
+	for spot: Vector2 in ForestLayout.STONE_PILES:
+		var pile := StonePile.new()
+		props.add_child(pile)
+		pile.position = Vector3(spot.x, _terrain.get_height(spot.x, spot.y), spot.y)
+		pile.build(height_at)
 
 
 func _spawn_animal(animal: Animal, home: Vector2) -> void:

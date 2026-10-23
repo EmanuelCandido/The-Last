@@ -25,6 +25,7 @@ func _init() -> void:
 	meat = 1
 	hide = 1
 	dead_height = 0.08
+	track_size = Vector2(0.2, 0.34)
 
 
 func body_node() -> Node3D:

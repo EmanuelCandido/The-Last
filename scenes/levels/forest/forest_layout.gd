@@ -29,6 +29,11 @@ const MEADOW_RADIUS := 18.0
 ## Ruína de pedra no fim da trilha.
 const RUINS := Vector2(-18.0, -46.0)
 
+## Poças de lama ao lado da trilha (camuflagem, §4.11).
+const MUD_SPOTS := [Vector2(-4.8, 51.0), Vector2(3.6, 21.0), Vector2(1.6, -5.0), Vector2(-13.5, -31.0)]
+## Montes de pedras soltas (pedras para jogar, §4.11).
+const STONE_PILES := [Vector2(3.4, 61.5), Vector2(-7.5, 40.0), Vector2(17.0, 13.0), Vector2(-6.0, -16.0)]
+
 ## Trilha de terra que sai da caverna e desce o vale.
 const TRAIL := [
 	Vector2(0.0, 64.0), Vector2(-2.0, 56.0), Vector2(-5.0, 48.0), Vector2(-4.0, 36.0),

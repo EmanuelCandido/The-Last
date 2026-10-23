@@ -3,8 +3,9 @@ extends Node3D
 ## Flecha: voa com gravidade, finca no que acertar e pode ser recolhida com E.
 ##
 ## Em vez de corpo rígido, a cada frame de física lança um raio do ponto anterior até
-## o novo: flechas rápidas não atravessam nada. Acertando um bicho, a flecha fica
-## presa nele e volta para o inventário quando o goblin coleta a caça.
+## o novo: flechas rápidas não atravessam nada. Acertando um bicho (qualquer área de acerto
+## cujo dono tenha take_hit, como Animal e Crow), a flecha fica presa nele e volta para o
+## inventário quando o goblin coleta a caça. A emplumada (penas de corvo) cai menos e fere mais.
 
 const SPEED_MIN := 16.0
 const SPEED_MAX := 52.0
@@ -34,6 +35,8 @@ const PICKUP := [
 var velocity := Vector3.ZERO
 ## Força do disparo (0..1): quanto a corda foi puxada.
 var power := 1.0
+## Item que volta para o inventário ao recolher: &"arrow" ou &"feathered_arrow".
+var item := &"arrow"
 
 var _flying := true
 var _age := 0.0
@@ -42,8 +45,22 @@ var _exclude: Array[RID] = []
 
 func _ready() -> void:
 	var mesh := MeshInstance3D.new()
-	mesh.mesh = BowMesh.arrow()
+	mesh.mesh = BowMesh.arrow(is_feathered())
 	add_child(mesh)
+
+
+func is_feathered() -> bool:
+	return item == &"feathered_arrow"
+
+
+## Devolve ao inventário as flechas presas em `body` (a caça coletada). Retorna quantas.
+static func collect_from(body: Node) -> int:
+	var count := 0
+	for child in body.find_children("*", "", true, false):
+		if child is Arrow:
+			Inventory.add((child as Arrow).item)
+			count += 1
+	return count
 
 
 ## Dispara de `from` na direção `direction` com a corda puxada `draw` (0..1).
@@ -62,7 +79,7 @@ func _physics_process(delta: float) -> void:
 	if _age > 10.0:
 		queue_free()
 		return
-	velocity += Vector3.DOWN * GRAVITY * delta
+	velocity += Vector3.DOWN * GRAVITY * (Tuning.FEATHERED_GRAVITY if is_feathered() else 1.0) * delta
 	var from := global_position
 	var to := from + velocity * delta
 	var query := PhysicsRayQueryParameters3D.create(from, to, HIT_MASK, _exclude)
@@ -80,7 +97,7 @@ func interaction_prompt() -> String:
 
 
 func interact(_player: Node) -> void:
-	Inventory.add(&"arrow")
+	Inventory.add(item)
 	OccludedAudio.play_at(get_parent(), PICKUP.pick_random(), global_position, &"World", -6.0, 3.0)
 	queue_free()
 
@@ -91,13 +108,13 @@ func _stick(hit: Dictionary) -> void:
 	# A ponta fica em -Z, meia flecha à frente do centro.
 	global_position = hit.position - direction * (BowMesh.ARROW_LENGTH * 0.5 - PENETRATION)
 	var collider: Object = hit.collider
-	var animal: Animal = null
-	if collider is Area3D:
-		animal = (collider as Area3D).get_parent() as Animal
-	if animal != null:
-		reparent(animal.body_node())
-		animal.take_hit(power, hit.position, direction)
-		OccludedAudio.play_at(animal, HIT_FLESH.pick_random(), hit.position, &"World", 0.0, 5.0)
+	var target: Node3D = null
+	if collider is Area3D and (collider as Area3D).get_parent().has_method("take_hit"):
+		target = (collider as Area3D).get_parent()
+	if target != null:
+		reparent(target.body_node())
+		target.take_hit(power, hit.position, direction, Tuning.FEATHERED_DAMAGE if is_feathered() else 1.0)
+		OccludedAudio.play_at(target, HIT_FLESH.pick_random(), hit.position, &"World", 0.0, 5.0)
 	else:
 		var wood: bool = collider is CollisionObject3D and (collider as CollisionObject3D).collision_layer & TREES_LAYER
 		var sounds: Array = HIT_WOOD if wood else HIT_GROUND

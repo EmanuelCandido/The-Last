@@ -14,6 +14,8 @@ var health := 100.0
 var cold := 0.0
 ## Segundos de enjoo restantes (sem regenerar).
 var nausea := 0.0
+## Lama na pele (0..1): camufla. Quem passa e tira é o MudCamouflage.
+var mud := 0.0
 
 var _dead := false
 
@@ -107,11 +109,13 @@ func status_words() -> PackedStringArray:
 		words.append("Com frio")
 	if nausea > 0.0:
 		words.append("Enjoado")
+	if mud > 0.3:
+		words.append("Coberto de lama")
 	return words
 
 
 func save_data() -> Dictionary:
-	return {"satiety": satiety, "health": health, "nausea": nausea, "cold": cold}
+	return {"satiety": satiety, "health": health, "nausea": nausea, "cold": cold, "mud": mud}
 
 
 func load_data(data: Dictionary) -> void:
@@ -119,6 +123,7 @@ func load_data(data: Dictionary) -> void:
 	health = float(data.get("health", 100.0))
 	nausea = float(data.get("nausea", 0.0))
 	cold = float(data.get("cold", 0.0))
+	mud = float(data.get("mud", 0.0))
 	_dead = health <= 0.0
 	changed.emit()
 

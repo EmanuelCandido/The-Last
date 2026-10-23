@@ -5,7 +5,8 @@ extends Control
 ## entram embaixo, em outra cor.
 const TIPS := """[b]CONTROLES[/b]
 WASD — andar  ·  Shift — correr  ·  Ctrl — agachar  ·  Espaço — pular
-E — pegar, coletar, usar a fogueira, dormir  ·  F — comer  ·  R — fazer flechas (1 madeira = 3 flechas)
+E — pegar, coletar, usar a fogueira, dormir  ·  F — comer  ·  R — lista de fabricar
+X (segurar) — farejar  ·  Q (segurar) — prender o ar  ·  G — jogar pedra
 Botão direito — mirar com o arco
 Botão esquerdo, mirando — segure para puxar a corda, solte para atirar
 Botão esquerdo sem mirar — golpear (quebra árvores secas)
@@ -22,14 +23,27 @@ Esc — pausar  ·  F3 — desempenho
 • Fique contra o vento! Se o vento sopra de você para o bicho, ele sente seu cheiro de longe. Veja para onde a grama e as folhas se curvam.
 • Capim alto e mata fechada escondem você, ainda mais agachado.
 • Segure o clique para puxar a corda toda: a flecha vai mais longe e machuca mais. De longe, mire um pouco acima: a flecha cai.
-• Acerte o peito ou o pescoço do cervo. Ferido, ele foge sangrando e mais devagar; siga o rastro de sangue. Coelhos caem com uma flecha.
+• Acerte o peito ou o pescoço do cervo. Ferido, ele foge sangrando e mais devagar; siga o sangue e as pegadas. Coelhos caem com uma flecha.
 • Se um cervo da manada foge, os outros fogem junto.
 • Chegue perto do bicho abatido e aperte E para coletar carne e couro (e as flechas presas nele).
 
-[b]MADEIRA E FLECHAS[/b]
+[b]RASTROS, CHEIRO E SILÊNCIO[/b]
+• Cervos, coelhos e lobos deixam pegadas no chão. Elas somem em uns dois minutos: as mais escuras são as mais frescas.
+• Segure X para farejar: o goblin agacha, o mundo abafa e o vento aparece. Bicho de onde o vento vem solta uma trilha de cheiro até você. Dura poucos segundos.
+• Segure Q para prender o ar: parado, você não faz barulho nenhum e o arco puxado não treme. Não aguenta muito: se passar do limite, solta o ar alto e fica ofegante.
+• Depois de correr, o goblin ofega parado, e isso se ouve.
+• Esfregue lama numa poça da trilha (E): fica mais difícil de ver e de farejar. A lama sai com o tempo, mais rápido correndo.
+• Pegue pedras num monte de pedras soltas (E) e jogue com G para onde a câmera olha. Os bichos fogem do lugar onde a pedra cai, não de você: jogue do outro lado da manada para tocá-la na sua direção.
+
+[b]MADEIRA, PENAS E FABRICAR[/b]
 • Árvores secas, sem folhas, quebram com alguns golpes (botão esquerdo bem perto do tronco). Pinheiros vivos são duros demais.
-• Cada árvore seca dá madeira. Aperte R para fazer 3 flechas com 1 madeira.
-• Árvore caindo faz muito barulho: os bichos por perto fogem.
+• Cada árvore seca dá madeira. Árvore caindo faz muito barulho: os bichos por perto fogem.
+• R abre a lista de fabricar (o tempo não para): escolha com a roda ou as setas e aperte E, ou o número da receita.
+• Flechas: 1 madeira. Flechas emplumadas: 1 madeira e 2 penas; caem menos e ferem mais (vão primeiro na corda).
+• Corvos abatidos com flecha dão penas.
+• Laço (1 couro e 1 madeira): arme sobre pegadas de coelho (E) e volte mais tarde. Às vezes pega um.
+• Roupa de couro (3 couros): o frio pega pela metade.
+• Tocha (1 madeira): luz e calor por uns minutos, e lobo não chega perto. Mas os bichos veem você de longe. Ao mirar o arco, o goblin finca a tocha no chão.
 
 [b]FOME, FOGO E SONO[/b]
 • O goblin sente fome com o tempo. A barriga ronca quando é hora de comer; se a fome apertar demais, ela começa a machucar.

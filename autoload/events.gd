@@ -38,3 +38,6 @@ signal animal_harvested(kind: StringName)
 
 ## O goblin comeu. `food`: o item do inventário ("meat", "cooked_meat").
 signal ate(food: StringName)
+
+## O goblin fabricou algo da lista (R). `recipe`: o id em Recipes ("arrows", "clothes"...).
+signal crafted(recipe: StringName)
