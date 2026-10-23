@@ -21,6 +21,9 @@ const CAVE_WALL := 2.6
 ## Onde o goblin acorda: dentro da caverna, a poucos metros da saída.
 const SPAWN := Vector2(1.0, 69.8)
 
+## Onde a sentinela do Zelador fica pousada, ao lado da boca da caverna.
+const CAVE_CROW := Vector2(2.8, 63.0)
+
 ## Árvore velha que solta folhas com o vento.
 const OLD_TREE := Vector2(-9.0, 44.0)
 ## Clareira onde os cervos pastam.

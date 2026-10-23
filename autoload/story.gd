@@ -1,5 +1,6 @@
 extends Node
-## Estado da história: ato, ciclo, riscos na parede, flags, contadores e anotações.
+## Estado da história: ato, ciclo, riscos na parede, flags, contadores, anotações e a
+## Vigilância (o Zelador observando, §5).
 ##
 ## O que acontece e quando vem de StoryBeats (data/story_beats.gd): aqui só se guarda
 ## o estado e se avaliam os beats quando um gatilho acontece. Os sistemas reagem ao
@@ -9,6 +10,7 @@ signal changed
 signal flag_changed(flag: StringName, value: bool)
 signal act_changed(act: int)
 signal note_added(text: String)
+signal vigilance_changed(value: float)
 
 const START_CYCLE := 347
 
@@ -20,6 +22,15 @@ var marks := 0
 var old_marks := Tuning.OLD_MARKS
 ## Anotações que o próprio Ari deixou (Dicas que mudam). Sobrevivem à Reciclagem.
 var notes: PackedStringArray = []
+## Vigilância (0..100): só conta a partir de Tuning.VIGILANCE_FROM_ACT. Em 100, Reciclagem.
+var vigilance := 0.0
+## Objetivos reais concluídos, em ordem (F6). A Reciclagem desfaz o último.
+var objectives: PackedStringArray = []
+
+## Algo fez a Vigilância subir hoje (dormir num dia calmo a baixa).
+var _alarmed_today := false
+## Dia em que um corvo já viu o goblin no teclado da ruína (conta uma vez por dia).
+var _keypad_seen_day := -1
 
 var _flags := {}
 var _counters := {}
@@ -34,6 +45,12 @@ func _ready() -> void:
 	Events.ate.connect(func(food: StringName) -> void: trigger(&"ate", food))
 	Events.animal_harvested.connect(_on_harvested)
 	Events.crafted.connect(func(recipe: StringName) -> void: add_count(StringName("%s_crafted" % recipe)))
+	Events.crow_shot.connect(func() -> void: add_vigilance(Tuning.VIGILANCE_CROW_SHOT))
+	Events.ate.connect(func(food: StringName) -> void:
+		if food == &"cooked_meat":
+			add_vigilance(Tuning.VIGILANCE_COOKED_MEAT))
+	Events.woke_up.connect(func(_reason: StringName) -> void: _alarmed_today = false)
+	Events.ritual_completed.connect(func(place: StringName) -> void: trigger(&"ritual", place))
 
 
 func has_flag(flag: StringName) -> bool:
@@ -68,6 +85,55 @@ func add_count(counter: StringName, amount := 1) -> void:
 	changed.emit()
 
 
+## Soma (ou tira) Vigilância. Antes do Ato II não conta; em 100, pede a Reciclagem.
+func add_vigilance(amount: float) -> void:
+	if act < Tuning.VIGILANCE_FROM_ACT or amount == 0.0:
+		return
+	if amount > 0.0:
+		_alarmed_today = true
+	var before := vigilance
+	vigilance = clampf(vigilance + amount, 0.0, 100.0)
+	if vigilance == before:
+		return
+	vigilance_changed.emit(vigilance)
+	changed.emit()
+	if vigilance >= 100.0 and before < 100.0:
+		Events.recycle_requested.emit(&"vigilance")
+
+
+## Um corvo viu o goblin mexendo no teclado da ruína: sobe uma vez por dia.
+func crow_saw_keypad() -> void:
+	if _keypad_seen_day == Clock.day:
+		return
+	_keypad_seen_day = Clock.day
+	add_vigilance(Tuning.VIGILANCE_KEYPAD_SEEN)
+
+
+## Um objetivo real foi concluído (F6): liga o flag de mesmo nome.
+func complete_objective(objective: StringName) -> void:
+	if String(objective) in objectives:
+		return
+	objectives.append(String(objective))
+	set_flag(objective)
+
+
+## A Reciclagem (§3): o ciclo avança, os riscos viram antigos, a Vigilância volta a
+## Tuning.VIGILANCE_AFTER_RECYCLE e o último objetivo real é desfeito. Ato, flags e
+## anotações ficam.
+func recycle() -> void:
+	cycle += 1
+	old_marks += marks
+	marks = 0
+	vigilance = Tuning.VIGILANCE_AFTER_RECYCLE if act >= Tuning.VIGILANCE_FROM_ACT else 0.0
+	if not objectives.is_empty():
+		var undone := objectives[objectives.size() - 1]
+		objectives.remove_at(objectives.size() - 1)
+		set_flag(StringName(undone), false)
+	_alarmed_today = false
+	vigilance_changed.emit(vigilance)
+	changed.emit()
+
+
 func add_note(text: String) -> void:
 	if text in notes:
 		return
@@ -77,7 +143,7 @@ func add_note(text: String) -> void:
 
 
 ## Avalia os beats do gatilho `on`. `reason` é o detalhe do gatilho (motivo de acordar,
-## causa da morte, comida, bicho).
+## causa da morte, comida, bicho). Beat com "repeat" dispara toda vez que valer.
 func trigger(on: StringName, reason: StringName = &"") -> void:
 	for beat: Dictionary in StoryBeats.BEATS:
 		var id: String = beat.id
@@ -85,7 +151,8 @@ func trigger(on: StringName, reason: StringName = &"") -> void:
 			continue
 		if not _matches(beat.get("when", {}), reason):
 			continue
-		_fired[id] = true
+		if not beat.get("repeat", false):
+			_fired[id] = true
 		_run(beat.get("do", []))
 
 
@@ -99,6 +166,10 @@ func save_data() -> Dictionary:
 		"flags": _flags.keys().map(func(flag: StringName) -> String: return String(flag)),
 		"counters": _counters.duplicate(),
 		"fired": _fired.keys(),
+		"vigilance": vigilance,
+		"objectives": Array(objectives),
+		"alarmed_today": _alarmed_today,
+		"keypad_seen_day": _keypad_seen_day,
 	}
 
 
@@ -118,7 +189,12 @@ func load_data(data: Dictionary) -> void:
 	_fired.clear()
 	for id: String in data.get("fired", []):
 		_fired[id] = true
+	vigilance = float(data.get("vigilance", 0.0))
+	objectives = PackedStringArray(data.get("objectives", []))
+	_alarmed_today = bool(data.get("alarmed_today", false))
+	_keypad_seen_day = int(data.get("keypad_seen_day", -1))
 	act_changed.emit(act)
+	vigilance_changed.emit(vigilance)
 	changed.emit()
 
 
@@ -136,6 +212,10 @@ func debug_set(key: String, value: String) -> void:
 
 func _on_slept() -> void:
 	marks += 1
+	add_count(StringName("sleeps_act_%d" % act))
+	# Um dia inteiro sem alarme: o Zelador relaxa.
+	if not _alarmed_today:
+		add_vigilance(Tuning.VIGILANCE_CALM_SLEEP)
 	changed.emit()
 	trigger(&"slept")
 
@@ -191,5 +271,11 @@ func _run(actions: Array) -> void:
 					add_note(String(value))
 				"notify":
 					Events.notification_shown.emit(String(value))
+				"flash":
+					Events.flash_requested.emit(int(value))
+				"recycle":
+					Events.recycle_requested.emit(StringName(String(value)))
+				"vigilance":
+					add_vigilance(float(value))
 				_:
 					push_warning("Story: ação desconhecida '%s'." % key)

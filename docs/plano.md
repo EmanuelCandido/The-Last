@@ -89,6 +89,8 @@ O estado da história fica no autoload `Story`: `act` (1–4), `cycle` (347), `m
 | `clue_fan` | Ao acordar com 5 riscos | Na próxima rajada forte, um zumbido grave (110 Hz) com chiado de hélice por 3 s. |
 | `moss_falls` | Ao acordar com ≥ 7 riscos e ≥ 1 cervo coletado, **ou** com 10 riscos (para não travar quem não caça cervo) | Um pedaço de musgo cai da parede ao lado da pele e mostra **centenas de riscos antigos**. Começa o Ato II. |
 
+**Feito (F4):** os beats só ligam o flag (`clue_deer_freeze`...); o nó `Clues` (`scenes/world/clues/`) espera a hora, faz a pista uma vez e liga `<flag>_seen`. O corvo que encara vem do `Watchers`. A rajada do ventilador ficou em 0,5 (`Tuning.CLUE_FAN_GUST`): medido, o vento passa de 0,75 em só 1% das vezes, e a pista quase nunca acontecia.
+
 ### Ato II: Rachaduras
 
 A partir daqui a Vigilância (§5) está ligada.
@@ -104,6 +106,13 @@ A partir daqui a Vigilância (§5) está ligada.
 | `ruin_door` | Sempre existe; o teclado só aceita código depois do `flash_3` | Porta lisa sob a hera, com 4 discos de pedra marcados de 0 a 9. Com **2714**, abre. |
 | `mirror_room` | Porta aberta | Uma "sala" medieval com a planta da sala real: um sarcófago no lugar da cápsula e uma janela de pedra no lugar da janela. Na parede, escrito por Ari: *"PRENDA O AR NO ESCURO. CONTE ATÉ VINTE. — A."* Tem um ninho de corvo no telhado quebrado. |
 | `first_wake` | Deitar no sarcófago e fazer o ritual (§4.9) | **Falso travamento** (§7) e, em seguida, a primeira visita real (R1). Começa o Ato III. |
+
+**Feito (F4):**
+- **Flashes:** os beats `flash_1..3` já disparam (contador automático `sleeps_act_2`), põem as anotações e emitem `Events.flash_requested(n)`; a cena do flash é da F5. O `flash_3` liga `saw_ruin_window`, que libera a porta.
+- **Pintura:** `CavePainting` (filho da Cave), figuras em ocre num atlas feito em código, coladas no teto por raios. Só pega a luz do fogo com a face da frente para baixo (com a face do verso, a normal ia para a rocha). Com a lenha cheia lê bem; com 1, fica fraca.
+- **Ruína:** `Ruin` (`scenes/world/ruin/`), paredes numa malha só com colisão exata, cada bloco no chão embaixo dele (ali o terreno não é plano); a sala-espelho tem piso próprio e rampa até a nave (o goblin não sobe degrau).
+- **Porta:** `RuinDoor`. E entra nos discos; ←/→ (ou A/D) escolhe, ↑/↓ (ou W/S, roda) gira, E empurra, Espaço sai. A dica mostra os números, porque os discos são pequenos para ler de longe. Aberta, liga `ruin_door_open`.
+- **Sarcófago:** `Sarcophagus`. Deitar (`Player.lie_at`) é lugar de ritual; o fundo da caverna, agachado e parado, também. Com 20 s de ar preso: `Events.ritual_completed(lugar)`, Vigilância +10 (+25 com corvo vendo) e o gatilho `ritual` no Story. O que vem depois (`first_wake`: falso travamento e R1) é da F5/F6.
 
 ### Ato III: O Zelador
 
@@ -138,6 +147,7 @@ Acontece quando a **Vigilância chega a 100** ou quando Ari **come carne do cerv
 - **Cena:** a floresta se desmancha em pixels da borda para o centro, o som afina até o bipe e Ari acorda no dia 1.
 - **Perde:** `cycle` +1 (347 → 348); os riscos do ciclo viram "antigos" (a parede só cresce); o inventário zera e o arco volta para o chão da caverna; a Vigilância vai para 30; o **último objetivo real concluído é desfeito** (o Zelador consertou).
 - **Fica:** o ato, os flags e as anotações, porque Ari as escreveu fora da memória.
+- **Feito (F4):** `Game.recycle(motivo)`, pedido por `Events.recycle_requested` (Vigilância em 100, ou o beat `white_meat_recycle`, que se repete). A tela vira pixels e some da borda para o centro (`recycle.gdshader`), o bipe toca, e então `Story.recycle()`, `Inventory.clear()`, `Vitals.reset()`, o relógio no dia 1 e a fase recarregada (o arco volta sozinho, porque o inventário está vazio).
 
 ---
 
@@ -347,6 +357,8 @@ Um número de 0 a 100 em `Story.vigilance`, ligado a partir do Ato II. É o moto
 | ≥ 60 | Aparece 1 cervo branco por dia, fácil de caçar |
 | ≥ 80 | O Zelador fala mais vezes; no Abrigo ele confere a cápsula a cada 45 s em vez de 90 |
 | 100 | Reciclagem (§3) |
+
+**Feito (F4):** `Story.vigilance` e `Story.add_vigilance()` (antes do Ato II não conta); números em `Tuning.VIGILANCE_*`. Corvo abatido (`Events.crow_shot`), carne assada e dia calmo vêm do próprio Story; o teclado visto por corvo vem da `RuinDoor`; o ritual vem do `BreathControl`. O `Watchers` (filho de Animals) cuida dos efeitos: sentinelas na boca da caverna e no ninho da ruína (somem com o flag `blind_spot` do R2), espiões que pousam perto do goblin longe do capim alto (no capim o corvo some) e o cervo branco (`WhiteDeer`: pelo liso e pálido, porque a textura de pelo é marrom; sentidos fracos; dá `white_meat`). `Watchers.watching(ponto)` diz se algum corvo pousado vê o ponto.
 
 ---
 
@@ -582,7 +594,7 @@ Cada fase termina jogável, com teste de fumaça, roteiro `--run` e print confer
 | **F1: Fundação e sobrevivência** ✅ feita | `Tuning`, `StoryBeats`, `Story`, `Clock`, `Vitals`; save genérico; `--set`; fome, comer cru e assado; vida, queda, morte e acordar; fogueira com lenha e assar; dormir na pele; riscos na parede; musgo e o beat `moss_falls`; vinheta de vida baixa; Dicas e estado no pause | Roteiro: caçar, assar, comer, dormir 7 vezes; o musgo cai e começa o Ato II; save e load preservam tudo |
 | **F2: Noite e perigo** ✅ feita | Dia e noite visual, sons da noite, frio (efeito da roupa), lobos, uivo de aviso, `shiver` | Print de noite com fogueira legível; lobo persegue e foge do fogo |
 | **F3: Caça completa** ✅ feita | Pegadas, farejar, prender o ar, pedras, lama, lista de fabricar (com a roupa de couro), penas, laço, tocha | Seguir um cervo ferido pelas pegadas; tocar a manada com pedra |
-| **F4: Rachaduras** | Pistas do Ato I, Vigilância, corvos espiões, cervo branco, ruína (malha, porta, teclado), pintura, sala-espelho, sarcófago | Do musgo até a porta aberta, com os 4 beats de pista disparando |
+| **F4: Rachaduras** ✅ feita | Pistas do Ato I, Vigilância, corvos espiões, cervo branco, ruína (malha, porta, teclado), pintura, sala-espelho, sarcófago | Do musgo até a porta aberta, com os 4 beats de pista disparando |
 | **F5: O Abrigo** | Cena do Abrigo, controle em primeira pessoa, troca de mundo, flashes 1–3, shader de visão borrada | Flash 1 ao dormir no Ato II; ida e volta sem perder estado |
 | **F6: O Zelador** | Componente `Senses`, IA e ronda do Zelador, lucidez, captura, R1–R4 e os efeitos na floresta, Reciclagem | Fazer R1–R4 em sequência; ser pego desfaz o certo |
 | **F7: Mistério meta** | Anotações, `ciclo_346.sav` e a memória, `leia_me`, falso travamento, sons vazando, HUD vital, voz do Zelador | Cada item do §7 disparado pelo seu beat |

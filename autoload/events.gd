@@ -39,5 +39,17 @@ signal animal_harvested(kind: StringName)
 ## O goblin comeu. `food`: o item do inventário ("meat", "cooked_meat").
 signal ate(food: StringName)
 
+## Um beat pediu um flash do mundo real (F5 mostra; antes disso, ninguém escuta).
+signal flash_requested(number: int)
+
+## A floresta vai se desmanchar e o ciclo recomeça. `reason`: "vigilance", "white_meat"...
+signal recycle_requested(reason: StringName)
+
+## Uma flechada derrubou um corvo (os olhos do Zelador).
+signal crow_shot
+
+## O ritual de acordar terminou: prendeu o ar o bastante num lugar de ritual.
+signal ritual_completed(place: StringName)
+
 ## O goblin fabricou algo da lista (R). `recipe`: o id em Recipes ("arrows", "clothes"...).
 signal crafted(recipe: StringName)

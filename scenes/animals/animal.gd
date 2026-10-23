@@ -53,6 +53,8 @@ const HOOF_SOUND := preload("res://assets/audio/real/hoof_dirt.ogg")
 @export_group("Caça")
 @export var max_health := 2.0
 @export var meat := 3
+## Que carne o bicho dá (o cervo branco dá a carne branca).
+@export var meat_item := &"meat"
 @export var hide := 1
 ## Altura do corpo deitado, quando morre.
 @export var dead_height := 0.22
@@ -83,6 +85,8 @@ var _zigzag := 0.0
 var _zigzag_timer := 0.0
 var _bleed_timer := 0.0
 var _stride := 0.0
+## Travado (s): nem anda, nem anima, nem soa (a pista do cervo que congela).
+var _frozen := 0.0
 var _track_distance := 0.0
 var _track_left := false
 var _hitbox: Area3D
@@ -121,6 +125,9 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	if terrain == null or state == State.DEAD:
+		return
+	if _frozen > 0.0:
+		_frozen -= delta
 		return
 	_startle = maxf(_startle - delta, 0.0)
 	_sense_timer -= delta
@@ -197,6 +204,17 @@ func alarm(threat: Vector2) -> void:
 			_enter(State.FLEE))
 
 
+## Trava no meio do passo por `seconds`, mudo, como uma imagem parada.
+func freeze(seconds: float) -> void:
+	_frozen = seconds
+	_voice.stop()
+	_hooves.stop()
+
+
+func is_frozen() -> bool:
+	return _frozen > 0.0
+
+
 ## Morre na hora, sem susto nem barulho (o coelho pego no laço).
 func kill() -> void:
 	if state == State.DEAD:
@@ -224,10 +242,10 @@ func interact(_player: Node) -> void:
 	Events.animal_harvested.emit(kind)
 	var arrows := Arrow.collect_from(body_node())
 	if meat > 0:
-		Inventory.add(&"meat", meat)
+		Inventory.add(meat_item, meat)
 	if hide > 0:
 		Inventory.add(&"hide", hide)
-	var message := "+%d carne, +%d couro" % [meat, hide]
+	var message := "+%d %s, +%d couro" % [meat, String(Inventory.NAMES.get(meat_item, "carne")).to_lower(), hide]
 	if arrows > 0:
 		message += ", +%d flecha%s" % [arrows, "s" if arrows > 1 else ""]
 	Events.notification_shown.emit(message)

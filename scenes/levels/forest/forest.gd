@@ -18,6 +18,13 @@ func _ready() -> void:
 	_terrain.generate()
 	_terrain.publish_height_texture()
 	_cave.build(_terrain.cave_floor_height)
+	var painting := CavePainting.new()
+	painting.name = "Painting"
+	_cave.add_child(painting)
+	var ruin := Ruin.new()
+	ruin.name = "Ruin"
+	add_child(ruin)
+	ruin.build(_terrain)
 	_vegetation.populate(_terrain)
 	var half := ForestLayout.TERRAIN_SIZE * 0.5
 	Wind.set_exposure(_terrain.build_wind_exposure(), Rect2(-half, -half, half * 2.0, half * 2.0))
@@ -107,6 +114,14 @@ func _spawn_animals() -> void:
 	snares.name = "Snares"
 	snares.terrain = _terrain
 	_animals.add_child(snares)
+	var watchers := Watchers.new()
+	watchers.name = "Watchers"
+	watchers.terrain = _terrain
+	_animals.add_child(watchers)
+	var clues := Clues.new()
+	clues.name = "Clues"
+	clues.watchers = watchers
+	add_child(clues)
 	var wolves := WolfPack.new()
 	wolves.name = "WolfPack"
 	wolves.terrain = _terrain

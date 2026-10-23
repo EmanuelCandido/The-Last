@@ -5,6 +5,9 @@ extends Animal
 
 const SNORT := preload("res://assets/audio/animals/deer_snort.wav")
 
+## Cor do pelo (o cervo branco troca).
+var fur_color := Color(0.62, 0.43, 0.27)
+
 var _body: Node3D
 var _neck: Node3D
 var _legs: Array[Node3D] = []
@@ -50,7 +53,7 @@ func _vital_multiplier(local_point: Vector3) -> float:
 
 
 func _build_body() -> void:
-	var fur := fur_material(Color(0.62, 0.43, 0.27))
+	var fur := fur_material(fur_color)
 	var light := fur_material(Color(0.88, 0.84, 0.76))
 	var dark := flat_material(Color(0.12, 0.1, 0.09))
 

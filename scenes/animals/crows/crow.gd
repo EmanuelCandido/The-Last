@@ -1,29 +1,53 @@
 class_name Crow
 extends Node3D
-## Um corvo do bando (CrowFlock). Voando, é levado pelo bando; uma flechada o derruba: cai
-## rodando até o chão e vira caça para pegar as penas (Tuning.CROW_FEATHERS), com as
-## flechas presas nele.
+## Um corvo. No bando (CrowFlock), voa em círculos levado por ele; sozinho, é um espião do
+## Zelador (Watchers): desce planando, pousa, segue o goblin com a cabeça e vai embora.
+## Uma flechada o derruba: cai rodando até o chão e vira caça para pegar as penas
+## (Tuning.CROW_FEATHERS), com as flechas presas nele.
 
 signal shot
 
+enum Mode { FLOCK, LANDING, PERCHED, LEAVING, FALLING, DOWN }
+
 const HIT_LAYER := 8
 const PICKUP_SOUND := preload("res://assets/audio/real/pickup_1.ogg")
+const FLAP_SOUND := preload("res://assets/audio/animals/wing_flap.wav")
+const CAWS := [preload("res://assets/audio/animals/crow_1.wav"), preload("res://assets/audio/animals/crow_2.wav")]
+## Segundos descendo até o pouso e de onde vem (m acima e para o lado).
+const LANDING_TIME := 2.2
+const LANDING_FROM := Vector3(6.0, 12.0, 0.0)
+## Visão do corvo pousado (olhos na altura da cabeça).
+const EYE_HEIGHT := 0.25
 
 var terrain: Terrain
 var wings: Array[Node3D] = []
 var dead := false
+var mode := Mode.FLOCK
+## Pousado, a cabeça segue isto (o goblin).
+var watch: Node3D
+## Pousado sem crocitar (a pista do Ato I).
+var silent := false
 
+var _head: Node3D
 var _fall_speed := 0.0
 var _spin := Vector3.ZERO
-var _landed := false
+var _timer := 0.0
+var _perch := Vector3.ZERO
+var _watch_seconds := 0.0
+var _from := Vector3.ZERO
+var _caw_timer := 0.0
+var _voice: AudioStreamPlayer3D
 
 
 func _ready() -> void:
 	var feathers := Animal.flat_material(Color(0.05, 0.05, 0.06))
 	var beak := Animal.flat_material(Color(0.18, 0.17, 0.16))
 	_part(self, Vector3(0.12, 0.1, 0.38), Vector3.ZERO, feathers)
-	_part(self, Vector3(0.09, 0.09, 0.1), Vector3(0.0, 0.03, 0.22), feathers)
-	_part(self, Vector3(0.03, 0.03, 0.09), Vector3(0.0, 0.02, 0.3), beak)
+	_head = Node3D.new()
+	_head.position = Vector3(0.0, 0.03, 0.2)
+	add_child(_head)
+	_part(_head, Vector3(0.09, 0.09, 0.1), Vector3(0.0, 0.0, 0.02), feathers)
+	_part(_head, Vector3(0.03, 0.03, 0.09), Vector3(0.0, -0.01, 0.1), beak)
 	_part(self, Vector3(0.14, 0.02, 0.15), Vector3(0.0, 0.0, -0.25), feathers)
 	for side in [-1.0, 1.0]:
 		var wing := Node3D.new()
@@ -43,20 +67,93 @@ func _ready() -> void:
 	shape.shape = box
 	hitbox.add_child(shape)
 	add_child(hitbox)
+	_voice = AudioStreamPlayer3D.new()
+	_voice.bus = &"Ambience"
+	_voice.unit_size = 6.0
+	_voice.max_distance = 80.0
+	add_child(_voice)
 
 
 func _physics_process(delta: float) -> void:
-	if not dead or _landed:
+	match mode:
+		Mode.LANDING:
+			_timer += delta
+			var t := clampf(_timer / LANDING_TIME, 0.0, 1.0)
+			var eased := 1.0 - (1.0 - t) * (1.0 - t)
+			position = _from.lerp(_perch, eased)
+			var travel := _perch - _from
+			rotation = Vector3(0.0, atan2(travel.x, travel.z), 0.0)
+			_flap(0.15 if t < 0.7 else sin(_timer * 16.0) * 0.8)
+			if t >= 1.0:
+				mode = Mode.PERCHED
+				_timer = _watch_seconds
+		Mode.PERCHED:
+			_timer -= delta
+			_fold_wings()
+			_look_at_watch(delta)
+			_caw_timer -= delta
+			if not silent and _caw_timer <= 0.0:
+				_caw_timer = randf_range(4.0, 9.0)
+				_voice.stream = CAWS.pick_random()
+				_voice.pitch_scale = randf_range(0.9, 1.1)
+				_voice.play()
+			if _timer <= 0.0:
+				leave()
+		Mode.LEAVING:
+			_timer += delta
+			var away := Vector3(sin(rotation.y), 0.0, cos(rotation.y))
+			position += (away * 7.0 + Vector3.UP * 4.0) * delta
+			_flap(sin(_timer * 14.0) * 0.8)
+			if _timer > 5.0:
+				queue_free()
+		Mode.FALLING:
+			_fall_speed = minf(_fall_speed + 9.8 * delta, 18.0)
+			position.y -= _fall_speed * delta
+			rotation += _spin * delta
+			var ground := terrain.get_height(position.x, position.z) if terrain != null else 0.0
+			if position.y <= ground + 0.06:
+				mode = Mode.DOWN
+				position.y = ground + 0.06
+				rotation = Vector3(0.0, rotation.y, PI * 0.5)
+				add_to_group(&"interactable")
+
+
+## Desce planando até `at` e fica pousado `seconds` segundos olhando `target`.
+func perch(at: Vector3, target: Node3D, seconds: float) -> void:
+	# A origem é o meio do corpo: pousado, fica um pouco acima do chão.
+	_perch = at + Vector3.UP * 0.07
+	watch = target
+	_timer = 0.0
+	var side := LANDING_FROM.rotated(Vector3.UP, randf() * TAU)
+	_from = at + side
+	position = _from
+	mode = Mode.LANDING
+	_watch_seconds = seconds
+	_caw_timer = randf_range(1.5, 4.0)
+
+
+## Levanta voo e some.
+func leave() -> void:
+	if mode != Mode.PERCHED and mode != Mode.LANDING:
 		return
-	_fall_speed = minf(_fall_speed + 9.8 * delta, 18.0)
-	position.y -= _fall_speed * delta
-	rotation += _spin * delta
-	var ground := terrain.get_height(position.x, position.z) if terrain != null else 0.0
-	if position.y <= ground + 0.06:
-		_landed = true
-		position.y = ground + 0.06
-		rotation = Vector3(0.0, rotation.y, PI * 0.5)
-		add_to_group(&"interactable")
+	mode = Mode.LEAVING
+	_timer = 0.0
+	OccludedAudio.play_at(get_parent(), FLAP_SOUND, global_position, &"Ambience", -6.0, 4.0, randf_range(0.9, 1.1))
+
+
+func is_perched() -> bool:
+	return mode == Mode.PERCHED
+
+
+## Pousado, vê `point` (dentro de Tuning.SPY_SIGHT e sem rocha ou árvore no meio).
+func sees(point: Vector3) -> bool:
+	if mode != Mode.PERCHED:
+		return false
+	var eye := global_position + Vector3.UP * EYE_HEIGHT
+	if eye.distance_to(point) > Tuning.SPY_SIGHT:
+		return false
+	var query := PhysicsRayQueryParameters3D.create(eye, point, 1 | 2)
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
 ## Flechada (mesmo contrato do Animal): qualquer acerto derruba.
@@ -64,13 +161,14 @@ func take_hit(_power: float, _point: Vector3, _direction: Vector3, _damage := 1.
 	if dead:
 		return
 	dead = true
+	mode = Mode.FALLING
 	_spin = Vector3(randf_range(-6.0, 6.0), randf_range(-3.0, 3.0), randf_range(-8.0, 8.0))
-	for wing in wings:
-		wing.rotation.z = 0.9 * signf(wing.position.x)
+	_flap(0.9)
 	var hitbox := get_node_or_null(^"Hitbox")
 	if hitbox != null:
 		hitbox.queue_free()
 	shot.emit()
+	Events.crow_shot.emit()
 
 
 func body_node() -> Node3D:
@@ -78,7 +176,7 @@ func body_node() -> Node3D:
 
 
 func interaction_prompt() -> String:
-	return "Pegar as penas" if _landed else ""
+	return "Pegar as penas" if mode == Mode.DOWN else ""
 
 
 func interact(_player: Node) -> void:
@@ -88,6 +186,36 @@ func interact(_player: Node) -> void:
 	Events.notification_shown.emit("+%d penas" % Tuning.CROW_FEATHERS)
 	OccludedAudio.play_at(get_parent(), PICKUP_SOUND, global_position, &"World", -4.0, 3.0)
 	queue_free()
+
+
+## Asas abertas num ângulo (o bando também usa).
+func flap(angle: float) -> void:
+	_flap(angle)
+
+
+func _flap(angle: float) -> void:
+	wings[0].rotation.z = -angle
+	wings[1].rotation.z = angle
+
+
+## Pousado: asas fechadas junto do corpo.
+func _fold_wings() -> void:
+	wings[0].rotation = Vector3(0.0, 1.3, -0.25)
+	wings[1].rotation = Vector3(0.0, -1.3, 0.25)
+
+
+## A cabeça segue o alvo (até 100° para cada lado; além disso o corpo vira aos poucos).
+func _look_at_watch(delta: float) -> void:
+	if watch == null or not is_instance_valid(watch):
+		return
+	var to := watch.global_position + Vector3.UP * 0.6 - _head.global_position
+	var local := global_basis.inverse() * to
+	var yaw := atan2(local.x, local.z)
+	if absf(yaw) > deg_to_rad(100.0):
+		rotation.y += signf(yaw) * delta * 1.5
+	yaw = clampf(yaw, -deg_to_rad(100.0), deg_to_rad(100.0))
+	var pitch := -atan2(local.y, Vector2(local.x, local.z).length())
+	_head.rotation = Vector3(clampf(pitch, -0.8, 0.8), yaw, 0.0)
 
 
 func _part(parent: Node3D, size: Vector3, center: Vector3, material: Material) -> void:

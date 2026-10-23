@@ -82,6 +82,17 @@ func rest() -> void:
 	changed.emit()
 
 
+## Corpo novo em folha (a Reciclagem: acorda no dia 1).
+func reset() -> void:
+	_dead = false
+	satiety = Tuning.START_SATIETY
+	health = 100.0
+	nausea = 0.0
+	cold = 0.0
+	mud = 0.0
+	changed.emit()
+
+
 ## Volta depois de morrer.
 func revive() -> void:
 	_dead = false

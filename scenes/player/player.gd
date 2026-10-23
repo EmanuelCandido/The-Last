@@ -79,6 +79,10 @@ var sniffing := false
 var breath_held := false
 ## Com a tocha acesa na mão (TorchCarry).
 var torch_held := false
+## Deitado (no sarcófago): parado, sem física, e o lugar conta para o ritual (§4.9).
+var lying := false
+## Lugar de ritual em que o goblin está deitado (&"" = nenhum).
+var ritual_place := &""
 ## Multiplicadores que as partes põem nos sentidos dos bichos, por nome (ex.: &"mud": 0.65).
 ## Tirar a chave tira o efeito.
 var visibility_factors := {}
@@ -184,6 +188,10 @@ func _physics_process(delta: float) -> void:
 	var look := Input.get_vector("camera_left", "camera_right", "camera_up", "camera_down")
 	if look != Vector2.ZERO:
 		_rotate_camera(-look.x * gamepad_look_speed * delta, -look.y * gamepad_look_speed * delta)
+	if lying:
+		velocity = Vector3.ZERO
+		_update_interaction()
+		return
 
 	var free := _can_act()
 	_crouching = free and (Input.is_action_pressed("crouch") or sniffing)
@@ -249,6 +257,7 @@ func _process(delta: float) -> void:
 		_animator.sniffing = sniffing
 		_animator.breath_held = breath_held
 		_animator.holding_torch = torch_held
+		_animator.lying = lying
 		_animator.draw = draw
 		_animator.reload = clampf(_reload / RELOAD_TIME, 0.0, 1.0)
 		_animator.aim_pitch = _camera_arm.rotation.x
@@ -269,6 +278,29 @@ func wake_up() -> void:
 		_controls_enabled = true
 		return
 	_animator.play_action(&"wake", 5.8, [[5.5, func() -> void: _controls_enabled = true]])
+
+
+## Deita de costas em `at`, com os pés para `yaw`. `place` é o lugar de ritual (ou &"").
+func lie_at(at: Vector3, yaw: float, place := &"") -> void:
+	_controls_enabled = false
+	lying = true
+	ritual_place = place
+	global_position = at
+	velocity = Vector3.ZERO
+	_visual.rotation.y = yaw
+	_target_yaw = yaw
+
+
+## Levanta (senta, apoia e fica de pé) já fora de onde estava deitado, em `at`.
+func get_up(at: Vector3) -> void:
+	lying = false
+	ritual_place = &""
+	global_position = at
+	velocity = Vector3.ZERO
+	if _animator == null:
+		_controls_enabled = true
+		return
+	_animator.play_action(&"wake", 5.8, [[5.5, func() -> void: _controls_enabled = true]], 2.6)
 
 
 func respawn() -> void:

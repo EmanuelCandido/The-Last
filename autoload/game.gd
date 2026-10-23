@@ -4,6 +4,8 @@ extends Node
 
 const FIRST_LEVEL := "res://scenes/levels/forest/forest.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
+const RECYCLE_SHADER := preload("res://assets/shaders/recycle.gdshader")
+const BEEP := preload("res://assets/audio/sfx/monitor_beep.wav")
 
 ## Nó onde as fases são instanciadas. Definido pela cena Main.
 var level_root: Node3D
@@ -23,6 +25,7 @@ func _ready() -> void:
 	_ear_filter.cutoff_hz = 20500.0
 	AudioServer.add_bus_effect(0, _ear_filter)
 	Events.player_died.connect(func(_cause: StringName) -> void: pass_out(&"death"))
+	Events.recycle_requested.connect(recycle)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -106,6 +109,61 @@ func pass_out(reason: StringName) -> void:
 	Events.woke_up.emit(reason)
 	if reason == &"sleep":
 		SaveSystem.save_game()
+
+
+## A Reciclagem (§3): a floresta se desmancha em pixels da borda para o centro, o som
+## afina até sobrar o bipe, e Ari acorda no dia 1: o Story avança o ciclo, o inventário
+## zera, o corpo volta novo e a fase é recarregada (o arco volta para o chão da caverna).
+func recycle(reason: StringName) -> void:
+	if resting or player == null:
+		return
+	resting = true
+	player.set_controls_enabled(false)
+	var layer := CanvasLayer.new()
+	layer.layer = 20
+	var overlay := ColorRect.new()
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var material := ShaderMaterial.new()
+	material.shader = RECYCLE_SHADER
+	overlay.material = material
+	layer.add_child(overlay)
+	add_child(layer)
+	var tween := create_tween()
+	tween.tween_method(func(value: float) -> void: material.set_shader_parameter(&"progress", value), 0.0, 1.0, Tuning.RECYCLE_SECONDS) 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	close_ears(Tuning.RECYCLE_SECONDS, -30.0, 1200.0)
+	var beeps := Timer.new()
+	beeps.wait_time = 60.0 / Tuning.CLUE_BEEP_BPM
+	beeps.timeout.connect(_beep)
+	add_child(beeps)
+	beeps.start()
+	_beep()
+	await get_tree().create_timer(Tuning.RECYCLE_SECONDS + 0.6, false).timeout
+	beeps.queue_free()
+	print("[Game] Reciclagem (%s): ciclo %d -> %d." % [reason, Story.cycle, Story.cycle + 1])
+	Story.recycle()
+	Inventory.clear()
+	Vitals.reset()
+	Clock.day = 1
+	Clock.hour = Tuning.START_HOUR
+	Clock.hours_awake = 0.0
+	Events.screen_fade_requested.emit(1.0, 0.0)
+	layer.queue_free()
+	change_level(FIRST_LEVEL)
+	if DevTools.skip_intro:
+		Events.screen_fade_requested.emit(0.0, 1.0)
+	await get_tree().process_frame
+	SaveSystem.save_game()
+
+
+func _beep() -> void:
+	var sound := AudioStreamPlayer.new()
+	sound.stream = BEEP
+	sound.bus = &"World"
+	sound.volume_db = -6.0
+	add_child(sound)
+	sound.play()
+	sound.finished.connect(sound.queue_free)
 
 
 func set_paused(paused: bool) -> void:

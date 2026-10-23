@@ -16,9 +16,10 @@ const NAMES := {
 	&"feather": "Penas",
 	&"stone": "Pedras",
 	&"snare": "Laços",
+	&"white_meat": "Carne branca",
 }
 ## Ordem dos itens na linha do HUD (o que não está aqui não aparece: arco e roupa se veem no goblin).
-const HUD_ORDER: Array[StringName] = [&"arrow", &"feathered_arrow", &"stone", &"wood", &"meat", &"cooked_meat", &"hide", &"feather", &"snare"]
+const HUD_ORDER: Array[StringName] = [&"arrow", &"feathered_arrow", &"stone", &"wood", &"meat", &"cooked_meat", &"white_meat", &"hide", &"feather", &"snare"]
 
 var _items := {}
 
@@ -43,6 +44,14 @@ func remove(item: StringName, amount := 1) -> bool:
 	_items[item] = count(item) - amount
 	changed.emit(item, _items[item])
 	return true
+
+
+## Esvazia tudo (a Reciclagem).
+func clear() -> void:
+	var held := _items.keys()
+	_items.clear()
+	for item: StringName in held:
+		changed.emit(item, 0)
 
 
 func items() -> Dictionary:

@@ -67,9 +67,11 @@ const DEATH_SATIETY := 40.0
 const FOODS := {
 	&"cooked_meat": {"satiety": 30.0, "nausea_chance": 0.0},
 	&"meat": {"satiety": 12.0, "nausea_chance": 0.25},
+	# O sedativo: enche muito a barriga e reinicia o ciclo (beat white_meat_recycle).
+	&"white_meat": {"satiety": 60.0, "nausea_chance": 0.0},
 }
 ## Ordem em que o goblin escolhe o que comer.
-const FOOD_PREFERENCE: Array[StringName] = [&"cooked_meat", &"meat"]
+const FOOD_PREFERENCE: Array[StringName] = [&"cooked_meat", &"meat", &"white_meat"]
 ## Enjoo de carne crua: dano na hora e segundos sem regenerar.
 const NAUSEA_DAMAGE := 5.0
 const NAUSEA_SECONDS := 60.0
@@ -221,3 +223,59 @@ const SNARE_UNSEEN_DISTANCE := 25.0
 ## vale o desconto do escuro).
 const TORCH_SECONDS := 240.0
 const TORCH_VISIBILITY := 1.8
+
+# --- Vigilância (§5) ---------------------------------------------------------------------
+
+## A partir de que ato a Vigilância (0..100) conta.
+const VIGILANCE_FROM_ACT := 2
+## O que sobe e o que desce.
+const VIGILANCE_CROW_SHOT := 5.0
+const VIGILANCE_KEYPAD_SEEN := 10.0
+const VIGILANCE_RITUAL := 10.0
+const VIGILANCE_RITUAL_SEEN := 25.0
+const VIGILANCE_CALM_SLEEP := -15.0
+const VIGILANCE_COOKED_MEAT := -2.0
+## Depois da Reciclagem, a Vigilância volta para isto.
+const VIGILANCE_AFTER_RECYCLE := 30.0
+## Limiares dos efeitos: corvos em dobro e mais perto; cervo branco; Reciclagem em 100.
+const VIGILANCE_MORE_CROWS := 40.0
+const VIGILANCE_WHITE_DEER := 60.0
+
+# --- Corvos espiões (§5) -----------------------------------------------------------------
+
+## De quanto em quanto tempo um corvo pousa perto do goblin (s), a que distância (m), e quanto
+## fica olhando (s). Com Vigilância alta: metade do intervalo e mais perto.
+const SPY_INTERVAL := 120.0
+const SPY_LAND_DISTANCE := 14.0
+const SPY_LAND_DISTANCE_CLOSE := 7.0
+const SPY_WATCH_SECONDS := 12.0
+## Um corvo pousado vê o goblin até esta distância (m), com linha de visada.
+const SPY_SIGHT := 28.0
+
+# --- Pistas do Ato I (§3) ------------------------------------------------------------------
+
+## Cervo que trava: distância máxima (m) e quanto tempo fica parado (s).
+const CLUE_DEER_DISTANCE := 30.0
+const CLUE_DEER_FREEZE := 0.4
+## Corvo que encara: distância do pouso (m) e quanto tempo olha (s).
+const CLUE_CROW_DISTANCE := 6.0
+const CLUE_CROW_SECONDS := 8.0
+## Bipes: quantos e em que ritmo (batidas por minuto).
+const CLUE_BEEPS := 3
+const CLUE_BEEP_BPM := 72.0
+## Rajada forte o bastante para o ventilador vazar (força do vento no goblin; ~5% das rajadas
+## passam disto — com 0,75 era 1% e a pista quase nunca acontecia).
+const CLUE_FAN_GUST := 0.5
+## Sons vazando no Ato II em diante: intervalo mínimo entre dois (s) e chance por noite do bipe.
+const LEAK_FAN_COOLDOWN := 240.0
+const LEAK_BEEP_CHANCE := 0.5
+
+# --- Cervo branco e Reciclagem (§3) --------------------------------------------------------
+
+## A Reciclagem: segundos da floresta se desmanchando antes de acordar no dia 1.
+const RECYCLE_SECONDS := 5.0
+
+# --- Ruína e ritual (§3, §4.9) ----------------------------------------------------------------
+
+## Segundos da laje descendo no chão.
+const RUIN_DOOR_OPEN_TIME := 3.0

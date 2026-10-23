@@ -50,6 +50,8 @@ var sniffing := false
 var breath_held := false
 ## Tocha acesa na mão direita: o braço a segura erguida à frente.
 var holding_torch := false
+## Deitado de costas (no sarcófago): a pose do começo do `wake`.
+var lying := false
 var draw := 0.0
 ## Buscando outra flecha na aljava (1 = acabou de atirar, 0 = flecha na corda).
 var reload := 0.0
@@ -198,11 +200,12 @@ func add_exertion(amount: float) -> void:
 
 
 ## Começa uma ação. `events` = [[segundos, Callable], ...], chamados uma vez no tempo certo.
-func play_action(action: StringName, duration: float, events: Array = []) -> void:
+## `start` pula o começo (levantar do sarcófago é o `wake` a partir de quando ele senta).
+func play_action(action: StringName, duration: float, events: Array = [], start := 0.0) -> void:
 	_action = action
 	_action_var = randf_range(-1.0, 1.0)
 	_fidget = &""
-	_action_time = 0.0
+	_action_time = start
 	_action_duration = duration
 	_action_events = events.duplicate()
 
@@ -234,6 +237,8 @@ func update(delta: float) -> void:
 	_sniff_overlay(pose)
 	_torch_overlay(pose)
 	_aim_overlay(pose)
+	if lying and _action == &"":
+		pose = _action_pose(&"wake", 0.0, pose)
 	if _action != &"":
 		_action_time += delta
 		for event: Array in _action_events.duplicate():

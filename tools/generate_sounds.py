@@ -586,6 +586,65 @@ def snare_snap():
     return out
 
 
+# --- Rachaduras ---------------------------------------------------------------------
+
+def monitor_beep():
+    """Um bipe de monitor cardíaco: tom puro de 960 Hz, curto, com ataque e queda limpos."""
+    n = int(0.16 * SR)
+    t = np.arange(n) / SR
+    env = smoothstep(0.0, 0.006, t) * (1 - smoothstep(0.1, 0.16, t))
+    return tone(np.full(n, 960.0), ((1, 1.0), (3, 0.05))) * env
+
+
+def fan_hum():
+    """Ventilador vazando: zumbido grave de 110 Hz com o chiado ritmado da hélice, 3 s."""
+    rng = np.random.default_rng(310)
+    n = int(3.0 * SR)
+    t = np.arange(n) / SR
+    hum = tone(np.full(n, 110.0), ((1, 1.0), (2, 0.5), (3, 0.25), (4, 0.12)))
+    chop = band_oneshot(rng.standard_normal(n), 400, 3000) * (0.5 + 0.5 * np.sin(TAU * 18.0 * t)) ** 3
+    env = smoothstep(0.0, 0.6, t) * (1 - smoothstep(2.3, 3.0, t))
+    return (peak_norm(hum) + 0.35 * peak_norm(chop)) * env
+
+
+def stone_door():
+    """Laje de pedra descendo no chão: um ronco de atrito com estalos de cascalho, 3 s."""
+    rng = np.random.default_rng(320)
+    n = int(3.2 * SR)
+    t = np.arange(n) / SR
+    grind = band_oneshot(rng.standard_normal(n), 40, 700) * (0.7 + 0.3 * np.sin(TAU * 7.0 * t + np.sin(TAU * 1.3 * t)))
+    grit = place_events(n, rng.uniform(0, n - 0.03 * SR, 90), lambda: burst(rng, 0.012, 0.003, 0.0003) * rng.uniform(0.1, 0.7))
+    grit = band_oneshot(grit, 1200, 6000)
+    end = np.maximum(t - 2.9, 0)
+    thud = band_oneshot(rng.standard_normal(n), 40, 400) * np.exp(-end / 0.1) * (t >= 2.9)
+    env = smoothstep(0.0, 0.3, t) * (1 - smoothstep(2.8, 2.95, t))
+    return peak_norm(grind) * env + 0.4 * peak_norm(grit) * env + 0.9 * peak_norm(thud)
+
+
+def stone_click(variant):
+    """Disco de pedra girando um dente: raspão curto e o clique da trava."""
+    rng = np.random.default_rng(330 + variant)
+    n = int(0.22 * SR)
+    t = np.arange(n) / SR
+    scrape = band_oneshot(rng.standard_normal(n), 500, 4000) * smoothstep(0.0, 0.02, t) * (1 - smoothstep(0.08, 0.12, t))
+    click = band_oneshot(burst(rng, 0.03, 0.004, 0.0002), 1500, 7000)
+    out = 0.5 * peak_norm(scrape)
+    start = int(0.1 * SR)
+    out[start:start + len(click)] += peak_norm(click)[: n - start]
+    return out
+
+
+def wing_flap():
+    """Corvo levantando voo: três batidas de asa abafadas."""
+    rng = np.random.default_rng(340)
+    parts = []
+    for gap in (0.0, 0.11, 0.13):
+        parts.append(silence(gap))
+        flap = band_oneshot(burst(rng, 0.09, 0.025, 0.006), 150, 2200)
+        parts.append(peak_norm(flap) * rng.uniform(0.7, 1.0))
+    return concat(*parts)
+
+
 def main():
     print("Gerando sons em", ROOT)
     write_wav(ROOT / "ambience" / "wind_loop.wav", wind_loop(), loop=True)
@@ -625,6 +684,12 @@ def main():
         write_wav(ROOT / "sfx" / f"stone_hit_{v}.wav", stone_hit(v))
     write_wav(ROOT / "sfx" / "mud_rub.wav", mud_rub())
     write_wav(ROOT / "sfx" / "snare_snap.wav", snare_snap())
+    write_wav(ROOT / "sfx" / "monitor_beep.wav", monitor_beep())
+    write_wav(ROOT / "sfx" / "fan_hum.wav", fan_hum())
+    write_wav(ROOT / "sfx" / "stone_door.wav", stone_door())
+    for v in range(1, 3):
+        write_wav(ROOT / "sfx" / f"stone_click_{v}.wav", stone_click(v))
+    write_wav(ROOT / "animals" / "wing_flap.wav", wing_flap())
 
 
 if __name__ == "__main__":
