@@ -8,6 +8,10 @@ extends Node
 ##   Os dados ficam indexados pelo caminho do nó dentro da fase.
 ## - Global (autoloads da lista GLOBALS): mesmo contrato, indexados pelo nome. Um save
 ##   sem a chave de um deles carrega load_data({}), ou seja, os valores iniciais.
+##
+## snapshot() e restore() fazem o mesmo na memória, sem tocar no disco (a memória do ciclo 346
+## mexe na noite, na fogueira e no goblin, e devolve tudo no fim). O ciclo_346.sav, que aparece
+## em "Carregar", é falso: quem cuida dele é o MetaFiles.
 
 const SAVE_PATH := "user://save.json"
 const PERSIST_GROUP := &"persist"
@@ -20,43 +24,63 @@ func has_save() -> bool:
 
 
 func save_game() -> bool:
-	var level := Game.current_level
 	# Acordado no Abrigo não dá para salvar (§6.2).
-	if level == null or Game.awake:
+	if Game.current_level == null or Game.awake:
 		return false
-
-	var nodes := {}
-	for node in get_tree().get_nodes_in_group(PERSIST_GROUP):
-		if level.is_ancestor_of(node) and node.has_method("save_data"):
-			nodes[str(level.get_path_to(node))] = node.save_data()
-
-	var globals := {}
-	for key: String in _globals():
-		globals[key] = _globals()[key].save_data()
-
-	var payload := {
-		"version": FORMAT_VERSION,
-		"level": level.scene_file_path,
-		"nodes": nodes,
-		"globals": globals,
-	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
 		push_error("Não foi possível salvar em %s: %s" % [SAVE_PATH, error_string(FileAccess.get_open_error())])
 		return false
-	file.store_string(JSON.stringify(payload, "\t"))
+	file.store_string(JSON.stringify(snapshot(), "\t"))
 	return true
 
 
 func load_game() -> bool:
 	if not has_save():
 		return false
-
 	var payload: Variant = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
 	if payload is not Dictionary:
 		push_error("Save corrompido: %s" % SAVE_PATH)
 		return false
+	if not restore(payload):
+		return false
+	MetaFiles.ensure()
+	return true
 
+
+## "Dia 4 · Ciclo 347", lido do save no disco ("" sem save).
+func describe_save() -> String:
+	if not has_save():
+		return ""
+	var payload: Variant = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
+	if payload is not Dictionary:
+		return "corrompido"
+	var globals: Dictionary = (payload as Dictionary).get("globals", {})
+	var clock: Dictionary = globals.get("clock", {})
+	var story: Dictionary = globals.get("story", {})
+	return "Dia %d · Ciclo %d" % [int(clock.get("day", 1)), int(story.get("cycle", Story.START_CYCLE))]
+
+
+## O estado da partida agora (a fase, os nós persistentes e os autoloads).
+func snapshot() -> Dictionary:
+	var level := Game.current_level
+	var nodes := {}
+	for node in get_tree().get_nodes_in_group(PERSIST_GROUP):
+		if level != null and level.is_ancestor_of(node) and node.has_method("save_data"):
+			nodes[str(level.get_path_to(node))] = node.save_data()
+	var globals := {}
+	for key: String in _globals():
+		globals[key] = _globals()[key].save_data()
+	return {
+		"version": FORMAT_VERSION,
+		"level": level.scene_file_path if level != null else "",
+		"nodes": nodes,
+		"globals": globals,
+	}
+
+
+## Põe o jogo no estado de `payload` (de snapshot ou do arquivo).
+func restore(payload: Dictionary) -> bool:
 	if Game.awake:
 		Game.return_to_forest(true)
 	var level_path: String = payload.get("level", "")

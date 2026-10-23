@@ -46,6 +46,10 @@ signal flash_requested(number: int)
 ## Um beat pediu para Ari acordar no mundo real (o ritual, §4.9).
 signal real_wake_requested
 
+## Um beat pediu o falso travamento (§7): o próximo despertar no Abrigo começa com o jogo
+## "travando" em vez do escurecer.
+signal fake_freeze_requested
+
 ## Ari acordou no Abrigo (a floresta parou) / voltou a dormir na cápsula (a floresta voltou).
 signal shelter_entered
 signal shelter_left

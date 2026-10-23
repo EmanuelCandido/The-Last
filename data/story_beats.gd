@@ -8,7 +8,8 @@ extends RefCounted
 ## (o musgo cai quando "moss_fell" liga; o cervo trava quando "clue_deer_freeze" liga).
 ##
 ## Gatilhos (`on`): "start", "slept", "woke", "died", "harvested", "ate", "ritual", "objective"
-## (um objetivo real foi concluído; `reason` = o id).
+## (um objetivo real foi concluído; `reason` = o id), "memory" (passou a memória de um save
+## falso; `reason` = o ciclo dele, ex.: "346").
 ## Condições (`when`, todas precisam valer):
 ##   "act": n, "act_at_least": n, "marks_at_least": n, "flag": nome, "not_flag": nome,
 ##   "counter_at_least": {nome: n}, "reason": motivo do gatilho (ex.: "sleep"),
@@ -18,7 +19,10 @@ extends RefCounted
 ##   {"set_flag": nome}, {"clear_flag": nome}, {"set_act": n}, {"add_note": texto},
 ##   {"notify": texto}, {"flash": n} (passa no escuro do sono ou da morte; 0 = sorteado entre
 ##   os já vistos), {"recycle": motivo}, {"vigilance": n}, {"wake_real": true} (Ari acorda no
-##   Abrigo). Flags automáticos: "flash_<n>_seen" (o flash passou).
+##   Abrigo), {"freeze": true} (o falso travamento antes do próximo wake_real).
+##   Flags automáticos: "flash_<n>_seen" (o flash passou).
+## Flags que escrevem arquivos de verdade (MetaFiles): "old_save" (ciclo_346.sav) e
+## "letter_left" (leia_me_se_lembrar.txt).
 
 ## Código da porta da ruína: a pintura do teto (2 cervos, 7 corvos, 1 lobo, 4 coelhos).
 const DOOR_CODE := "2714"
@@ -35,11 +39,52 @@ const OBJECTIVES := {
 	&"access_card": &"climate_cut",  # R4: pegar o cartão do peito do Zelador.
 }
 
-## O que o Zelador diz (sem dublagem: murmúrio sintético e legenda).
+## O que o Zelador diz (sem dublagem: murmúrio sintético e legenda). Na floresta, pelos corvos
+## e pela rocha; no Abrigo, pelo alto-falante dele.
 const LINES := {
 	&"crow": "Volte... para a toca.",
 	&"rock": "Você está agitado. Isso não é bom para você.",
+	&"capsule_empty": "Ari? Você não está na cama.",
+	&"found": "Aí está você. Volte para a cama, Ari.",
+	&"heard": "Quem está aí? ...Ari?",
+	&"capture": "Shh. Está tudo bem. Durma.",
 }
+
+## A carta do leia_me_se_lembrar.txt (§7): Ari para Ari. %d = o ciclo; %s = a senha do Final 3.
+const LETTER := """Ari,
+
+Se você está lendo isto, é porque se lembrou. De novo.
+Não sei quantas vezes já escrevi esta carta. Os riscos na parede dizem que muitas.
+
+Escrevi aqui fora porque aqui ele não lê. Ele vê pelos corvos, ouve pela rocha e conta
+tudo o que você come. Mas não abre esta pasta.
+
+O que eu sei, e você vai esquecer:
+- A floresta não é de verdade. O goblin é a história que a mãe lia antes de dormir.
+- A fome é de verdade. O que você come lá é o que te alimenta aqui. Não passe fome.
+- Prenda o ar no escuro e conte até vinte. É assim que se acorda.
+- O cartão está no peito dele. A sala de controle tem as câmeras de fora.
+- Olhe as gravações. Olhe a data.
+
+Ele não é mau. Ele só não sabe parar. Se você for embora, ele fica sozinho no escuro,
+sem ninguém para cuidar, e o protocolo desliga ele.
+
+Existe uma terceira porta. Ele também está preso aqui, e também merece um lugar quente.
+Quando estiver na frente do terminal, escreva isto do jeito que está:
+
+    trocar %s
+
+Não conte para ele. Ele apagaria.
+
+— A.
+(ciclo %d)
+"""
+
+## O falso save que aparece em "Carregar" depois do flash 2. %s = o fim do arquivo (quebrado).
+const OLD_SAVE := """{"version": 2, "level": "res://scenes/levels/forest/forest.tscn",
+"globals": {"story": {"act": 2, "cycle": 346, "marks": 11, "vigilance": 100.0,
+"notes": ["ACORDA", "ACORDA", "ACORDA", "ACOR%s
+"""
 
 const BEATS: Array[Dictionary] = [
 	# --- Ato I: pistas que parecem bug ou estilo (o sistema é o Clues, na floresta) ----
@@ -96,7 +141,16 @@ const BEATS: Array[Dictionary] = [
 		"id": "flash_2",
 		"on": "slept",
 		"when": {"act": 2, "counter_at_least": {"sleeps_act_2": 2}},
-		"do": [{"flash": 2}, {"add_note": "NÃO COMA A CARNE DO CERVO BRANCO."}],
+			# Aparece o ciclo_346.sav em "Carregar" (MetaFiles).
+		"do": [{"flash": 2}, {"add_note": "NÃO COMA A CARNE DO CERVO BRANCO."}, {"set_flag": "old_save"}],
+	},
+	{
+		# Carregar o ciclo_346.sav: a memória do ciclo passado (o goblin riscando ACORDA na
+		# parede, o corvo na boca da caverna) e volta para o menu.
+		"id": "memory_346",
+		"on": "memory",
+		"when": {"reason": "346"},
+		"do": [{"add_note": "Ele vê pelos corvos."}],
 	},
 	{
 		"id": "flash_3",
@@ -132,18 +186,19 @@ const BEATS: Array[Dictionary] = [
 		"do": [{"wake_real": true}],
 	},
 	{
-		# O primeiro: deitado no sarcófago. O falso travamento antes da volta é da F7.
+		# O primeiro: deitado no sarcófago. O jogo "trava" (§7) e a volta já é o Abrigo.
 		"id": "first_wake",
 		"on": "ritual",
 		"when": {"act": 2, "reason": "sarcophagus"},
-		"do": [{"set_act": 3}, {"set_flag": "first_wake"}, {"wake_real": true}],
+		"do": [{"set_act": 3}, {"set_flag": "first_wake"}, {"freeze": true}, {"wake_real": true}],
 	},
 	# --- Ato III: os objetivos reais (o efeito na floresta vem dos flags) ---------------------
 	{
 		"id": "r1_room",
 		"on": "objective",
 		"when": {"reason": "room_seen"},
-		"do": [{"add_note": "Deixei uma coisa fora daqui. Fora do jogo."}],
+		# Aparece o leia_me_se_lembrar.txt na pasta do jogo (MetaFiles).
+		"do": [{"add_note": "Deixei uma coisa fora daqui. Fora do jogo."}, {"set_flag": "letter_left"}],
 	},
 	{
 		"id": "r2_fuse",

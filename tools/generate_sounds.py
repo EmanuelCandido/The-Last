@@ -736,6 +736,55 @@ def blind_rattle():
     return clicks
 
 
+def stuck_buzz():
+    """O áudio de um programa travado: um pedacinho de 46 ms do som do jogo (vento, fogo, o
+    zumbido do mundo) repetindo sem parar, o que soa como um zumbido áspero de 22 Hz. Loop."""
+    rng = np.random.default_rng(510)
+    grain_n = int(0.046 * SR)
+    t = np.arange(grain_n) / SR
+    wind = band_oneshot(rng.standard_normal(grain_n), 150, 2500)
+    hum = tone(np.full(grain_n, 130.0), ((1, 1.0), (2, 0.6), (3, 0.4), (5, 0.2)))
+    crack = place_events(grain_n, [int(0.012 * SR), int(0.031 * SR)], lambda: band_oneshot(burst(rng, 0.004, 0.001, 0.0002), 800, 6000))
+    grain = 0.6 * peak_norm(wind) + 0.5 * peak_norm(hum) + 0.7 * peak_norm(crack)
+    # A emenda do buffer estala um pouco, como de verdade: sem suavizar a borda.
+    grain *= 0.85 + 0.15 * np.sin(np.pi * t / t[-1])
+    return np.tile(grain, 44)
+
+
+def wall_scratch(variant):
+    """Uma pedra arrastada na rocha: um raspado áspero e granulado, de 0,3 s."""
+    rng = np.random.default_rng(520 + variant)
+    dur = (0.32, 0.26)[variant - 1]
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    grit = band_oneshot(rng.standard_normal(n), 1400, 6500)
+    # A pedra pula e agarra: o volume treme rápido, em grãos.
+    judder = np.abs(np.sin(TAU * rng.uniform(38, 55) * t + 2.0 * np.sin(TAU * 7.0 * t))) ** 1.5
+    body = band_oneshot(rng.standard_normal(n), 250, 1200) * 0.35
+    env = smoothstep(0.0, 0.03, t) * (1 - smoothstep(dur - 0.12, dur, t))
+    return (peak_norm(grit) * (0.4 + 0.6 * judder) + body) * env
+
+
+def glitch():
+    """O fim de uma memória: estalos digitais, chiado em rajadas e um tom que cai, 1,6 s."""
+    rng = np.random.default_rng(530)
+    n = int(1.6 * SR)
+    t = np.arange(n) / SR
+    noise = rng.standard_normal(n)
+    # Rajadas de chiado em degraus (blocos de 30 a 90 ms ligados ou não).
+    gate = np.zeros(n)
+    i = 0
+    while i < n:
+        step = int(rng.uniform(0.03, 0.09) * SR)
+        gate[i:i + step] = rng.uniform(0.2, 1.0) if rng.random() < 0.65 else 0.0
+        i += step
+    crushed = np.round(band_oneshot(noise, 300, 7000) * 6) / 6
+    fall = tone(900 * np.exp(-t * 2.2) + 60, ((1, 1.0), (3, 0.3)))
+    fall = np.sign(fall) * 0.5
+    env = smoothstep(0.0, 0.05, t) * (1 - smoothstep(1.4, 1.6, t))
+    return (peak_norm(crushed) * gate + 0.4 * fall * smoothstep(0.6, 1.0, t)) * env
+
+
 def main():
     print("Gerando sons em", ROOT)
     write_wav(ROOT / "ambience" / "wind_loop.wav", wind_loop(), loop=True)
@@ -789,6 +838,10 @@ def main():
     for v in range(1, 3):
         write_wav(ROOT / "sfx" / f"keeper_voice_{v}.wav", keeper_voice(v))
     write_wav(ROOT / "sfx" / "blind_rattle.wav", blind_rattle())
+    write_wav(ROOT / "sfx" / "stuck_buzz.wav", stuck_buzz(), loop=True)
+    for v in range(1, 3):
+        write_wav(ROOT / "sfx" / f"wall_scratch_{v}.wav", wall_scratch(v))
+    write_wav(ROOT / "sfx" / "glitch.wav", glitch())
 
 
 if __name__ == "__main__":

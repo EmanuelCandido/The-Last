@@ -20,6 +20,9 @@ const LANDING_TIME := 2.2
 const LANDING_FROM := Vector3(6.0, 12.0, 0.0)
 ## Visão do corvo pousado (olhos na altura da cabeça).
 const EYE_HEIGHT := 0.25
+## Pousado, em pé: o corpo inclina de rabo para baixo (rad) e fica nesta altura do chão (m).
+const PERCH_PITCH := -0.6
+const PERCH_HEIGHT := 0.13
 
 var terrain: Terrain
 var wings: Array[Node3D] = []
@@ -33,6 +36,7 @@ var silent := false
 var speech := ""
 
 var _head: Node3D
+var _legs: Node3D
 var _fall_speed := 0.0
 var _spin := Vector3.ZERO
 var _timer := 0.0
@@ -59,6 +63,14 @@ func _ready() -> void:
 		add_child(wing)
 		_part(wing, Vector3(0.5, 0.015, 0.2), Vector3(0.25 * side, 0.0, 0.0), feathers)
 		wings.append(wing)
+	# As pernas só aparecem pousado (em voo ficam recolhidas).
+	_legs = Node3D.new()
+	_legs.visible = false
+	# O corpo pousado inclina: as pernas desfazem a inclinação e ficam em pé.
+	_legs.rotation.x = -PERCH_PITCH
+	add_child(_legs)
+	for side in [-1.0, 1.0]:
+		_part(_legs, Vector3(0.012, 0.11, 0.012), Vector3(0.03 * side, -0.09, 0.06), beak)
 	# Área de acerto um pouco maior que o corpo com as asas abertas: alvo alto e rápido.
 	var hitbox := Area3D.new()
 	hitbox.name = "Hitbox"
@@ -94,6 +106,10 @@ func _physics_process(delta: float) -> void:
 		Mode.PERCHED:
 			_timer -= delta
 			_fold_wings()
+			# Em pé: o peito sobe e as pernas descem (o corpo de caixa deitado parecia um tijolo).
+			rotation.x = lerp_angle(rotation.x, PERCH_PITCH, 1.0 - exp(-8.0 * delta))
+			position.y = lerpf(position.y, _perch.y - 0.07 + PERCH_HEIGHT, 1.0 - exp(-8.0 * delta))
+			_legs.visible = true
 			_look_at_watch(delta)
 			_caw_timer -= delta
 			if speech != "" and _caw_timer <= 0.0:
@@ -112,6 +128,8 @@ func _physics_process(delta: float) -> void:
 				leave()
 		Mode.LEAVING:
 			_timer += delta
+			rotation.x = lerp_angle(rotation.x, 0.0, 1.0 - exp(-6.0 * delta))
+			_legs.visible = false
 			var away := Vector3(sin(rotation.y), 0.0, cos(rotation.y))
 			position += (away * 7.0 + Vector3.UP * 4.0) * delta
 			_flap(sin(_timer * 14.0) * 0.8)
@@ -209,10 +227,10 @@ func _flap(angle: float) -> void:
 	wings[1].rotation.z = angle
 
 
-## Pousado: asas fechadas junto do corpo.
+## Pousado: asas fechadas junto do corpo, as pontas passando um pouco do rabo.
 func _fold_wings() -> void:
-	wings[0].rotation = Vector3(0.0, 1.3, -0.25)
-	wings[1].rotation = Vector3(0.0, -1.3, 0.25)
+	wings[0].rotation = Vector3(0.0, -1.45, -0.35)
+	wings[1].rotation = Vector3(0.0, 1.45, 0.35)
 
 
 ## A cabeça segue o alvo (até 100° para cada lado; além disso o corpo vira aos poucos).

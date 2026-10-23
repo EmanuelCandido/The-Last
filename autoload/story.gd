@@ -26,6 +26,8 @@ var notes: PackedStringArray = []
 var vigilance := 0.0
 ## Objetivos reais concluídos, em ordem (F6). A Reciclagem desfaz o último.
 var objectives: PackedStringArray = []
+## Senha do Final 3 (§7), sorteada uma vez por save e escrita no leia_me ("" = ainda não).
+var secret := ""
 
 ## Algo fez a Vigilância subir hoje (dormir num dia calmo a baixa).
 var _alarmed_today := false
@@ -143,6 +145,14 @@ func recycle() -> void:
 	changed.emit()
 
 
+## A senha do Final 3: MUSGO- e quatro dígitos, sorteada na primeira vez que é pedida.
+func password() -> String:
+	if secret == "":
+		secret = "MUSGO-%04d" % randi_range(0, 9999)
+		changed.emit()
+	return secret
+
+
 func add_note(text: String) -> void:
 	if text in notes:
 		return
@@ -179,6 +189,7 @@ func save_data() -> Dictionary:
 		"objectives": Array(objectives),
 		"alarmed_today": _alarmed_today,
 		"keypad_seen_day": _keypad_seen_day,
+		"secret": secret,
 	}
 
 
@@ -202,6 +213,7 @@ func load_data(data: Dictionary) -> void:
 	objectives = PackedStringArray(data.get("objectives", []))
 	_alarmed_today = bool(data.get("alarmed_today", false))
 	_keypad_seen_day = int(data.get("keypad_seen_day", -1))
+	secret = String(data.get("secret", ""))
 	act_changed.emit(act)
 	vigilance_changed.emit(vigilance)
 	changed.emit()
@@ -284,6 +296,8 @@ func _run(actions: Array) -> void:
 					Events.flash_requested.emit(int(value))
 				"wake_real":
 					Events.real_wake_requested.emit()
+				"freeze":
+					Events.fake_freeze_requested.emit()
 				"recycle":
 					Events.recycle_requested.emit(StringName(String(value)))
 				"vigilance":

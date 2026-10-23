@@ -1,5 +1,6 @@
 extends Control
-## HUD discreto: ação disponível, avisos, itens, mira do arco e painel de desempenho (F3).
+## HUD discreto: ação disponível, avisos, itens, mira do arco, sinais vitais (VitalsHud, §7) e
+## painel de desempenho (F3).
 ##
 ## Para não quebrar a imersão, as dicas de controle e os avisos somem sozinhos e a
 ## mira só aparece mirando.
@@ -30,6 +31,9 @@ func _ready() -> void:
 	Inventory.changed.connect(func(_item: StringName, _amount: int) -> void: _refresh_items())
 	_crosshair.draw.connect(_draw_crosshair)
 	_refresh_items()
+	var vitals := VitalsHud.new()
+	vitals.name = "Vitals"
+	add_child(vitals)
 	var tween := create_tween()
 	tween.tween_interval(hint_duration)
 	tween.tween_property(_controls_hint, "modulate:a", 0.0, 2.0)
@@ -45,10 +49,12 @@ func _process(_delta: float) -> void:
 	_crosshair.visible = aiming
 	if aiming:
 		_crosshair.queue_redraw()
-	# No mundo real (acordado ou num flash), o inventário e as teclas do goblin não existem.
-	var real := Game.awake or Game.in_flash()
+	# No mundo real (acordado ou num flash), o inventário e as teclas do goblin não existem; nas
+	# cenas do mistério (o travamento, a memória), nada do HUD.
+	var real := Game.awake or Game.in_flash() or Game.cutscene
 	_items.visible = not real
 	_controls_hint.visible = not real
+	_prompt.visible = not Game.cutscene
 	_update_vignette()
 	if not _debug_label.visible:
 		return

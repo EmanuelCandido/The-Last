@@ -31,6 +31,23 @@ const MARK_LIFT := 0.005
 const MOSS_LIFT := 0.022
 ## Segundos depois de acordar até o musgo cair (o goblin está sentando, já ouvindo).
 const MOSS_DELAY := 3.0
+## Palavras riscadas (carve): onde começam (u, v da base), a altura da letra e o traço.
+const WORD_START := Vector2(-3.45, 0.5)
+const LETTER_HEIGHT := 0.16
+const LETTER_STROKE := 0.012
+## Letras para riscar na pedra: cada uma é uma lista de linhas, e cada linha são pontos num
+## quadro de 0,65 de largura por 1 de altura (x para a direita, y para cima).
+const LETTERS := {
+	"A": [[Vector2(0.0, 0.0), Vector2(0.32, 1.0), Vector2(0.65, 0.0)], [Vector2(0.14, 0.42), Vector2(0.51, 0.42)]],
+	"B": [[Vector2(0.0, 0.0), Vector2(0.0, 1.0), Vector2(0.4, 1.0), Vector2(0.56, 0.88), Vector2(0.56, 0.64), Vector2(0.4, 0.53), Vector2(0.0, 0.53)],
+		[Vector2(0.4, 0.53), Vector2(0.62, 0.4), Vector2(0.62, 0.13), Vector2(0.45, 0.0), Vector2(0.0, 0.0)]],
+	"C": [[Vector2(0.63, 0.86), Vector2(0.42, 1.0), Vector2(0.18, 0.95), Vector2(0.03, 0.72), Vector2(0.0, 0.45), Vector2(0.06, 0.18), Vector2(0.25, 0.0), Vector2(0.5, 0.02), Vector2(0.65, 0.16)]],
+	"D": [[Vector2(0.0, 0.0), Vector2(0.0, 1.0), Vector2(0.3, 1.0), Vector2(0.55, 0.84), Vector2(0.65, 0.5), Vector2(0.55, 0.16), Vector2(0.3, 0.0), Vector2(0.0, 0.0)]],
+	"G": [[Vector2(0.63, 0.86), Vector2(0.42, 1.0), Vector2(0.18, 0.95), Vector2(0.03, 0.72), Vector2(0.0, 0.45), Vector2(0.06, 0.18), Vector2(0.25, 0.0), Vector2(0.5, 0.02), Vector2(0.65, 0.18), Vector2(0.65, 0.45), Vector2(0.38, 0.45)]],
+	"I": [[Vector2(0.32, 0.0), Vector2(0.32, 1.0)]],
+	"O": [[Vector2(0.32, 1.0), Vector2(0.08, 0.88), Vector2(0.0, 0.5), Vector2(0.08, 0.12), Vector2(0.32, 0.0), Vector2(0.57, 0.12), Vector2(0.65, 0.5), Vector2(0.57, 0.88), Vector2(0.32, 1.0)]],
+	"R": [[Vector2(0.0, 0.0), Vector2(0.0, 1.0), Vector2(0.42, 1.0), Vector2(0.6, 0.88), Vector2(0.6, 0.64), Vector2(0.42, 0.52), Vector2(0.0, 0.52)], [Vector2(0.3, 0.52), Vector2(0.65, 0.0)]],
+}
 
 ## Risco recém-feito (pedra clara exposta) e o tom da rocha para onde os antigos desbotam.
 const FRESH_COLOR := Color(0.66, 0.61, 0.54)
@@ -45,6 +62,9 @@ var _new_mesh: MeshInstance3D
 var _moss: MeshInstance3D
 var _moss_falling := false
 var _material := StandardMaterial3D.new()
+## Riscos e musgo escondidos (a memória de outro ciclo mostra a parede como era).
+var _hidden := false
+var _word_mesh: MeshInstance3D
 
 
 func _ready() -> void:
@@ -53,6 +73,7 @@ func _ready() -> void:
 	_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_old_mesh = _add_mesh_node("OldMarks")
 	_new_mesh = _add_mesh_node("Marks")
+	_word_mesh = _add_mesh_node("Word")
 	Story.changed.connect(_refresh)
 	Story.flag_changed.connect(_on_flag_changed)
 	await get_tree().physics_frame
@@ -69,10 +90,13 @@ func _refresh() -> void:
 		return
 	_old_mesh.mesh = _build_marks(_old_slots, Story.old_marks, true)
 	_new_mesh.mesh = _build_marks(_new_slots, Story.marks, false)
+	_new_mesh.visible = not _hidden
+	if _moss != null:
+		_moss.visible = not _hidden
 	if _moss_falling:
 		return
 	var revealed := Story.has_flag(MOSS_FLAG)
-	_old_mesh.visible = revealed
+	_old_mesh.visible = revealed and not _hidden
 	if revealed and _moss != null:
 		_moss.queue_free()
 		_moss = null
@@ -86,6 +110,60 @@ func _on_flag_changed(flag: StringName, value: bool) -> void:
 	_moss_falling = true
 	await get_tree().create_timer(MOSS_DELAY, false).timeout
 	_drop_moss()
+
+
+## Esconde (ou volta a mostrar) os riscos e o musgo.
+func hide_marks(hidden: bool) -> void:
+	_hidden = hidden
+	_refresh()
+
+
+## Risca `text` na parede, na altura dos riscos antigos, até a fração `amount` dos traços (o
+## último aparece pela metade). Devolve quantos traços a palavra tem; texto vazio apaga.
+func carve(text: String, amount := 1.0) -> int:
+	_word_mesh.mesh = null
+	if text == "" or not _ready_to_build:
+		return 0
+	var segments := []
+	for i in text.length():
+		var lines: Array = LETTERS.get(text[i], [])
+		for line: Array in lines:
+			for k in line.size() - 1:
+				segments.append([i, line[k], line[k + 1]])
+	var shown := amount * segments.size()
+	if shown <= 0.0:
+		return segments.size()
+	var space := get_world_3d().direct_space_state
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 346
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var frames := {}
+	for s in segments.size():
+		var segment: Array = segments[s]
+		var letter: int = segment[0]
+		# Feito com uma pedra, no escuro: cada ponta escorrega um pouco.
+		var a: Vector2 = segment[1] + Vector2(rng.randf_range(-0.05, 0.05), rng.randf_range(-0.05, 0.05))
+		var b: Vector2 = segment[2] + Vector2(rng.randf_range(-0.05, 0.05), rng.randf_range(-0.05, 0.05))
+		if float(s) >= shown:
+			break
+		if not frames.has(letter):
+			var center := WORD_START + Vector2((letter + 0.32) * LETTER_HEIGHT, LETTER_HEIGHT * 0.5)
+			frames[letter] = _wall_at(space, center.x, center.y)
+		var hit: Array = frames[letter]
+		if hit.is_empty():
+			continue
+		var part := clampf(shown - s, 0.0, 1.0)
+		b = a.lerp(b, part)
+		var normal: Vector3 = hit[1]
+		var right := (Vector3.BACK - normal * normal.dot(Vector3.BACK)).normalized()
+		var up := normal.cross(right)
+		var origin: Vector3 = hit[0] + normal * MARK_LIFT * 1.5
+		var offset := Vector2(0.32, 0.5)
+		_add_stroke(st, origin, right, up, (a - offset) * LETTER_HEIGHT, (b - offset) * LETTER_HEIGHT, FRESH_COLOR.lightened(0.08), LETTER_STROKE)
+	st.generate_normals()
+	_word_mesh.mesh = st.commit()
+	return segments.size()
 
 
 # --- Riscos ------------------------------------------------------------------------
@@ -161,9 +239,11 @@ func _add_group(st: SurfaceTool, center: Vector3, normal: Vector3, strokes: int,
 		_add_stroke(st, origin, right, up, Vector2(-0.012, -0.03), Vector2(0.078, 0.032), color)
 
 
-func _add_stroke(st: SurfaceTool, origin: Vector3, right: Vector3, up: Vector3, a: Vector2, b: Vector2, color: Color) -> void:
+func _add_stroke(st: SurfaceTool, origin: Vector3, right: Vector3, up: Vector3, a: Vector2, b: Vector2, color: Color, width := STROKE_WIDTH) -> void:
+	if a.distance_squared_to(b) < 1e-8:
+		return
 	var direction := (b - a).normalized()
-	var side := Vector2(-direction.y, direction.x) * STROKE_WIDTH * 0.5
+	var side := Vector2(-direction.y, direction.x) * width * 0.5
 	var corners: Array[Vector3] = []
 	for p: Vector2 in [a - side, a + side, b - side, b + side]:
 		corners.append(origin + right * p.x + up * p.y)

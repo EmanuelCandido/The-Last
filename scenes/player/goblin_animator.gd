@@ -701,6 +701,35 @@ func _action_pose(action: StringName, t: float, base: Dictionary) -> Dictionary:
 			p.torso_yaw = base.torso_yaw + pull * 0.04 * work
 			p.ear_l = base.ear_l - 0.3 * listen
 			p.ear_r = base.ear_r - 0.3 * listen
+		&"scratch":
+			# Riscando a parede com uma pedra (a memória do ciclo 346): a mão esquerda apoiada na
+			# rocha, a direita na altura do peito arrasta a pedra em traços curtos, de cima para
+			# baixo e de lado; entre um traço e outro ela para, e a cabeça chega perto para ver.
+			var raise := _curve(t, [[0.0, 0.0], [0.5, 1.0], [_action_duration - 0.5, 1.0], [_action_duration, 0.0]])
+			var work := smoothstep(0.5, 0.7, t) * (1.0 - smoothstep(_action_duration - 0.7, _action_duration - 0.5, t))
+			# Um traço a cada 0,6 s: desce (ou atravessa) depressa e volta devagar, sem raspar.
+			var phase := fmod(t, 0.6) / 0.6
+			var drag := smoothstep(0.0, 0.35, phase) * (1.0 - smoothstep(0.55, 1.0, phase))
+			var across := 1.0 if int(t / 0.6) % 3 == 1 else 0.0
+			var peek := smoothstep(0.8, 1.0, sin(t * 0.9) * 0.5 + 0.5)
+			p.torso_pitch = base.torso_pitch + 0.15 * raise + 0.05 * peek
+			p.spine_arch = base.spine_arch + 0.08 * raise
+			p.neck_fwd = base.neck_fwd + 0.12 * raise + 0.08 * peek
+			p.head_pitch = base.head_pitch + 0.1 * raise + 0.1 * drag * work
+			p.head_roll = base.head_roll + 0.12 * raise * _action_var
+			p.head_yaw = base.head_yaw - 0.12 * raise
+			p.arm_l_fwd = lerpf(base.arm_l_fwd, 1.25, raise)
+			p.arm_l_out = lerpf(base.arm_l_out, 0.25, raise)
+			p.elbow_l = lerpf(base.elbow_l, 0.6, raise)
+			p.hand_l = lerpf(base.hand_l, -0.5, raise)
+			p.arm_r_fwd = lerpf(base.arm_r_fwd, 1.15, raise) + (0.22 - 0.44 * drag) * (1.0 - across) * work
+			p.arm_r_yaw = (0.25 - 0.5 * drag) * across * work
+			p.arm_r_out = lerpf(base.arm_r_out, -0.1, raise)
+			p.elbow_r = lerpf(base.elbow_r, 0.95, raise) + 0.15 * drag * work
+			p.hand_r = lerpf(base.hand_r, 0.4, raise)
+			p.torso_yaw = base.torso_yaw + 0.06 * drag * work
+			p.ear_l = base.ear_l + 0.15 * raise
+			p.ear_r = base.ear_r + 0.1 * raise
 		&"rub_mud":
 			# Agacha na poça, pega lama com as duas mãos e esfrega: a direita no braço e no peito,
 			# a esquerda no rosto e atrás da orelha; depois troca. Levanta sacudindo as mãos.

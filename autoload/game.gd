@@ -1,6 +1,7 @@
 extends Node
 ## Estado global da partida: fase atual, jogador, pausa, captura do mouse, o ouvido, a
-## passagem da noite (dormir e morrer), os flashes e a ida e volta ao mundo real (o Abrigo).
+## passagem da noite (dormir e morrer), os flashes, a ida e volta ao mundo real (o Abrigo) e as
+## cenas do mistério meta (o falso travamento e a memória do ciclo 346).
 
 const FIRST_LEVEL := "res://scenes/levels/forest/forest.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
@@ -15,6 +16,8 @@ var player: Player
 var resting := false
 ## Ari acordado no Abrigo (§6): a floresta, o relógio e o corpo ficam parados.
 var awake := false
+## Passando uma cena do mistério (o travamento, a memória): sem pausa e sem HUD do goblin.
+var cutscene := false
 ## O Abrigo 9, montado na primeira vez que é preciso (get_shelter).
 var shelter: Shelter
 ## A visão borrada de Ari (flashes e o despertar na cápsula).
@@ -34,6 +37,8 @@ var _visit_from := &"ritual"
 var _leaving := false
 ## Reciclagem pedida no meio do sono ou da visita: acontece logo que o goblin acorda.
 var _pending_recycle := &""
+## Um beat pediu o falso travamento: o próximo despertar no Abrigo começa por ele.
+var _pending_freeze := false
 
 
 func _ready() -> void:
@@ -48,11 +53,13 @@ func _ready() -> void:
 	add_child(vision)
 	Events.flash_requested.connect(func(number: int) -> void: _pending_flash = number)
 	Events.real_wake_requested.connect(wake_in_shelter)
+	Events.fake_freeze_requested.connect(func() -> void: _pending_freeze = true)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
-		set_paused(not get_tree().paused)
+		if not cutscene:
+			set_paused(not get_tree().paused)
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.pressed and not get_tree().paused:
 		# Recaptura o mouse se o jogador clicar na janela depois de soltar o cursor.
@@ -66,6 +73,7 @@ func change_level(path: String) -> void:
 		return_to_forest(true)
 	_pending_flash = -1
 	_pending_recycle = &""
+	_pending_freeze = false
 	if current_level != null:
 		level_root.remove_child(current_level)
 		current_level.queue_free()
@@ -248,7 +256,11 @@ func wake_in_shelter(instant := false) -> void:
 	awake = true
 	_leaving = false
 	player.set_controls_enabled(false)
-	if not instant:
+	if not instant and _pending_freeze:
+		# A primeira vez (fim do Ato II): o jogo "trava" e a volta já é o Abrigo.
+		_pending_freeze = false
+		await _fake_freeze()
+	elif not instant:
 		Events.screen_fade_requested.emit(1.0, 2.0)
 		close_ears(2.0)
 		await get_tree().create_timer(2.6, false).timeout
@@ -272,6 +284,51 @@ func wake_in_shelter(instant := false) -> void:
 	Events.screen_fade_requested.emit(0.0, 1.5)
 	open_ears(5.0, -30.0, 400.0)
 	await ari.wake_in(place.capsule, place.room_door())
+
+
+## O falso travamento (§7): termina com a tela preta, como se o jogo tivesse fechado.
+func _fake_freeze() -> void:
+	cutscene = true
+	var freeze := FakeFreeze.new()
+	freeze.name = "FakeFreeze"
+	add_child(freeze)
+	await freeze.play()
+	Events.screen_fade_requested.emit(1.0, 0.0)
+	freeze.queue_free()
+	cutscene = false
+
+
+## A memória do ciclo 346 (§7): "carregar" o ciclo_346.sav. Passa na floresta de verdade, com o
+## estado guardado antes e devolvido no fim (SaveSystem.snapshot); depois o jogo volta para o
+## menu de pausa.
+func play_memory() -> void:
+	if cutscene or resting or player == null:
+		return
+	if awake:
+		return_to_forest(true)
+	var saved := SaveSystem.snapshot()
+	cutscene = true
+	resting = true
+	player.set_controls_enabled(false)
+	Events.prompt_changed.emit("")
+	Events.screen_fade_requested.emit(1.0, 0.8)
+	close_ears(0.8)
+	await get_tree().create_timer(1.0, false).timeout
+	print("[Game] Memória do ciclo 346.")
+	var memory := Memory346.new()
+	memory.name = "Memory346"
+	current_level.add_child(memory)
+	open_ears(2.0, -24.0, 900.0)
+	await memory.play()
+	memory.queue_free()
+	SaveSystem.restore(saved)
+	resting = false
+	cutscene = false
+	Story.trigger(&"memory", &"346")
+	player.set_controls_enabled(true)
+	open_ears(1.0)
+	Events.screen_fade_requested.emit(0.0, 1.0)
+	set_paused(true)
 
 
 ## Ari deita de volta na cápsula (§6.2: voltar antes de a lucidez acabar não custa nada) e o

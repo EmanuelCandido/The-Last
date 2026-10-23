@@ -390,3 +390,29 @@ const NORTH_FOG_DENSITY := 0.0015
 const VOID_EDGE_Z := -96.0
 ## Quanto o céu embaixo do horizonte escurece no setor norte (o vazio).
 const VOID_SKY_DARKNESS := 0.92
+
+# --- O mistério meta (§7) ---------------------------------------------------------------------
+
+## Falso travamento (fim do Ato II): a imagem fica congelada com o áudio preso (s), depois vem a
+## janela de "não está respondendo" (s) e a tela preta antes do Abrigo (s).
+const FREEZE_SECONDS := 4.0
+const FREEZE_DIALOG_SECONDS := 4.5
+const FREEZE_BLACK_SECONDS := 1.5
+## A memória do ciclo 346: o goblin riscando a parede, o corvo na boca da caverna e o glitch do
+## fim (s); a hora (noite fechada) e a lenha da fogueira, para a parede pegar luz.
+const MEMORY_CARVE_SECONDS := 9.0
+const MEMORY_CROW_SECONDS := 4.5
+const MEMORY_GLITCH_SECONDS := 1.6
+const MEMORY_HOUR := 23.5
+const MEMORY_FUEL := 3.0
+## HUD vital: o oxigênio normal (%), quanto cai por segundo com o ar preso e quanto volta; a
+## opacidade no Abrigo e na floresta (depois do R3, com a vida baixa).
+const SPO2_NORMAL := 97.0
+const SPO2_HOLD_DROP := 0.6
+const SPO2_RECOVER := 2.0
+const VITALS_HUD_ALPHA := 0.85
+const VITALS_HUD_FOREST_ALPHA := 0.4
+## Do Ato III em diante, o bipe do monitor fica sempre no fundo da caverna, baixinho (dB).
+const LEAK_BEEP_STEADY_DB := -30.0
+## Intervalo mínimo (s) entre duas falas do Zelador no Abrigo (o alto-falante dele).
+const KEEPER_SPEECH_COOLDOWN := 8.0

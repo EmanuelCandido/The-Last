@@ -26,6 +26,7 @@ Vitals="*res://autoload/vitals.gd"
 Story="*res://autoload/story.gd"
 Game="*res://autoload/game.gd"
 SaveSystem="*res://autoload/save_system.gd"
+MetaFiles="*res://autoload/meta_files.gd"
 DevTools="*res://autoload/dev_tools.gd"
 
 [display]

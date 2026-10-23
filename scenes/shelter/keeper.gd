@@ -12,7 +12,8 @@ extends Node
 ## - CAPTURE: a 1,2 m, ergue o braço com a seringa (Game.faint_in_shelter faz o resto);
 ## - DORMANT: bateria baixa depois do R3, encaixado e quase desligado: só ouve.
 ## Nunca machuca Ari. Anda pelo grafo de pontos do Abrigo (POINTS e LINKS); onde a linha está
-## livre, vai reto.
+## livre, vai reto. Fala pelo alto-falante (StoryBeats.LINES, com legenda) quando acha a cápsula
+## vazia, quando vê ou ouve Ari e quando seda.
 
 signal captured
 
@@ -59,6 +60,7 @@ var _sensor_alarmed := false
 var _capture_timer := 0.0
 var _yaw := 0.0
 var _look_phase := 0.0
+var _speech_cooldown := 0.0
 
 
 func _ready() -> void:
@@ -69,6 +71,7 @@ func _ready() -> void:
 func begin() -> void:
 	active = true
 	awareness = 0.0
+	_speech_cooldown = 0.0
 	_alert = false
 	_capsule_alarmed = false
 	_sensor_alarmed = false
@@ -115,6 +118,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_round_timer -= delta
 	_sense_timer -= delta
+	_speech_cooldown -= delta
 	if _sense_timer <= 0.0:
 		_sense_timer = SENSE_INTERVAL
 		_sense(SENSE_INTERVAL)
@@ -212,6 +216,7 @@ func _on_noise(at: Vector3, radius: float) -> void:
 # --- Decisão ----------------------------------------------------------------------------------
 
 func _enter(new_state: State) -> void:
+	var previous := state
 	state = new_state
 	_wait = -1.0
 	var body := shelter.caretaker
@@ -228,6 +233,8 @@ func _enter(new_state: State) -> void:
 			_unseen = 0.0
 			_replan = 0.0
 			_last_seen = shelter.ari.global_position
+			if new_state == State.FOUND and previous != State.FOUND:
+				_say(&"heard" if previous == State.DORMANT else &"found")
 		State.DORMANT:
 			body.set_light(&"amber")
 			body.set_glow(0.25)
@@ -296,6 +303,7 @@ func _arrived(delta: float) -> void:
 			_capsule_alarmed = true
 			_alert = true
 			Story.add_vigilance(Tuning.VIGILANCE_CAPSULE_EMPTY)
+			_say(&"capsule_empty")
 	if _look_at != Vector3.INF:
 		_face(_look_at - body.global_position, delta)
 	_wait -= delta
@@ -328,8 +336,20 @@ func _capture() -> void:
 	body.global_rotation.y = _yaw
 	body.pose_arm(1, 1.45, 0.25)
 	body.servo()
+	_speech_cooldown = 0.0
+	_say(&"capture")
 	ari.controls = false
 	ari.look(body.head.global_position - ari.camera.global_position)
+
+
+## Uma fala pelo alto-falante, com a legenda (no máximo uma a cada KEEPER_SPEECH_COOLDOWN s).
+func _say(line: StringName) -> void:
+	if _speech_cooldown > 0.0:
+		return
+	_speech_cooldown = Tuning.KEEPER_SPEECH_COOLDOWN
+	var text: String = StoryBeats.LINES[line]
+	shelter.caretaker.speak(1 if text.length() > 24 else 0)
+	Game.vision.say(text, 3.0)
 
 
 # --- Andar ------------------------------------------------------------------------------------

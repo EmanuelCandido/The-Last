@@ -1,5 +1,7 @@
 extends Control
 ## Menu de pausa: continuar, salvar, carregar, dicas e sair. Só aparece com o jogo pausado.
+## Do mistério meta (§7): com o ciclo_346.sav no disco, "Carregar" abre a lista de saves; com a
+## carta no disco, aparece "Abrir pasta do jogo".
 
 ## Mini tutorial mostrado em "Dicas" (BBCode). As anotações da história (Story.notes)
 ## entram embaixo, em outra cor.
@@ -74,6 +76,12 @@ const NOTES_COLOR := "#d9c27a"
 @onready var _state_label: Label = %StateLabel
 @onready var _tips_text: RichTextLabel = %TipsText
 
+var _folder_button: Button
+var _slots: PanelContainer
+var _slot_real: Button
+var _slot_old: Button
+var _slots_back: Button
+
 
 func _ready() -> void:
 	hide()
@@ -85,6 +93,12 @@ func _ready() -> void:
 	_tips_button.pressed.connect(show_tips.bind(true))
 	_back_button.pressed.connect(show_tips.bind(false))
 	_quit_button.pressed.connect(Game.quit)
+	_folder_button = Button.new()
+	_folder_button.name = "FolderButton"
+	_folder_button.text = "Abrir pasta do jogo"
+	_folder_button.pressed.connect(MetaFiles.open_game_folder)
+	_tips_button.add_sibling(_folder_button)
+	_build_slots()
 
 
 func _on_game_paused(paused: bool) -> void:
@@ -92,7 +106,8 @@ func _on_game_paused(paused: bool) -> void:
 	if paused:
 		_status_label.text = "Acordado, não dá para salvar." if Game.awake else ""
 		_save_button.disabled = Game.awake
-		_load_button.disabled = not SaveSystem.has_save()
+		_load_button.disabled = not SaveSystem.has_save() and not MetaFiles.has_old_save()
+		_folder_button.visible = MetaFiles.has_letter()
 		_state_label.text = _state_text()
 		_tips_text.text = _tips_with_notes()
 		show_tips(false)
@@ -117,11 +132,61 @@ func _tips_with_notes() -> String:
 ## Mostra a tela de Dicas (true) ou volta ao menu (false).
 func show_tips(tips_visible: bool) -> void:
 	_tips.visible = tips_visible
+	_slots.visible = false
 	_panel.visible = not tips_visible
 	if tips_visible:
 		_back_button.grab_focus()
 	else:
 		_resume_button.grab_focus()
+
+
+## Mostra a lista de saves (true) ou volta ao menu (false).
+func show_slots(slots_visible: bool) -> void:
+	_slots.visible = slots_visible
+	_tips.visible = false
+	_panel.visible = not slots_visible
+	if slots_visible:
+		var real := SaveSystem.describe_save()
+		_slot_real.text = "save.json  ·  %s" % real if real != "" else "save.json  ·  vazio"
+		_slot_real.disabled = real == ""
+		_slot_old.visible = MetaFiles.has_old_save()
+		_slots_back.grab_focus()
+	else:
+		_resume_button.grab_focus()
+
+
+## A lista de "Carregar": o save de verdade e, depois do flash 2, o ciclo_346.sav.
+func _build_slots() -> void:
+	_slots = PanelContainer.new()
+	_slots.name = "Slots"
+	_slots.visible = false
+	_slots.custom_minimum_size = Vector2(380, 0)
+	_panel.add_sibling(_slots)
+	var margin := MarginContainer.new()
+	for side: String in ["left", "right"]:
+		margin.add_theme_constant_override("margin_" + side, 24)
+	for side: String in ["top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 20)
+	_slots.add_child(margin)
+	var items := VBoxContainer.new()
+	items.add_theme_constant_override(&"separation", 10)
+	margin.add_child(items)
+	var title := Label.new()
+	title.text = "Carregar"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override(&"font_size", 28)
+	items.add_child(title)
+	_slot_real = Button.new()
+	_slot_real.pressed.connect(_on_load_real)
+	items.add_child(_slot_real)
+	_slot_old = Button.new()
+	_slot_old.text = "ciclo_346.sav  ·  Dia 12 · Ciclo 346"
+	_slot_old.pressed.connect(_on_load_old)
+	items.add_child(_slot_old)
+	_slots_back = Button.new()
+	_slots_back.text = "Voltar"
+	_slots_back.pressed.connect(show_slots.bind(false))
+	items.add_child(_slots_back)
 
 
 func _on_save_pressed() -> void:
@@ -133,7 +198,21 @@ func _on_save_pressed() -> void:
 
 
 func _on_load_pressed() -> void:
+	if MetaFiles.has_old_save():
+		show_slots(true)
+	else:
+		_on_load_real()
+
+
+func _on_load_real() -> void:
 	if SaveSystem.load_game():
 		Game.set_paused(false)
 	else:
+		show_slots(false)
 		_status_label.text = "Falha ao carregar."
+
+
+## O save do ciclo passado não carrega nada: passa a memória dele e volta para cá.
+func _on_load_old() -> void:
+	Game.set_paused(false)
+	Game.play_memory()

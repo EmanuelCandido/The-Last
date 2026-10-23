@@ -116,6 +116,8 @@ A partir daqui a Vigilância (§5) está ligada.
 
 **Feito (F5):** o beat `first_wake` (ritual no sarcófago, Ato II) abre o Ato III e acorda Ari no Abrigo (ação `wake_real`). Do Ato III em diante, `real_visit` faz todo ritual, em qualquer lugar de ritual, levar ao Abrigo. O falso travamento antes da volta fica para a F7 e o objetivo R1 para a F6.
 
+**Feito (F7):** o `flash_2` liga `old_save` (aparece o `ciclo_346.sav`), o beat `memory_346` (gatilho `memory`) põe a anotação depois da memória, e o `first_wake` pede o falso travamento (ação `freeze`) antes do `wake_real`.
+
 ### Ato III: O Zelador
 
 O jogo alterna floresta e visitas reais (§6). Os objetivos reais são uma corrente: cada um destrava o seguinte.
@@ -136,7 +138,7 @@ Durante o Ato III, na floresta, continua valendo:
 
 **Feito (F6):**
 - **A corrente:** `StoryBeats.OBJECTIVES` diz o que cada objetivo precisa (o id é o flag). Na visita, a `Visit` guarda os objetivos feitos como pendentes; dentro da mesma visita o pendente já destrava o seguinte. Só valem quando Ari deita na cápsula (`Story.complete_objective`, gatilho `objective`, que põe a anotação de cada um). Desmaiar ou ser sedado perde tudo o que foi feito naquela visita, e a Reciclagem desfaz o último guardado.
-- **R1:** o monitor (até 3 m) e a janela (até 5 m) perto do centro da tela. O `leia_me` fica para a F7.
+- **R1:** o monitor (até 3 m) e a janela (até 5 m) perto do centro da tela. O beat `r1_room` liga `letter_left`, e o `leia_me` aparece (F7).
 - **R2:** o fusível vermelho do quadro da sala 2714 apaga o sensor do corredor. O sensor fica entre a sala e o almoxarifado (não no meio), para o R3 precisar do R2: passar embaixo dele aceso dá +5 de Vigilância e traz o Zelador.
 - **R3:** o alicate na estante do meio do almoxarifado e o cabo do quadro do clima. Na floresta (`NorthVoid`), depois de `Tuning.VOID_EDGE_Z` (z = -96) o terreno e a vegetação somem; na borda fica o corte do chão, preto e sem neblina, uma parede invisível e, ao longe, um fundo preto que sobe do horizonte e se desfaz no céu. A neblina só abre no setor norte (`Tuning.NORTH_SECTOR_Z`), e o céu embaixo do horizonte escurece (`DayNight.void_amount`). A matilha não nasce além da borda. Até o R4, o Zelador fica dormente na recarga (bateria baixa).
 - **R4:** o cartão no peito do Zelador dormente, que só ouve: parado ou rastejando longe, ele não acorda. Abre o Ato IV. Depois, parte dos chamados dos bichos (`Ambience`) vem com a voz do Zelador junto.
@@ -446,6 +448,7 @@ Concreto, tubos, luz de emergência verde e poeira. Mesmo estilo pixelado e dess
 - **Captura:** a 1,2 m, ergue o braço e `Game.faint_in_shelter(&"captured")`: tela preta, +30, o que foi feito na visita se perde e o goblin acorda na pele.
 - **Interação:** `ShelterSwitch` (texto, quando dá e o que faz vêm do `Shelter`) é o fusível, o alicate, o cabo e o cartão.
 - **Fica para depois:** "objeto caindo 10 m" (não há o que derrubar no Abrigo ainda).
+- **A voz (F7):** ele fala pelo alto-falante, com legenda, quando acha a cápsula vazia (*"Ari? Você não está na cama."*), quando vê Ari (*"Aí está você. Volte para a cama, Ari."*), quando ouve Ari estando dormente (*"Quem está aí? ...Ari?"*) e quando seda (*"Shh. Está tudo bem. Durma."*). Faz no máximo uma fala a cada 8 s.
 
 ---
 
@@ -472,6 +475,7 @@ Concreto, tubos, luz de emergência verde e poeira. Mesmo estilo pixelado e dess
 - **Onde:** o menu de pausa ganha a seção **ANOTAÇÕES**, em outra cor e em itálico, como se fosse escrita à mão.
 - **Como entram:** cada linha entra por um beat (§3).
 - **Na Reciclagem:** as anotações ficam. É isso que deixa Ari progredir entre ciclos.
+- **Feito (F1 e F7):** a seção fica embaixo das Dicas, em ocre (`PauseMenu.NOTES_COLOR`) e itálico. Na F7 entrou a anotação da memória (*"Ele vê pelos corvos."*).
 
 ### Arquivos de verdade
 
@@ -482,6 +486,12 @@ Concreto, tubos, luz de emergência verde e poeira. Mesmo estilo pixelado e dess
   - aparece depois do R1, na pasta do jogo (a do executável, ou `user://` no editor);
   - o menu de pausa ganha o botão "Abrir pasta do jogo";
   - o texto é uma carta de Ari para Ari e termina com a **senha do Final 3**, sorteada por save (`MUSGO-` + 4 dígitos). Só quem abre o arquivo consegue.
+- **Feito (F7):**
+  - O autoload `MetaFiles` escreve os dois arquivos quando os flags `old_save` (flash 2) e `letter_left` (R1) ligam. Os textos ficam em `StoryBeats.OLD_SAVE` (um JSON que parece save e se quebra em ACORDA repetido) e `StoryBeats.LETTER`. A senha é `Story.password()`, salva no save (`secret`) e sobrevive à Reciclagem. Se alguém apagar o arquivo, ele volta ao carregar o save.
+  - "Carregar" vira uma lista quando o `ciclo_346.sav` existe: `save.json · Dia n · Ciclo n` e `ciclo_346.sav · Dia 12 · Ciclo 346`. O segundo chama `Game.play_memory()`.
+  - **A memória:** o jogo guarda o estado (`SaveSystem.snapshot`), e a cena passa na caverna de verdade. É noite (23h30), com fogo alto e uma luz quente de preenchimento, e os riscos de agora ficam escondidos. O goblin risca ACORDA traço a traço, andando com a letra (ação `scratch`, `WallMarks.carve`). Em seguida, vista de fora da caverna, o corvo pousado na boca fica em silhueta contra o fogo e vira para a câmera. Tudo passa desbotado e com grão (`memory_glitch.gdshader`), que quebra em glitch no fim. Depois o estado volta, entra a anotação e o menu de pausa abre.
+  - "Abrir pasta do jogo" aparece no menu quando a carta existe e abre o gerenciador de arquivos com ela selecionada.
+  - **Ajuste no corvo:** pousado, ele agora fica em pé (corpo inclinado, pernas, asas rentes para trás). Antes, as asas dobradas apontavam para a frente.
 
 ### Falso travamento
 
@@ -492,6 +502,8 @@ Ao deitar no sarcófago no fim do Ato II:
 3. A tela fica preta.
 4. A "volta" já é o Abrigo.
 
+**Feito (F7):** `FakeFreeze` (`scenes/ui/fake_freeze/`). Ele pega o último quadro desenhado e cala todos os buses, deixando só o `stuck_buzz.wav` (um pedaço de 46 ms do som repetindo). Aos 4 s a imagem clareia como janela travada, o título da janela vira *"A Toca (Não está respondendo)"* e aparece a caixa com "Fechar o programa" e "Aguardar o programa responder" (as duas encurtam a espera). Depois vêm 1,5 s de preto e silêncio, e Ari abre os olhos na cápsula. A pausa fica bloqueada durante a cena (`Game.cutscene`).
+
 ### Sons vazando
 
 | Som | Quando |
@@ -499,16 +511,20 @@ Ao deitar no sarcófago no fim do Ato II:
 | **Bipe** | Ato I uma vez; Ato II às vezes à noite na caverna; Ato III sempre, baixinho, na caverna |
 | **Ventilador** | A partir do Ato II, nas rajadas fortes (abrigo > 0,8 e rajada > 0,7) |
 
+**Feito (F4 e F7):** o bipe do Ato III toca a cada batida (72 bpm) dentro da caverna, a -30 dB, mais baixo perto da boca. O ventilador usa a rajada de `Tuning.CLUE_FAN_GUST` (§3, F4).
+
 ### HUD de sinais vitais
 
 - **No Abrigo:** uma linha de ECG e o oxigênio no canto.
 - **Na floresta, depois do R3:** o ECG aparece de leve quando a vida está baixa (a verdade vazando).
+- **Feito (F7):** `VitalsHud` (`scenes/ui/vitals_hud/`), no canto de baixo à esquerda, mostra o traçado (`ecg_hud.gdshader`) e `♥ bpm · SpO₂ %`. No Abrigo o coração vai de 78 a 138 nos últimos 30 s de lucidez e sobe +24 com o Zelador atrás de Ari; o oxigênio cai 0,6 %/s com o ar preso. Na floresta, com `climate_cut` e a vida abaixo de 40, ele aparece até 40% de opacidade, com a linha falhando.
 
 ### Voz do Zelador
 
 - **Sem dublagem:** legenda com um murmúrio sintético de formantes e bipes, gerado em `tools/generate_sounds.py`.
 - **No Abrigo:** sai do alto-falante dele.
 - **Na floresta:** sai dos corvos e da rocha (`OccludedAudio`).
+- **Feito (F6 e F7):** na floresta, os corvos e a rocha (F6). No Abrigo, as falas do `Keeper` (§6.3, F7).
 
 ### O console do Zelador
 
@@ -614,7 +630,7 @@ O plano vai mudar, talvez muito. O código segue estas regras para que uma mudan
 
 - `FORMAT_VERSION` vai para 2.
 - O payload ganha `globals: {Inventory, Story, Vitals, Clock}`. Save da versão 1 continua carregando.
-- **Slots (F7):** `save.json` é o jogo real; `ciclo_346.sav` é falso (só dispara a cena).
+- **Slots (F7, feito):** `save.json` é o jogo real; `ciclo_346.sav` é falso (só dispara a cena). `SaveSystem.snapshot()` e `restore()` guardam e devolvem o estado na memória, sem disco (a cena da memória usa).
 
 ---
 
@@ -630,7 +646,7 @@ Cada fase termina jogável, com teste de fumaça, roteiro `--run` e print confer
 | **F4: Rachaduras** ✅ feita | Pistas do Ato I, Vigilância, corvos espiões, cervo branco, ruína (malha, porta, teclado), pintura, sala-espelho, sarcófago | Do musgo até a porta aberta, com os 4 beats de pista disparando |
 | **F5: O Abrigo** ✅ feita | Cena do Abrigo, controle em primeira pessoa, troca de mundo, flashes 1–3, shader de visão borrada | Flash 1 ao dormir no Ato II; ida e volta sem perder estado |
 | **F6: O Zelador** ✅ feita | Componente `Senses`, IA e ronda do Zelador, lucidez, captura, R1–R4 e os efeitos na floresta, Reciclagem | Fazer R1–R4 em sequência; ser pego desfaz o certo |
-| **F7: Mistério meta** | Anotações, `ciclo_346.sav` e a memória, `leia_me`, falso travamento, sons vazando, HUD vital, voz do Zelador | Cada item do §7 disparado pelo seu beat |
+| **F7: Mistério meta** ✅ feita | Anotações, `ciclo_346.sav` e a memória, `leia_me`, falso travamento, sons vazando, HUD vital, voz do Zelador | Cada item do §7 disparado pelo seu beat |
 | **F8: Verdade e finais** | Sala de controle, câmeras, conversa, terminal, os 3 finais, créditos, menu principal, modo "Bem-vindo de volta" | Os 3 finais jogados de ponta a ponta |
 
 ---

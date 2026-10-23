@@ -3,7 +3,7 @@
 Feito para o projeto:
 
 - texturas: `tools/generate_textures.py`;
-- sons sintéticos (vento, folhas, fogo, caverna, insetos, pássaros, corvos, pica-pau, lobo, gotas, árvore caindo, bufo do cervo, guincho do coelho, ronco da barriga, mastigar, carne chiando, musgo caindo, grilos, coruja, rosnado, mordida e ganido do lobo, dentes batendo, coração, puxar e soltar o ar, farejar, pedra jogada e caindo, lama, laço fechando, bipe do monitor, ventilador, porta de pedra, disco de pedra, bater de asas, ar de sala fechada, lâmpada zumbindo, servo, roda e bipe de passo do Zelador, voz sintética do Zelador, persiana): `tools/generate_sounds.py`;
+- sons sintéticos (vento, folhas, fogo, caverna, insetos, pássaros, corvos, pica-pau, lobo, gotas, árvore caindo, bufo do cervo, guincho do coelho, ronco da barriga, mastigar, carne chiando, musgo caindo, grilos, coruja, rosnado, mordida e ganido do lobo, dentes batendo, coração, puxar e soltar o ar, farejar, pedra jogada e caindo, lama, laço fechando, bipe do monitor, ventilador, porta de pedra, disco de pedra, bater de asas, ar de sala fechada, lâmpada zumbindo, servo, roda e bipe de passo do Zelador, voz sintética do Zelador, persiana, áudio travado, pedra riscando a rocha, glitch): `tools/generate_sounds.py`;
 - goblin: `models/goblin/source/` (blender-agent + polimento procedural no Blender).
 
 Gravações reais de terceiros, em `audio/real/`. Todas são CC0 (domínio público): não exigem crédito, mas ficam registradas aqui.

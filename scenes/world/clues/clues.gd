@@ -5,8 +5,9 @@ extends Node
 ## rápido, e liga "<flag>_seen". Nenhuma interrompe o jogo: tem que parecer bug ou estilo.
 ##
 ## Do Ato II em diante, os vazamentos repetem: o bipe às vezes à noite na caverna e o
-## ventilador nas rajadas fortes. Do Ato III em diante, quando a Vigilância dá um salto, a voz
-## do Zelador sai de dentro da rocha, embaixo do goblin, onde não há nada.
+## ventilador nas rajadas fortes. Do Ato III em diante o bipe fica sempre no fundo da caverna,
+## baixinho, no ritmo do coração; e quando a Vigilância dá um salto, a voz do Zelador sai de
+## dentro da rocha, embaixo do goblin, onde não há nada.
 
 const BEEP := preload("res://assets/audio/sfx/monitor_beep.wav")
 const FAN := preload("res://assets/audio/sfx/fan_hum.wav")
@@ -23,6 +24,8 @@ var _beep_at := -1.0
 var _last_vigilance := 0.0
 var _rock_cooldown := 0.0
 var _rock_voice_in := -1.0
+## O bipe de fundo do Ato III: tempo até o próximo.
+var _steady_beep := 0.0
 
 
 func _ready() -> void:
@@ -52,6 +55,8 @@ func _process(delta: float) -> void:
 		_done(&"clue_fan")
 	if Story.act >= 2:
 		_leaks(player)
+	if Story.act >= 3:
+		_steady(player, delta)
 
 
 ## Pista ligada pelo beat e ainda não vista.
@@ -132,6 +137,18 @@ func _leaks(player: Player) -> void:
 	if _beep_at >= 0.0 and _indoor(player) > 0.8 and _night_progress() >= _beep_at:
 		_beep_at = -1.0
 		_beeps()
+
+
+## Ato III em diante: dentro da caverna, um bipe a cada batida, mais baixo quanto mais perto da
+## boca (é o monitor de verdade, do outro lado da rocha).
+func _steady(player: Player, delta: float) -> void:
+	_steady_beep -= delta
+	if _steady_beep > 0.0:
+		return
+	_steady_beep = 60.0 / Tuning.CLUE_BEEP_BPM
+	var indoor := _indoor(player)
+	if indoor > 0.5:
+		_play(BEEP, Tuning.LEAK_BEEP_STEADY_DB + 6.0 * (indoor - 1.0))
 
 
 func _on_vigilance(value: float) -> void:
