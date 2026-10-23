@@ -5,11 +5,17 @@ extends Node
 ## - leia_me_se_lembrar.txt, na pasta do jogo, quando o flag "letter_left" liga (R1). É a carta
 ##   de Ari para Ari e termina com a senha do Final 3 (Story.password).
 ## Os textos ficam em StoryBeats. Se o arquivo sumir (alguém apagou), volta ao carregar o save.
+##
+## Os finais (§8) também deixam marca fora do save, em toca.cfg: depois do Final 1 o título vira
+## "A Toca — Ninho"; depois do Final 3 o jogo abre como "Bem-vindo de volta" (o goblin da IA), e
+## depois de assistir a ele, o menu ganha "Novo ciclo".
 
 const OLD_SAVE_PATH := "user://ciclo_346.sav"
 const OLD_SAVE_FLAG := &"old_save"
 const LETTER_NAME := "leia_me_se_lembrar.txt"
 const LETTER_FLAG := &"letter_left"
+const STATE_PATH := "user://toca.cfg"
+const TITLES := {&"": "A Toca", &"ninho": "A Toca — Ninho", &"welcome": "Bem-vindo de volta"}
 
 
 func _ready() -> void:
@@ -55,6 +61,47 @@ func open_game_folder() -> void:
 		OS.shell_show_in_file_manager(letter_path())
 	else:
 		OS.shell_open(game_folder())
+
+
+## Como o jogo abre agora: "" (normal), "ninho" (depois do Final 1) ou "welcome" (Final 3).
+func title_mode() -> StringName:
+	return StringName(String(_state().get_value("title", "mode", "")))
+
+
+func set_title_mode(mode: StringName) -> void:
+	var state := _state()
+	state.set_value("title", "mode", String(mode))
+	state.save(STATE_PATH)
+	DisplayServer.window_set_title(title())
+
+
+## O nome do jogo na janela e no menu.
+func title() -> String:
+	return TITLES.get(title_mode(), TITLES[&""])
+
+
+## Já se assistiu ao goblin da IA até o fim (o menu de "Bem-vindo de volta" ganha "Novo ciclo").
+func welcome_done() -> bool:
+	return bool(_state().get_value("title", "welcome_done", false))
+
+
+func set_welcome_done() -> void:
+	var state := _state()
+	state.set_value("title", "welcome_done", true)
+	state.save(STATE_PATH)
+
+
+## Esquece os finais (Novo ciclo; os roteiros de teste também usam).
+func forget_endings() -> void:
+	if FileAccess.file_exists(STATE_PATH):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(STATE_PATH))
+	DisplayServer.window_set_title(title())
+
+
+func _state() -> ConfigFile:
+	var state := ConfigFile.new()
+	state.load(STATE_PATH)
+	return state
 
 
 ## Apaga os dois arquivos (os roteiros de teste usam).

@@ -32,9 +32,10 @@ python tools/generate_sounds.py                                         # regera
   - `--screenshot`, `--skip-intro`, `--teleport=x,z`, `--camera=yaw,pitch`;
   - `--set=story.act:2,story.flag:moss_fell,vitals.satiety:10,clock.hour:19` (põe o estado global em qualquer ponto);
   - `--shelter` (acorda Ari no Abrigo, já de pé) e `--flash=n` (começa o flash n, para prints);
+  - `--menu` (abre o menu principal; sem `--frames` nem `--screenshot` ele já abre sozinho) e `--welcome` (começa o Bem-vindo de volta);
   - `--run=roteiro.gd`.
 - **`--run`:** recebe um `RefCounted` com `func run() -> void` (pode usar `await`). É o jeito de testar mecânicas de ponta a ponta: pegar o arco, quebrar árvore, caçar, furtividade, assar, dormir, farejar, jogar pedra, fabricar.
-- Roteiros que dormem salvam de verdade em `%APPDATA%/Godot/app_userdata/Jogo Pessoal/save.json`. Apague esse save depois do teste.
+- Roteiros que dormem salvam de verdade em `%APPDATA%/Godot/app_userdata/Jogo Pessoal/save.json`. Apague esse save depois do teste. Os finais também escrevem `toca.cfg` na mesma pasta (o título do jogo); `MetaFiles.forget_endings()` limpa. Num roteiro (`DevTools.scripted`), o Final 3 não fecha o jogo.
 - **`--press`** gera eventos de ação de verdade. `--hold` só segura a ação e não dispara `_unhandled_input`, então E, R e o soco precisam de `--press`.
 - `--fixed-fps 60` deixa o teste determinístico: 60 frames equivalem a 1 s de jogo. Os bichos nascem com semente aleatória.
 - Depois de mexer em scripts ou cenas, rode o teste de fumaça. Erros aparecem como `SCRIPT ERROR`, `Parse Error` ou `ERROR:`.
@@ -49,12 +50,13 @@ docs/                roteiro.md (rascunho) e plano.md (plano fechado de históri
 data/                tuning.gd (todos os números de ajuste), story_beats.gd (acontecimentos da história) e recipes.gd (receitas)
 autoload/            Events, Wind, Inventory, Clock, Vitals, Story, Game, SaveSystem, MetaFiles, DevTools
 scenes/
-  main/              cena raiz: LevelRoot + UI (HUD, ScreenFade, PauseMenu)
+  main/              cena raiz: LevelRoot + UI (HUD, ScreenFade, PauseMenu); abre o menu principal
+  endings/           Endings (as cenas dos três finais) e WelcomeBack (o Bem-vindo de volta)
   player/            goblin: player.gd (movimento, arco, soco, interação), goblin_animator.gd
                      (animação procedural no esqueleto) e goblin_look.gd (texturas)
   player/parts/      mecânicas novas do goblin como nós filhos: EatAbility (F), BodyFeedback (fome), ColdExposure (frio),
                      SniffAbility (X), BreathControl (Q), StoneThrow (G), MudCamouflage, CraftAbility (R), TorchCarry,
-                     SnareSetter e LeatherClothes
+                     SnareSetter, LeatherClothes e GoblinAutopilot (a IA que joga no Bem-vindo de volta)
   items/             arco (pickup na caverna), HeldBow (arco na mão, corda que puxa), flecha (projétil), pedra jogada,
                      tocha, BowMesh e MeatMesh (malhas)
   levels/forest/     fase da floresta: forest.tscn/gd e ForestLayout (pontos-chave do mapa)
@@ -76,9 +78,11 @@ scenes/
   shelter/           o Abrigo 9 (mundo real, 2 km abaixo): Shelter (salas por código), ShelterLook (materiais e peças),
                      CareCapsule, VitalsMonitor, WindowBlinds, FlickerLight, Caretaker (corpo do Zelador), Keeper (a IA
                      dele), Visit (lucidez e objetivos da visita), ShelterSwitch (fusível, alicate, cabo, cartão), Ari
-                     (primeira pessoa) e FlashDirector (os flashes)
+                     (primeira pessoa), FlashDirector (os flashes), ControlRoom (sala de controle: cartão, câmeras,
+                     terminal, servidor e a conversa) e Outside (Final 2: a escada e a cidade na neblina)
   ui/                HUD (ação, avisos, itens, mira), menu de pausa (com Dicas e a lista de Carregar), ScreenFade,
-                     BlurredVision (visão borrada), VitalsHud (ECG e oxigênio no canto) e FakeFreeze (o falso travamento)
+                     BlurredVision (visão borrada), VitalsHud (ECG e oxigênio no canto), FakeFreeze (o falso travamento),
+                     MainMenu, Credits e KeeperConsole (o console do Zelador no terminal)
 components/          Footsteps (passos por chão), OccludedAudio (som 3D abafado atrás de rocha), Senses (visão, audição e
                      térmico de quem vigia)
 assets/
@@ -90,7 +94,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 
 ## Arquitetura
 
-- **Main** passa o `LevelRoot` para o `Game` e carrega `Game.FIRST_LEVEL` (a floresta).
+- **Main** passa o `LevelRoot` e a `UI` para o `Game` e abre o menu principal (`Game.open_menu`); nos testes do DevTools (`--frames`/`--screenshot`) carrega direto `Game.FIRST_LEVEL` (a floresta).
 - **Game:** `change_level(path)` troca a fase e cria o jogador no `PlayerSpawn`. Também cuida da pausa e do mouse.
 - **Events:** só sinais.
   - `level_loaded`, `game_paused`, `screen_fade_requested`;
@@ -98,8 +102,8 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - `notification_shown`: avisos na tela;
   - `prompt_changed`: ação disponível agora.
 - **Inventory:** quantidade por item (`bow`, `arrow`, `feathered_arrow`, `wood`, `stone`, `meat`, `cooked_meat`, `white_meat`, `hide`, `feather`, `snare`, `clothes`). Emite `changed` e vai junto no save. `Inventory.HUD_ORDER` diz o que aparece no HUD.
-- **Plano e maleabilidade:** `docs/plano.md` é a fonte da história e das mecânicas, dividida em fases (F1 a F7 feitas). Receitas ficam em `Recipes` (`data/recipes.gd`). Números ficam em `Tuning` (`data/tuning.gd`), nunca soltos no código. Acontecimentos da história ficam em `StoryBeats` (`data/story_beats.gd`): cada beat tem gatilho (`on`), condições (`when`) e ações (`do`). Os sistemas reagem a flags (`Story.flag_changed`), sem saber qual beat as ligou.
-- **Story:** ato, ciclo (347), riscos deste ciclo (`marks`) e antigos (`old_marks`), flags, contadores (`deer_harvested`, `sleeps_act_2`...), anotações (`notes`, que viram a seção ANOTAÇÕES das Dicas), a Vigilância (`vigilance`, 0..100, só do Ato II em diante) e os objetivos reais (`objectives`, F6). Avalia os beats quando acontece `start`, `slept`, `woke`, `died`, `harvested`, `ate` ou `ritual`; beat com `"repeat"` dispara toda vez. Ações de beat: `set_flag`, `set_act`, `add_note`, `notify`, `flash` (0 = sorteado entre os vistos), `recycle`, `vigilance` e `wake_real` (Ari acorda no Abrigo).
+- **Plano e maleabilidade:** `docs/plano.md` é a fonte da história e das mecânicas, dividida em fases (F1 a F8 feitas). Receitas ficam em `Recipes` (`data/recipes.gd`). Números ficam em `Tuning` (`data/tuning.gd`), nunca soltos no código. Acontecimentos da história ficam em `StoryBeats` (`data/story_beats.gd`): cada beat tem gatilho (`on`), condições (`when`) e ações (`do`). Os sistemas reagem a flags (`Story.flag_changed`), sem saber qual beat as ligou.
+- **Story:** ato, ciclo (347), riscos deste ciclo (`marks`) e antigos (`old_marks`), flags, contadores (`deer_harvested`, `sleeps_act_2`...), anotações (`notes`, que viram a seção ANOTAÇÕES das Dicas), a Vigilância (`vigilance`, 0..100, só do Ato II em diante) e os objetivos reais (`objectives`, F6). Avalia os beats quando acontece `start`, `slept`, `woke`, `died`, `harvested`, `ate`, `ritual`, `objective`, `memory`, `shelter` (`control_room`, `recordings`) ou `choice` (`ficar`, `acordar`, `trocar`); beat com `"repeat"` dispara toda vez. Ações de beat: `set_flag`, `set_act`, `add_note`, `notify`, `flash` (0 = sorteado entre os vistos), `recycle`, `vigilance`, `wake_real` (Ari acorda no Abrigo), `freeze` e `ending` (um dos finais).
 - **Vigilância e Reciclagem:** `Story.add_vigilance()` sobe e desce (números em `Tuning.VIGILANCE_*`); em 100, `Events.recycle_requested`. `Game.recycle()` desmancha a tela (`recycle.gdshader`), roda `Story.recycle()` (ciclo +1, riscos viram antigos, Vigilância 30, desfaz o último objetivo; ato, flags e anotações ficam), zera o inventário e o corpo, volta ao dia 1 e recarrega a fase.
 - **Watchers (os olhos do Zelador):** do Ato II em diante, corvos sentinela pousados na boca da caverna (`ForestLayout.CAVE_CROW`) e no ninho da ruína (somem com o flag `blind_spot`), corvos que pousam perto do goblin de tempos em tempos (fora do capim alto) e, com Vigilância alta, um cervo branco por dia. `Watchers.watching(ponto)` responde se algum corvo pousado vê o ponto. `Crow` tem o modo do bando e o modo pousado (`perch`: desce planando, segue o goblin com a cabeça, vai embora).
 - **Pistas (`Clues`):** os beats do Ato I só ligam flags; o `Clues` faz cada pista na hora certa (cervo que trava com `Animal.freeze`, corvo que encara, três bipes à noite na caverna, ventilador na rajada forte) e liga `<flag>_seen`. Do Ato II em diante, bipe e ventilador voltam a vazar às vezes; do Ato III em diante, o bipe fica sempre no fundo da caverna, baixinho (`Tuning.LEAK_BEEP_STEADY_DB`).
@@ -118,7 +122,17 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - **`Game.cutscene`:** liga durante as duas cenas. Bloqueia a pausa e esconde o HUD do goblin.
   - **HUD vital (`VitalsHud`, filho do HUD):** ECG (`ecg_hud.gdshader`), batimento e SpO₂. No Abrigo fica sempre lá; o coração sobe com a lucidez acabando e com o Zelador atrás de Ari, e o oxigênio cai com o ar preso. Na floresta aparece com `climate_cut` e a vida abaixo de `Tuning.LOW_HEALTH`, de leve e falhando.
   - **Voz do Zelador no Abrigo:** `Keeper._say` usa o alto-falante (`Caretaker.speak`) e a legenda (`StoryBeats.LINES`) quando ele acha a cápsula vazia, vê ou ouve Ari e seda, no máximo uma fala a cada `Tuning.KEEPER_SPEECH_COOLDOWN`.
-- **Zelador (`Keeper`, F6):** a IA (o corpo é o `Caretaker`). Estados `DOCKED`, `ROUND`, `CHECK`, `FOUND`, `CAPTURE` e `DORMANT`, com a lente verde, âmbar e vermelha. Sentidos pelo `Senses`: cone de `Tuning.KEEPER_FOV`, alcance menor no escuro (`Shelter.is_dark`) e com Ari rastejando; ouve `noise_level()` e `Events.noise_made`; térmico de 3 m através de parede; o sensor do corredor (`Shelter.sensor_active`) avisa quando Ari passa embaixo. Anda pelo grafo `Keeper.POINTS`/`LINKS`, ou reto quando dois raios (0,4 e 1,1 m) passam livres. Números em `Tuning.KEEPER_*`.
+- **Verdade e finais (F8):**
+  - **Sala de controle (`ControlRoom`, filho do `Shelter`):** porta com leitor de cartão (abre com o flag `access_card`, ou sozinha para o Zelador), mesa com terminal e rádio, 4 telas (`camera_feed.gdshader`, Vilarrasa com gente; data em `ControlRoom.RECORDING_DATE`), o servidor da simulação e a ordem de evacuação. Entrar dispara `shelter`/`control_room`; "Abrir as gravações" liga as telas e dispara `shelter`/`recordings`, cujo beat liga `confession`, e o `ControlRoom.confess()` faz a conversa (o `Keeper` em `TALK` vai até `talk_point()`; falas em `StoryBeats.LINES`, `Keeper.say()` devolve a duração). Depois da conversa a lucidez para (`visit.active = false`) e o Zelador espera Ari na sala em toda visita.
+  - **Console do Zelador (`KeeperConsole`):** "Usar o terminal" abre um `CanvasLayer` com `LineEdit`. Comandos: `ajuda`, `status`, `neblina off|on` (flag `fog_off`, que `forest.gd` lê), `teleport <lugar>` (`Game.forest_teleport`: onde o goblin acorda), `give <item> [n]`, `sair` e os dos finais (`ficar`, `acordar`, `trocar <senha>`, que só aceita `Story.secret`). Um final emite `chose`, e o `ControlRoom` roda o gatilho `choice`.
+  - **Finais (`Endings`, filho do `Game`, pela ação de beat `ending` → `Events.ending_requested`):**
+    - `stay` (ficar): "Obrigado.", `Game.leave_shelter_by_choice()`, título "Ninho", salva e passa os `Credits` por cima do jogo (`over_world`), que segue. O flag `ending_stay` desliga Vigilância, Reciclagem, ritual e visita da morte; dormir soma `Story.forward_marks` (setas na parede, `WallMarks._build_forward`).
+    - `wake` (acordar): `Shelter.open_exit()` sobe a porta blindada e monta o `Outside`; o `Keeper` em `ESCORT` segue Ari a `Tuning.KEEPER_ESCORT_DISTANCE` sem passar da soleira (`Keeper.EXIT_LIMIT_Z`). Lá fora, a neblina adensa conforme sobe; na rua, sino e vozes; perto da vitrine da ótica e olhando para ela, o rosto de Ari (`ari_reflection.png`) aparece atrás do vidro. Visto por `Tuning.REFLECTION_HOLD` s (ou `OUTSIDE_TIMEOUT`), escurece, créditos no preto e `Game.back_to_menu()`.
+    - `swap` (trocar, secreto): a lente do Zelador se apaga enquanto o terminal conta a transferência (`ControlRoom.show_transfer`), título "welcome" e `Game.quit_after_swap()` fecha o jogo.
+  - **Título (`MetaFiles`, em `user://toca.cfg`):** `title_mode()` é `""`, `ninho` ou `welcome`; `title()` dá o nome da janela e do menu. `welcome_done()` liga depois de assistir ao Bem-vindo de volta.
+  - **Menu principal (`MainMenu`, `Game.open_menu`):** a floresta de verdade atrás (câmera fora da caverna, goblin parado, `Game.menu_open`). Continuar (`SaveSystem.load_game(true)`: põe os globais antes de criar a fase), Novo jogo (confirma, apaga save, arquivos e finais: `Game.start_new_game`) e Sair. No modo `welcome`: Assistir, Novo ciclo (depois de assistir) e Sair. O pause ganhou "Menu principal" (`Game.back_to_menu`). `Events.game_started` volta a mostrar as dicas de controle.
+  - **Bem-vindo de volta (`WelcomeBack`, `Game.start_welcome`, `Game.welcome`):** nada salva, o HUD some e o `GoblinAutopilot` (filho do Player) joga apertando as ações do `Input`: pega o arco, caça (cervo antes, coelho de perto; chega agachado, mira com a queda da flecha), coleta, come, fabrica flechas e dorme de noite. Depois de dormir uma vez (ou `Tuning.WELCOME_MAX_HOURS`), os riscos viram OBRIGADO (`WallMarks.carve`, `word_spot`), o goblin olha para a câmera e o menu volta com "Novo ciclo".
+- **Zelador (`Keeper`, F6):** a IA (o corpo é o `Caretaker`). Estados `DOCKED`, `ROUND`, `CHECK`, `FOUND`, `CAPTURE`, `DORMANT`, `TALK` e `ESCORT` (os dois da F8, sem sentidos), com a lente verde, âmbar e vermelha. Sentidos pelo `Senses`: cone de `Tuning.KEEPER_FOV`, alcance menor no escuro (`Shelter.is_dark`) e com Ari rastejando; ouve `noise_level()` e `Events.noise_made`; térmico de 3 m através de parede; o sensor do corredor (`Shelter.sensor_active`) avisa quando Ari passa embaixo. Anda pelo grafo `Keeper.POINTS`/`LINKS`, ou reto quando dois raios (0,4 e 1,1 m) passam livres. Números em `Tuning.KEEPER_*`.
 - **Vazio do norte (`NorthVoid`, R3):** com `climate_cut`, `Terrain.set_north_cut` e `Vegetation.set_north_cut` escondem os blocos além de `Tuning.VOID_EDGE_Z`, que precisa cair numa divisa de bloco de 48 m. Na borda ficam um corte preto sem neblina, uma parede invisível e um fundo preto distante que some no céu. `openness(ponto)` abre a neblina no setor norte (`forest.gd`) e escurece o chão do céu (`DayNight.void_amount`).
 - **Voz do Zelador na floresta (Ato III):** corvo espião com `Crow.speech` fala no primeiro crocito pousado; um salto de Vigilância ≥ `Tuning.KEEPER_ROCK_VOICE_RISE` faz o `Clues` tocar a voz dentro do chão ao lado do goblin. As falas ficam em `StoryBeats.LINES`, e a legenda é `Game.vision.say()`.
 - **Flashes (`FlashDirector`):** `Events.flash_requested` guarda o pedido; `Game.pass_out` mostra o flash no escuro, antes de acordar (`Game.play_flash`, com a versão curta na morte). Cada flash é uma função do tempo (`seek(t)` reproduz qualquer instante), com a câmera `Shelter.eyes` deitada na cápsula, a `BlurredVision` (`amount` = borrão, `lids` = pálpebras, `say()` = legenda) e o Zelador. No fim liga `flash_<n>_seen`.
@@ -240,7 +254,6 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 
 ## Ainda não existe
 
-- O resto do plano (`docs/plano.md`, fase F8): a sala de controle (câmeras, servidor, terminal e o console do Zelador), a conversa, os três finais, os créditos e o modo "Bem-vindo de volta".
 - Combate corpo a corpo de verdade, diálogos, missões, atributos.
-- Menu principal e configurações (vídeo, áudio e controles).
+- Configurações (vídeo, áudio e controles).
 - Subir degraus (step-up), água.

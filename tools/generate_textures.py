@@ -403,6 +403,124 @@ def metal(size=64):
     return img
 
 
+def cobblestone(size=128):
+    """Calçamento da cidade lá fora (Final 2): pedras gastas de tamanhos parecidos, juntas escuras
+    com terra e musgo, e a umidade da neblina."""
+    rng = np.random.default_rng(181)
+    f1, f2 = worley(size, 10, 181)
+    edge = np.clip((f2 - f1) / 3.0, 0.0, 1.0)
+    tone = spectral_noise(size, size, 0.9, 182)
+    img = ramp(tone, [(0.0, (0.27, 0.27, 0.26)), (0.5, (0.37, 0.36, 0.34)), (1.0, (0.46, 0.45, 0.42))])
+    # Cada pedra com o meio mais claro (gasto pelos passos).
+    img *= (0.82 + 0.25 * np.sqrt(edge))[..., None]
+    joints = edge < 0.32
+    img[joints] = ramp(spectral_noise(size, size, 1.4, 183), [(0.0, (0.1, 0.1, 0.08)), (1.0, (0.2, 0.22, 0.15))])[joints]
+    img[rng.random((size, size)) < 0.02] *= 0.85
+    return img
+
+
+def plaster(size=128):
+    """Reboco das fachadas abandonadas: cal desbotada, manchas de chuva escorrendo e o tijolo
+    aparecendo onde o reboco caiu."""
+    rng = np.random.default_rng(191)
+    v = spectral_noise(size, size, 1.4, 191) * 0.7 + spectral_noise(size, size, 0.5, 192) * 0.3
+    img = ramp(v, [(0.0, (0.4, 0.39, 0.36)), (0.6, (0.53, 0.51, 0.47)), (1.0, (0.6, 0.58, 0.54))])
+    streaks = spectral_noise(size, size, 1.6, 193, stretch_y=10.0)
+    img *= (1.0 - 0.35 * np.clip((streaks - 0.5) * 3.0, 0.0, 1.0))[..., None]
+    fallen = spectral_noise(size, size, 1.9, 194) > 0.78
+    yy, xx = np.mgrid[0:size, 0:size]
+    mortar = ((yy % 8) == 0) | (((xx + (yy // 8) % 2 * 8) % 16) == 0)
+    brick = np.where(mortar[..., None], np.array([0.33, 0.31, 0.28]), np.array([0.45, 0.3, 0.24]))
+    brick = brick * (0.85 + 0.15 * rng.random((size, size, 1)))
+    img[fallen] = brick[fallen]
+    return img
+
+
+def ari_reflection(w=64, h=80):
+    """O rosto de Ari no vidro da vitrine (Final 2, a única vez que aparece): 41 anos, magro de
+    onze anos deitado, barba por fazer, o cabelo crescido e a coberta da cápsula nos ombros.
+    Pintado de frente com luz de cima e da esquerda; o vidro escurece e desbota o resto."""
+    rng = np.random.default_rng(2714)
+    yy, xx = np.mgrid[0:h, 0:w] + 0.5
+    rgb = np.zeros((h, w, 3))
+    alpha = np.zeros((h, w))
+    grain = spectral_noise(h, w, 0.6, 2715)
+    cx, cy, rx, ry = 32.0, 30.0, 14.5, 19.0
+    # O queixo afina: a largura da cabeça cai embaixo.
+    dy = (yy - cy) / ry
+    rx_at = rx * (1.0 - 0.28 * np.clip(dy, 0.0, 1.0) ** 2)
+    dx = (xx - cx) / rx_at
+    head = dx * dx + dy * dy <= 1.0
+    # Pescoço e a coberta caindo dos ombros.
+    neck = (np.abs(xx - cx) < 6.5) & (yy > cy + 12) & (yy < 60)
+    shoulder_half = np.clip(10.0 + (yy - 54.0) * 1.6, 0.0, 31.0)
+    blanket = (yy > 54) & (np.abs(xx - cx + 0.5 * np.sin(yy * 0.3)) < shoulder_half)
+    ear_l = ((xx - (cx - rx - 0.5)) / 2.6) ** 2 + ((yy - (cy + 1.0)) / 4.5) ** 2 <= 1.0
+    ear_r = ((xx - (cx + rx + 0.5)) / 2.6) ** 2 + ((yy - (cy + 1.0)) / 4.5) ** 2 <= 1.0
+    ears = ear_l | ear_r
+    # Luz: a cabeça como uma bola, luz de cima e da esquerda.
+    nz = np.sqrt(np.clip(1.0 - dx * dx - dy * dy, 0.0, 1.0))
+    light = np.clip(-0.45 * dx - 0.5 * dy + 0.75 * nz, 0.0, 1.0)
+    skin = np.array([0.72, 0.62, 0.55])
+    face = skin * (0.42 + 0.58 * light)[..., None]
+
+    def blob(x, y, ax, ay):
+        return np.exp(-(((xx - x) / ax) ** 2 + ((yy - y) / ay) ** 2))
+
+    # Órbitas fundas, maçãs do rosto marcadas e o rosto chupado embaixo delas.
+    shade = 1.0 - 0.5 * (blob(cx - 6, cy - 1, 4.0, 2.6) + blob(cx + 6, cy - 1, 4.0, 2.6))
+    shade -= 0.28 * (blob(cx - 9, cy + 8, 3.0, 4.0) + blob(cx + 9, cy + 8, 3.0, 4.0))
+    shade += 0.12 * (blob(cx - 8, cy + 3, 3.0, 1.8) + blob(cx + 8, cy + 3, 3.0, 1.8))
+    # Nariz: o lado direito na sombra, a ponta e as narinas.
+    shade -= 0.3 * blob(cx + 1.8, cy + 4, 1.0, 4.5)
+    shade += 0.15 * blob(cx - 0.8, cy + 4, 0.9, 4.0)
+    shade -= 0.45 * (blob(cx - 1.6, cy + 8.6, 0.9, 0.6) + blob(cx + 1.6, cy + 8.6, 0.9, 0.6))
+    face *= np.clip(shade, 0.25, 1.3)[..., None]
+    # Barba por fazer: escurece o queixo, o buço e o rosto embaixo das maçãs, com pontinhos.
+    beard = np.clip((yy - (cy + 5.5)) / 4.0, 0.0, 1.0) * (np.abs(xx - cx) < rx_at * 0.92)
+    beard = np.maximum(beard, 0.8 * blob(cx, cy + 10.2, 4.5, 1.0))
+    dots = rng.random((h, w)) < 0.45
+    face *= (1.0 - beard * (0.45 + 0.25 * dots))[..., None]
+    # Boca: uma linha fina, caída nos cantos.
+    mouth = (np.abs(yy - (cy + 12.3 + 0.03 * (xx - cx) ** 2)) < 0.6) & (np.abs(xx - cx) < 4.2)
+    face[mouth] *= 0.35
+    # Olhos: a íris escura e o brilho úmido; sobrancelhas grossas.
+    for side in (-1, 1):
+        ex = cx + side * 6.0
+        iris = ((xx - ex) / 1.6) ** 2 + ((yy - (cy - 0.8)) / 1.1) ** 2 <= 1.0
+        white = ((xx - ex) / 2.8) ** 2 + ((yy - (cy - 0.8)) / 1.1) ** 2 <= 1.0
+        face[white & ~iris] = np.array([0.5, 0.47, 0.43])
+        face[iris] = np.array([0.1, 0.09, 0.08])
+        face[(np.abs(xx - (ex - 0.6)) < 0.5) & (np.abs(yy - (cy - 1.3)) < 0.5)] = np.array([0.8, 0.8, 0.78])
+        brow = (np.abs(yy - (cy - 5.0 + 0.02 * (xx - ex) ** 2)) < 0.9) & (np.abs(xx - ex) < 3.6)
+        face[brow] *= 0.35
+    # Cabelo crescido, despenteado, caindo na testa e sobre as orelhas.
+    fringe = cy - ry * 0.42 + (grain - 0.5) * 6.0 + 1.5 * np.sin(xx * 0.9)
+    hair_top = head & (yy < fringe)
+    hair_sides = (np.abs(xx - cx) > rx_at * 0.86) & (yy < cy + 4) & (head | ears)
+    hair_out = (((xx - cx) / (rx + 2.5)) ** 2 + ((yy - (cy - 3)) / (ry + 1.5)) ** 2 <= 1.0) & (yy < cy - 4) & (grain > 0.35)
+    hair = hair_top | hair_sides | (hair_out & ~head)
+    hair_color = ramp(grain, [(0.0, (0.1, 0.09, 0.08)), (1.0, (0.26, 0.23, 0.2))]) * (0.6 + 0.4 * light)[..., None]
+    neck_color = skin * (0.32 + 0.12 * (1.0 - np.abs(xx - cx) / 7.0))[..., None]
+    blanket_color = ramp(spectral_noise(h, w, 1.1, 2716), [(0.0, (0.2, 0.23, 0.2)), (1.0, (0.36, 0.4, 0.34))])
+    blanket_color *= (0.8 + 0.2 * np.sin(xx * 0.7 + yy * 0.25))[..., None]
+    rgb[blanket] = blanket_color[blanket]
+    alpha[blanket] = 1.0
+    rgb[neck & ~blanket] = neck_color[neck & ~blanket]
+    alpha[neck] = 1.0
+    rgb[ears] = skin * 0.55
+    alpha[ears] = 1.0
+    rgb[head] = face[head]
+    alpha[head] = 1.0
+    rgb[hair] = hair_color[hair]
+    alpha[hair] = 1.0
+    # Desbotado e granulado, como se visse no vidro sujo; embaixo some no escuro.
+    rgb = rgb * 0.85 + rgb.mean(axis=-1, keepdims=True) * 0.15
+    rgb *= (0.9 + 0.2 * grain)[..., None]
+    alpha *= 1.0 - np.clip((yy - 66.0) / 14.0, 0.0, 1.0)
+    return fill_transparent(rgb, alpha), alpha
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     print("Gerando texturas em", OUT)
@@ -423,6 +541,9 @@ def main():
     save("concrete.png", concrete())
     save("concrete_floor.png", concrete_floor())
     save("metal.png", metal())
+    save("cobblestone.png", cobblestone())
+    save("plaster.png", plaster())
+    save("ari_reflection.png", *ari_reflection())
     save_gray("macro_noise.png", spectral_noise(256, 256, 1.8, 101))
     save_gray("dither_noise.png", spectral_noise(64, 64, 0.2, 102))
 

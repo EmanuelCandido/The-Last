@@ -785,6 +785,89 @@ def glitch():
     return (peak_norm(crushed) * gate + 0.4 * fall * smoothstep(0.6, 1.0, t)) * env
 
 
+def blast_door():
+    """A porta blindada da saída subindo (Final 2): as travas soltando, o motor gemendo, o atrito
+    da chapa nos trilhos e a pancada lá em cima, 5,5 s."""
+    rng = np.random.default_rng(540)
+    n = int(5.5 * SR)
+    t = np.arange(n) / SR
+    out = np.zeros(n)
+    # Três travas soltando, metal grosso.
+    for i, at in enumerate((0.05, 0.3, 0.62)):
+        start = int(at * SR)
+        m = n - start
+        tt = np.arange(m) / SR
+        ring = sum(np.sin(TAU * f * tt) * np.exp(-tt / d) for f, d in ((180 + 25 * i, 0.25), (433, 0.12), (1210, 0.05)))
+        hit = band_oneshot(burst(rng, 0.05, 0.01), 200, 3000)
+        out[start:start + len(hit)] += 0.8 * hit
+        out[start:] += 0.35 * ring
+    # O motor: um gemido que sobe, com o ronco da chapa raspando.
+    rise = smoothstep(0.8, 1.6, t) * (1 - smoothstep(5.0, 5.25, t))
+    whine = tone(70 + 40 * smoothstep(0.8, 5.0, t), ((1, 1.0), (2, 0.6), (3, 0.4), (5, 0.2)))
+    grind = band_oneshot(rng.standard_normal(n), 60, 900) * (0.75 + 0.25 * np.sin(TAU * 9.0 * t))
+    out += (0.45 * peak_norm(whine) + 0.6 * peak_norm(grind)) * rise
+    end = np.maximum(t - 5.2, 0.0)
+    thud = band_oneshot(rng.standard_normal(n), 30, 500) * np.exp(-end / 0.12) * (t >= 5.2)
+    return out + 0.9 * peak_norm(thud)
+
+
+def church_bell():
+    """Um sino de igreja ao longe (Final 2): parciais de sino (o zumbido, a fundamental, a terça
+    menor, a quinta, a nominal e as de cima) com a batida do badalo, abafado pela distância, 7 s."""
+    rng = np.random.default_rng(550)
+    n = int(7.0 * SR)
+    t = np.arange(n) / SR
+    base = 196.0
+    partials = ((0.5, 1.0, 5.0), (1.0, 0.8, 3.6), (1.19, 0.6, 2.6), (1.5, 0.35, 2.0), (2.0, 0.55, 1.6), (2.52, 0.25, 1.1), (3.0, 0.2, 0.8), (4.2, 0.12, 0.5))
+    bell = np.zeros(n)
+    for ratio, amp, decay in partials:
+        # Cada parcial bate um pouco (o sino não é redondo perfeito).
+        beat = 1.0 + 0.15 * np.sin(TAU * rng.uniform(0.6, 1.8) * t)
+        bell += amp * np.sin(TAU * base * ratio * t + rng.uniform(0, TAU)) * np.exp(-t / decay) * beat
+    strike = band_oneshot(burst(rng, 0.04, 0.008), 800, 5000) * 0.4
+    bell[:len(strike)] += strike
+    return band_oneshot(bell, 80, 2400)
+
+
+def crowd_loop(seconds=10):
+    """Vozes ao longe (Final 2): gente conversando numa praça, sílabas de vogais de muitas pessoas
+    misturadas, sem palavra nenhuma, abafadas pela neblina e pela distância. Loop."""
+    rng = np.random.default_rng(560)
+    n = int(seconds * SR)
+    vowels = [(730, 1090, 2440), (270, 2290, 3010), (300, 870, 2240), (530, 1840, 2480), (570, 840, 2410), (440, 1020, 2240)]
+    out = np.zeros(n)
+    for voice in range(10):
+        pitch = rng.uniform(95, 240)
+        level = rng.uniform(0.3, 1.0)
+        cursor = rng.uniform(0, n)
+        talked = 0
+        while talked < n * 0.55:
+            words = rng.integers(3, 9)
+            for _ in range(words):
+                dur = rng.uniform(0.09, 0.22)
+                m = int(dur * SR)
+                tt = np.arange(m) / SR
+                f0 = pitch * (1 + 0.08 * np.sin(TAU * rng.uniform(2, 5) * tt) + rng.uniform(-0.06, 0.06))
+                carrier = tone(f0, tuple((k, 1.0 / k) for k in range(1, 24)))
+                f1, f2, f3 = vowels[rng.integers(len(vowels))]
+                syllable = formants(carrier, [(f1, 90, 1.0), (f2, 130, 0.5), (f3, 170, 0.2)])
+                syllable = peak_norm(syllable) * smoothstep(0.0, 0.025, tt) * (1 - smoothstep(dur - 0.05, dur, tt)) * level
+                np.add.at(out, (int(cursor) + np.arange(m)) % n, syllable)
+                cursor += m + rng.uniform(0.01, 0.05) * SR
+                talked += m
+            cursor += rng.uniform(0.3, 1.6) * SR
+    # Uma risada de criança de vez em quando, aguda e curta.
+    for at in rng.uniform(0, n, 2):
+        for k in range(5):
+            m = int(0.09 * SR)
+            tt = np.arange(m) / SR
+            laugh = formants(tone(np.full(m, 330.0 - 12 * k), tuple((j, 1.0 / j) for j in range(1, 14))), [(800, 100, 1.0), (1500, 150, 0.5)])
+            laugh = peak_norm(laugh) * np.sin(np.pi * tt / (m / SR)) * 0.6
+            np.add.at(out, (int(at + k * 0.14 * SR) + np.arange(m)) % n, laugh)
+    out = band(out, 150, 1600)
+    return out + 0.08 * peak_norm(band(periodic_noise(n, rng, 1.0), 80, 600))
+
+
 def main():
     print("Gerando sons em", ROOT)
     write_wav(ROOT / "ambience" / "wind_loop.wav", wind_loop(), loop=True)
@@ -842,6 +925,9 @@ def main():
     for v in range(1, 3):
         write_wav(ROOT / "sfx" / f"wall_scratch_{v}.wav", wall_scratch(v))
     write_wav(ROOT / "sfx" / "glitch.wav", glitch())
+    write_wav(ROOT / "sfx" / "blast_door.wav", blast_door())
+    write_wav(ROOT / "sfx" / "church_bell.wav", church_bell())
+    write_wav(ROOT / "ambience" / "crowd_loop.wav", crowd_loop(), loop=True)
 
 
 if __name__ == "__main__":

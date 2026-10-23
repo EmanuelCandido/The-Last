@@ -16,6 +16,8 @@ extends Node3D
 ## Tudo o que se vê aqui fica na camada visual LAYER, que o sol da floresta não ilumina.
 ## Fora de uso (sem flash nem visita), o Abrigo fica escondido e parado (set_active).
 ## Nas visitas, a Visit conta a lucidez e guarda os objetivos, e o Keeper move o Zelador.
+## A sala de controle (cartão, câmeras, terminal e a conversa) é o ControlRoom; lá fora (Final 2),
+## a escada e a cidade são o Outside, montado só quando a saída abre.
 
 ## Ari desmaiou (`reason` "fainted": a lucidez acabou) ou foi sedado ("captured").
 signal fainted(reason: StringName)
@@ -30,6 +32,10 @@ const CLICK := preload("res://assets/audio/sfx/stone_click_1.wav")
 const SNIP := preload("res://assets/audio/sfx/snare_snap.wav")
 const PICKUP := preload("res://assets/audio/real/pickup_2.ogg")
 const ALARM := preload("res://assets/audio/sfx/keeper_beep.wav")
+const BLAST_DOOR := preload("res://assets/audio/sfx/blast_door.wav")
+## A porta blindada da saída: fechada e aberta (y do meio dela).
+const EXIT_DOOR_Y := 1.15
+const EXIT_DOOR_OPEN_Y := 3.5
 const ROOMS := {
 	&"room": Rect2(-7.0, 1.0, 5.0, 6.0),
 	&"corridor": Rect2(-10.0, -1.0, 20.0, 2.0),
@@ -50,6 +56,9 @@ var sensor: Node3D
 ## A visita em curso (lucidez e objetivos) e a cabeça do Zelador.
 var visit: Visit
 var keeper: Keeper
+var control: ControlRoom
+## A escada e a cidade lá fora (Final 2); null até a saída abrir.
+var outside: Outside
 ## Os olhos de Ari nos flashes (deitado na cápsula).
 var eyes: Camera3D
 ## Ar limpo, sem neblina: a câmera de Ari e os olhos dos flashes usam este ambiente.
@@ -70,9 +79,7 @@ var _cable_whole: MeshInstance3D
 var _cable_cut: Node3D
 var _climate_lamp: StandardMaterial3D
 var _card: ShelterSwitch
-var _control_door: StaticBody3D
-var _door_open := false
-var _door_tween: Tween
+var _exit_door: StaticBody3D
 var _sounds: AudioStreamPlayer3D
 
 
@@ -133,6 +140,8 @@ func spawn_ari() -> Ari:
 	add_child(ari)
 	ari.global_position = capsule.out_point()
 	ari.camera.environment = environment
+	# Só o Abrigo: a floresta, 2 km acima, não aparece (nem o fundo preto do vazio do norte).
+	ari.camera.cull_mask = LAYER
 	return ari
 
 
@@ -148,9 +157,13 @@ func begin_visit(seconds: float) -> void:
 	var card := not Story.has_flag(&"access_card")
 	caretaker.set_card(card)
 	_card.enabled = card
-	set_control_door(false, true)
+	control.begin_visit()
+	_exit_door.position.y = EXIT_DOOR_Y
 	monitor.bpm = Tuning.SHELTER_BPM
 	visit.begin(seconds)
+	# Depois da conversa ele não seda mais: a lucidez não acaba.
+	if Story.has_flag(&"confession"):
+		visit.active = false
 	keeper.begin()
 
 
@@ -179,20 +192,25 @@ func sensor_alarm() -> void:
 	_play(ALARM, sensor.global_position, -4.0)
 
 
-## Abre ou fecha a porta da sala de controle (desliza para dentro da parede).
-func set_control_door(open: bool, instant := false) -> void:
-	if open == _door_open and not instant:
-		return
-	_door_open = open
-	if _door_tween != null:
-		_door_tween.kill()
-	var x := 5.0 if open else 4.0
-	if instant:
-		_control_door.position.x = x
-		return
-	_door_tween = create_tween()
-	_door_tween.tween_property(_control_door, ^"position:x", x, 0.9).set_trans(Tween.TRANS_SINE)
-	_play(Caretaker.SERVO, _control_door.global_position + Vector3.UP, -12.0)
+## Final 2: a porta blindada sobe (e lá fora fica pronto: a escada e a cidade).
+func open_exit() -> void:
+	build_outside()
+	_play(BLAST_DOOR, _exit_door.global_position, 0.0)
+	var tween := create_tween()
+	tween.tween_interval(0.8)
+	tween.tween_property(_exit_door, ^"position:y", EXIT_DOOR_OPEN_Y, Tuning.EXIT_DOOR_SECONDS).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await tween.finished
+
+
+## Monta a escada e a cidade lá fora (uma vez).
+func build_outside() -> Outside:
+	if outside == null:
+		outside = Outside.new()
+		outside.name = "Outside"
+		add_child(outside)
+		for node in outside.find_children("*", "VisualInstance3D", true, false):
+			(node as VisualInstance3D).layers = LAYER
+	return outside
 
 
 ## No escuro (o almoxarifado) o Zelador enxerga menos.
@@ -249,7 +267,7 @@ func _build_walls() -> void:
 	# Corredorzinho da saída.
 	_wall(Vector2(-1.0, -3.5), Vector2(-1.0, -1.0))
 	_wall(Vector2(1.0, -3.5), Vector2(1.0, -1.0))
-	_wall(Vector2(-1.0, -3.5), Vector2(1.0, -3.5))
+	_wall(Vector2(-1.0, -3.5), Vector2(1.0, -3.5), [Vector4(1.0, 1.8, 0.0, 2.3)])
 
 
 ## Parede de `a` a `b` (alinhada a X ou Z) com aberturas Vector4(centro ao longo da parede a
@@ -488,40 +506,29 @@ func _build_dock() -> void:
 
 
 func _build_control() -> void:
-	# A porta (abre para o cartão: o Zelador o tem no peito) e o leitor do lado do corredor.
-	_control_door = StaticBody3D.new()
-	_control_door.name = "ControlDoor"
-	_control_door.position = Vector3(4.0, DOOR_HEIGHT * 0.5, 1.0)
-	add_child(_control_door)
-	ShelterLook.box(_control_door, Vector3(1.0, DOOR_HEIGHT, 0.06), Vector3.ZERO, &"dark_metal")
-	var door_shape := CollisionShape3D.new()
-	var door_box := BoxShape3D.new()
-	door_box.size = Vector3(1.0, DOOR_HEIGHT, 0.06)
-	door_shape.shape = door_box
-	_control_door.add_child(door_shape)
-	_add_box(Vector3(0.1, 0.16, 0.04), Vector3(4.75, 1.3, 0.87), &"plastic", &"", false)
-	_add_box(Vector3(0.03, 0.02, 0.01), Vector3(4.75, 1.35, 0.848), &"red", &"", false)
-	# Dentro: mesa, terminal, as quatro telas das câmeras e o servidor (F8).
-	_add_box(Vector3(2.4, 0.06, 0.8), Vector3(5.0, 0.76, 6.4), &"metal")
-	_add_box(Vector3(2.3, 0.73, 0.04), Vector3(5.0, 0.37, 6.78), &"dark_metal")
-	for i in 4:
-		_add_box(Vector3(0.6, 0.42, 0.04), Vector3(3.6 + i * 0.95, 1.55, 6.88), &"screen", &"", false)
-	_add_box(Vector3(0.7, 1.9, 0.6), Vector3(7.4, 0.95, 2.0), &"dark_metal")
-	var glow := OmniLight3D.new()
-	glow.light_color = Color(0.45, 0.6, 0.65)
-	glow.light_energy = 0.4
-	glow.omni_range = 4.0
-	glow.position = Vector3(5.0, 1.8, 5.8)
-	add_child(glow)
+	# A porta, o leitor, a mesa com o terminal, as telas e o servidor (ControlRoom).
+	control = ControlRoom.new()
+	control.name = "ControlRoom"
+	control.shelter = self
+	add_child(control)
 
 
 func _build_exit() -> void:
-	# A porta blindada da saída (Final 2), com as faixas de aviso gastas.
-	_add_box(Vector3(2.0, 2.3, 0.25), Vector3(0.0, 1.15, -3.35), &"dark_metal")
+	# A porta blindada da saída (Final 2), com as faixas de aviso gastas. Sobe para o teto.
+	_exit_door = StaticBody3D.new()
+	_exit_door.name = "ExitDoor"
+	_exit_door.position = Vector3(0.0, EXIT_DOOR_Y, -3.35)
+	add_child(_exit_door)
+	ShelterLook.box(_exit_door, Vector3(2.0, 2.3, 0.25), Vector3.ZERO, &"dark_metal")
 	for y in [0.5, 1.15, 1.8]:
-		_add_box(Vector3(1.9, 0.12, 0.04), Vector3(0.0, y, -3.21), &"metal", &"", false)
-	_add_box(Vector3(0.12, 0.2, 0.05), Vector3(0.75, 1.3, -3.2), &"plastic", &"", false)
-	_add_box(Vector3(0.03, 0.02, 0.01), Vector3(0.75, 1.36, -3.172), &"red", &"", false)
+		ShelterLook.box(_exit_door, Vector3(1.9, 0.12, 0.04), Vector3(0.0, y - EXIT_DOOR_Y, 0.14), &"metal")
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(2.0, 2.3, 0.25)
+	shape.shape = box
+	_exit_door.add_child(shape)
+	_add_box(Vector3(0.05, 0.2, 0.12), Vector3(0.88, 1.3, -2.8), &"plastic", &"", false)
+	_add_box(Vector3(0.01, 0.02, 0.03), Vector3(0.852, 1.36, -2.8), &"red", &"", false)
 	_light(Vector3(0.0, HEIGHT - 0.03, -2.4), Vector3(0.24, 0.05, 0.12), &"red", 0.4, 3.0, &"blink", 4.0)
 
 
@@ -652,6 +659,7 @@ func _build_environment() -> void:
 	eyes = Camera3D.new()
 	eyes.name = "Eyes"
 	eyes.environment = environment
+	eyes.cull_mask = LAYER
 	eyes.fov = 75.0
 	eyes.near = 0.03
 	add_child(eyes)

@@ -58,7 +58,7 @@ func play() -> void:
 	_buzz.stop()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	await _wait(Tuning.FREEZE_BLACK_SECONDS)
-	DisplayServer.window_set_title(String(ProjectSettings.get_setting("application/config/name", APP_NAME)))
+	DisplayServer.window_set_title(MetaFiles.title())
 	for bus: int in _muted:
 		AudioServer.set_bus_mute(bus, _muted[bus])
 

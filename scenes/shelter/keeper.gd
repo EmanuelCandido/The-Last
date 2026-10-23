@@ -10,14 +10,16 @@ extends Node
 ## - CHECK: luz âmbar, vai ver um ponto suspeito e olha em volta;
 ## - FOUND: luz vermelha, vem até Ari;
 ## - CAPTURE: a 1,2 m, ergue o braço com a seringa (Game.faint_in_shelter faz o resto);
-## - DORMANT: bateria baixa depois do R3, encaixado e quase desligado: só ouve.
+## - DORMANT: bateria baixa depois do R3, encaixado e quase desligado: só ouve;
+## - TALK: a conversa do Ato IV (§8): vai até um ponto e fica olhando para Ari, sem sentidos;
+## - ESCORT: Final 2, segue Ari a Tuning.KEEPER_ESCORT_DISTANCE até a porta da saída.
 ## Nunca machuca Ari. Anda pelo grafo de pontos do Abrigo (POINTS e LINKS); onde a linha está
 ## livre, vai reto. Fala pelo alto-falante (StoryBeats.LINES, com legenda) quando acha a cápsula
 ## vazia, quando vê ou ouve Ari e quando seda.
 
 signal captured
 
-enum State { DOCKED, ROUND, CHECK, FOUND, CAPTURE, DORMANT }
+enum State { DOCKED, ROUND, CHECK, FOUND, CAPTURE, DORMANT, TALK, ESCORT }
 
 ## Pontos do caminho, no espaço do Abrigo (x, z).
 const POINTS := {
@@ -25,18 +27,21 @@ const POINTS := {
 	&"control_in": Vector2(5.0, 3.6), &"mid": Vector2(-0.5, 0.0), &"room_out": Vector2(-3.0, 0.0),
 	&"room_in": Vector2(-3.0, 2.0), &"capsule": Vector2(-4.8, 2.75), &"store_out": Vector2(-9.0, 0.0),
 	&"store_in": Vector2(-10.6, 0.0), &"store_corner": Vector2(-10.6, 1.55), &"store_back": Vector2(-12.6, 1.55),
+	&"exit": Vector2(0.0, -2.6),
 }
 const LINKS := [
 	[&"dock", &"dock_front"], [&"dock_front", &"control_out"], [&"control_out", &"control_in"],
 	[&"control_out", &"mid"], [&"mid", &"room_out"], [&"room_out", &"room_in"], [&"room_in", &"capsule"],
 	[&"room_out", &"store_out"], [&"store_out", &"store_in"], [&"store_in", &"store_corner"],
-	[&"store_corner", &"store_back"],
+	[&"store_corner", &"store_back"], [&"mid", &"exit"],
 ]
 ## Onde ele procura quando acha a cápsula vazia.
 const SEARCH := [&"room_in", &"mid", &"store_in"]
 const SIGHT_MASK := 1
 const SENSE_INTERVAL := 0.1
 const ARRIVE := 0.12
+## Até onde ele acompanha Ari no Final 2: a soleira da saída (z no espaço do Abrigo).
+const EXIT_LIMIT_Z := -2.9
 
 var shelter: Shelter
 var state := State.DOCKED
@@ -67,7 +72,8 @@ func _ready() -> void:
 	Events.noise_made.connect(_on_noise)
 
 
-## Começo de uma visita: encaixado na recarga; dormente se a bateria está baixa.
+## Começo de uma visita: encaixado na recarga; dormente se a bateria está baixa. Depois da
+## conversa, ele espera Ari na sala de controle.
 func begin() -> void:
 	active = true
 	awareness = 0.0
@@ -86,6 +92,10 @@ func begin() -> void:
 	body.head.rotation = Vector3.ZERO
 	body.pose_arm(0, 0.0, 0.35)
 	body.pose_arm(1, 0.0, 0.35)
+	if Story.has_flag(&"confession"):
+		body.global_position = shelter.control.talk_point()
+		_enter(State.TALK)
+		return
 	_enter(State.DORMANT if low_battery() else State.DOCKED)
 
 
@@ -96,7 +106,7 @@ func end() -> void:
 	body.transform = shelter.dock
 	body.set_glow(1.0)
 	body.set_light(&"green")
-	shelter.set_control_door(false)
+	shelter.control.close()
 
 
 ## Depois do R3 ele gastou a recarga consertando o clima: até Ari pegar o cartão, fica encaixado.
@@ -104,9 +114,41 @@ func low_battery() -> bool:
 	return Story.has_flag(&"climate_cut") and not Story.has_flag(&"access_card")
 
 
+## A conversa (§8): vai até `at` e fica lá olhando para Ari. Os sentidos desligam.
+func talk(at: Vector3) -> void:
+	_stops.clear()
+	_search.clear()
+	_enter(State.TALK)
+	_plan_to(at)
+
+
+## Final 2: segue Ari pelo corredor, sem tocar nele, até a porta da saída.
+func escort() -> void:
+	_stops.clear()
+	_search.clear()
+	_enter(State.ESCORT)
+	_replan = 0.0
+
+
+## Chegou aonde ia.
+func arrived() -> bool:
+	return _path.is_empty()
+
+
+## Uma fala pelo alto-falante, com a legenda, fora da ronda (a conversa e os finais). Devolve
+## quanto ela dura (s).
+func say(line: StringName) -> float:
+	var text: String = StoryBeats.LINES[line]
+	var seconds := Tuning.KEEPER_LINE_SECONDS + text.length() * Tuning.KEEPER_LINE_PER_CHAR
+	_speech_cooldown = Tuning.KEEPER_SPEECH_COOLDOWN
+	shelter.caretaker.speak(1 if text.length() > 24 else 0)
+	Game.vision.say(text, seconds)
+	return seconds
+
+
 ## Vai ver `point` (âmbar). Na ronda, depois volta para onde ia.
 func investigate(point: Vector3) -> void:
-	if not active or state in [State.FOUND, State.CAPTURE, State.DORMANT]:
+	if not active or state in [State.FOUND, State.CAPTURE, State.DORMANT, State.TALK, State.ESCORT]:
 		return
 	_search = [point]
 	_enter(State.CHECK)
@@ -119,10 +161,21 @@ func _physics_process(delta: float) -> void:
 	_round_timer -= delta
 	_sense_timer -= delta
 	_speech_cooldown -= delta
-	if _sense_timer <= 0.0:
+	if _sense_timer <= 0.0 and state not in [State.TALK, State.ESCORT]:
 		_sense_timer = SENSE_INTERVAL
 		_sense(SENSE_INTERVAL)
 	match state:
+		State.TALK:
+			if _path.is_empty():
+				_face(shelter.ari.global_position - shelter.caretaker.global_position, delta)
+				shelter.caretaker.moving = false
+		State.ESCORT:
+			_replan -= delta
+			if _replan <= 0.0:
+				_replan = 0.4
+				_follow_ari()
+			if _path.is_empty():
+				_face(shelter.ari.global_position - shelter.caretaker.global_position, delta)
 		State.DOCKED:
 			if _round_timer <= 0.0:
 				_start_round()
@@ -145,7 +198,22 @@ func _physics_process(delta: float) -> void:
 	_move(delta)
 	# A porta da sala de controle abre sozinha para ele (o cartão no peito).
 	var door := shelter.to_global(Vector3(4.0, 0.0, 1.0))
-	shelter.set_control_door(_flat_distance(shelter.caretaker.global_position, door) < 1.6)
+	shelter.control.keeper_near(_flat_distance(shelter.caretaker.global_position, door) < 1.6)
+
+
+## Um ponto a KEEPER_ESCORT_DISTANCE de Ari, do lado de cá; nunca além da soleira da saída.
+func _follow_ari() -> void:
+	var body := shelter.caretaker.global_position
+	var ari := shelter.ari.global_position
+	var away := Vector3(body.x - ari.x, 0.0, body.z - ari.z)
+	if away.length() < Tuning.KEEPER_ESCORT_DISTANCE + 0.3 and away.length() > Tuning.KEEPER_ESCORT_DISTANCE - 0.6:
+		_path.clear()
+		return
+	var target := ari + away.normalized() * Tuning.KEEPER_ESCORT_DISTANCE if away.length() > 0.01 else body
+	var local := shelter.to_local(target)
+	if local.z < EXIT_LIMIT_Z:
+		local = Vector3(clampf(local.x, -0.6, 0.6), 0.0, EXIT_LIMIT_Z)
+	_plan_to(shelter.to_global(Vector3(local.x, 0.0, local.z)))
 
 
 # --- Sentidos ---------------------------------------------------------------------------------
@@ -203,7 +271,7 @@ func _sense(dt: float) -> void:
 
 
 func _on_noise(at: Vector3, radius: float) -> void:
-	if not active or shelter.ari == null:
+	if not active or shelter.ari == null or state in [State.TALK, State.ESCORT]:
 		return
 	if state == State.DORMANT:
 		if at.distance_to(shelter.caretaker.global_position) < radius:
@@ -238,6 +306,10 @@ func _enter(new_state: State) -> void:
 		State.DORMANT:
 			body.set_light(&"amber")
 			body.set_glow(0.25)
+		State.TALK, State.ESCORT:
+			body.set_light(&"green")
+			body.set_glow(1.0)
+			awareness = 0.0
 	body.moving = false
 
 
@@ -396,6 +468,10 @@ func _plan_to(target: Vector3) -> void:
 	for point: StringName in _route(start, goal):
 		_path.append(_point(point))
 	_path.append(target)
+	# Atalho: pula os pontos do grafo que ficaram para trás (dá para ir reto até o seguinte).
+	# Sem isto, replanejando de perto, ele voltaria sempre ao ponto mais próximo.
+	while _path.size() > 1 and _clear(from, _path[1]):
+		_path.pop_front()
 
 
 func _clear(from: Vector3, to: Vector3) -> bool:

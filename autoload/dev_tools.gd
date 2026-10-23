@@ -21,6 +21,8 @@ extends Node
 ##                        (pode usar await); roda depois do aquecimento e antes das --hold
 ##   --shelter            acorda Ari no Abrigo, já de pé (antes do --run e das --hold)
 ##   --flash=<n>          começa o flash n (1 a 3) e segue sem esperar ele acabar (para prints)
+##   --menu               abre o menu principal (sem argumentos de teste ele já abre sozinho)
+##   --welcome            começa o Bem-vindo de volta (o goblin da IA, depois do Final 3)
 ##
 ## Exemplo: godot --path . --fixed-fps 60 -- --frames=120 --hold=move_forward --screenshot=C:/temp/print.png
 ## (--fixed-fps deixa o teste determinístico: 120 frames = 2 segundos de jogo.)
@@ -31,11 +33,17 @@ const WARMUP_FRAMES := 10
 
 ## Lido pelas fases antes de rodar a introdução.
 var skip_intro := false
+## Rodando um roteiro de teste (--run): o Final 3 não fecha o jogo.
+var scripted := false
+## O jogo começa pelo menu principal (sempre, menos nos testes; --menu força).
+var show_menu := true
 
 
 func _ready() -> void:
 	var args := _parse_user_args()
 	skip_intro = args.has("skip-intro")
+	scripted = args.has("run")
+	show_menu = args.has("menu") or not (args.has("frames") or args.has("screenshot"))
 	if args.has("frames") or args.has("screenshot"):
 		_run(args)
 
@@ -62,6 +70,9 @@ func _run(args: Dictionary) -> void:
 	if args.has("set"):
 		for entry in String(args["set"]).split(",", false):
 			_set_value(entry)
+	if args.has("welcome"):
+		Game.start_welcome()
+		await get_tree().physics_frame
 	if args.has("shelter"):
 		await Game.wake_in_shelter(true)
 	if args.has("flash"):

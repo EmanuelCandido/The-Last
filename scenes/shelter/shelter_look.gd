@@ -8,6 +8,8 @@ const TEXTURES := {
 	&"concrete": preload("res://assets/textures/concrete.png"),
 	&"floor": preload("res://assets/textures/concrete_floor.png"),
 	&"metal": preload("res://assets/textures/metal.png"),
+	&"plaster": preload("res://assets/textures/plaster.png"),
+	&"cobble": preload("res://assets/textures/cobblestone.png"),
 }
 
 static var _materials := {}
@@ -15,7 +17,8 @@ static var _materials := {}
 
 ## Material pelo nome: "concrete", "floor", "ceiling", "metal", "dark_metal", "plastic",
 ## "cloth", "blanket", "skin", "rubber", "glass", "paper" e as luzes "green", "red", "amber",
-## "white" e "screen".
+## "white" e "screen". Lá fora (Final 2): "plaster" (reboco das fachadas), "cobble" (calçamento),
+## "window" (vidro escuro das janelas vazias), "rust" e "pine" (o pinheiral na encosta).
 static func material(name: StringName) -> Material:
 	if _materials.has(name):
 		return _materials[name]
@@ -53,6 +56,22 @@ static func material(name: StringName) -> Material:
 			made.roughness = 0.7
 			made.subsurf_scatter_enabled = true
 			made.subsurf_scatter_strength = 0.3
+		&"plaster":
+			_triplanar(made, TEXTURES[&"plaster"], 0.25)
+		&"cobble":
+			_triplanar(made, TEXTURES[&"cobble"], 0.7)
+			made.albedo_color = Color(0.85, 0.85, 0.85)
+		&"window":
+			made.albedo_color = Color(0.05, 0.06, 0.06)
+			made.roughness = 0.15
+			made.metallic_specular = 0.8
+		&"rust":
+			_triplanar(made, TEXTURES[&"metal"], 1.0)
+			made.albedo_color = Color(0.55, 0.36, 0.25)
+			made.roughness = 0.9
+		&"pine":
+			made.albedo_color = Color(0.1, 0.14, 0.11)
+			made.roughness = 1.0
 		&"rubber":
 			made.albedo_color = Color(0.06, 0.06, 0.06)
 			made.roughness = 0.9

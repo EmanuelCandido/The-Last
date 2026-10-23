@@ -28,6 +28,8 @@ var vigilance := 0.0
 var objectives: PackedStringArray = []
 ## Senha do Final 3 (§7), sorteada uma vez por save e escrita no leia_me ("" = ainda não).
 var secret := ""
+## Depois do Final 1 (ficar), a parede ganha outra contagem, para a frente: uma por noite.
+var forward_marks := 0
 
 ## Algo fez a Vigilância subir hoje (dormir num dia calmo a baixa).
 var _alarmed_today := false
@@ -89,7 +91,8 @@ func add_count(counter: StringName, amount := 1) -> void:
 
 ## Soma (ou tira) Vigilância. Antes do Ato II não conta; em 100, pede a Reciclagem.
 func add_vigilance(amount: float) -> void:
-	if act < Tuning.VIGILANCE_FROM_ACT or amount == 0.0:
+	# Depois do Final 1 o Zelador não vigia mais (ver StoryBeats, "choice_stay").
+	if act < Tuning.VIGILANCE_FROM_ACT or amount == 0.0 or has_flag(&"ending_stay"):
 		return
 	if amount > 0.0:
 		_alarmed_today = true
@@ -190,6 +193,7 @@ func save_data() -> Dictionary:
 		"alarmed_today": _alarmed_today,
 		"keypad_seen_day": _keypad_seen_day,
 		"secret": secret,
+		"forward_marks": forward_marks,
 	}
 
 
@@ -214,6 +218,7 @@ func load_data(data: Dictionary) -> void:
 	_alarmed_today = bool(data.get("alarmed_today", false))
 	_keypad_seen_day = int(data.get("keypad_seen_day", -1))
 	secret = String(data.get("secret", ""))
+	forward_marks = int(data.get("forward_marks", 0))
 	act_changed.emit(act)
 	vigilance_changed.emit(vigilance)
 	changed.emit()
@@ -232,7 +237,11 @@ func debug_set(key: String, value: String) -> void:
 
 
 func _on_slept() -> void:
-	marks += 1
+	# Depois do Final 1 a contagem é outra: os riscos novos não voltam a ser de um ciclo.
+	if has_flag(&"ending_stay"):
+		forward_marks += 1
+	else:
+		marks += 1
 	add_count(StringName("sleeps_act_%d" % act))
 	# Um dia inteiro sem alarme: o Zelador relaxa.
 	if not _alarmed_today:
@@ -298,6 +307,8 @@ func _run(actions: Array) -> void:
 					Events.real_wake_requested.emit()
 				"freeze":
 					Events.fake_freeze_requested.emit()
+				"ending":
+					Events.ending_requested.emit(StringName(String(value)))
 				"recycle":
 					Events.recycle_requested.emit(StringName(String(value)))
 				"vigilance":

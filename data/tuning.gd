@@ -416,3 +416,40 @@ const VITALS_HUD_FOREST_ALPHA := 0.4
 const LEAK_BEEP_STEADY_DB := -30.0
 ## Intervalo mínimo (s) entre duas falas do Zelador no Abrigo (o alto-falante dele).
 const KEEPER_SPEECH_COOLDOWN := 8.0
+
+# --- A verdade e os finais (§8) -----------------------------------------------------------------
+
+## Na conversa, o Zelador para a esta distância de Ari (m) e espera ele chegar até este tempo (s)
+## antes de falar de onde estiver; cada fala dura uma base mais um tanto por letra (s).
+const KEEPER_TALK_DISTANCE := 1.8
+const KEEPER_TALK_WAIT := 12.0
+const KEEPER_LINE_SECONDS := 2.2
+const KEEPER_LINE_PER_CHAR := 0.055
+## Final 2: o Zelador segue Ari a esta distância (m), sem tocar nele, até a porta da saída. A porta
+## blindada leva este tempo para subir (s).
+const KEEPER_ESCORT_DISTANCE := 2.2
+const EXIT_DOOR_SECONDS := 4.5
+## Lá fora: a neblina da cidade (a mesma da floresta, um pouco mais densa), quando o sino começa
+## (m andados desde a porta), e o reflexo no vidro (aparece a esta distância, m; fica na tela s).
+const OUTSIDE_FOG_DENSITY := 0.03
+const OUTSIDE_BELL_AFTER := 14.0
+const REFLECTION_DISTANCE := 3.2
+const REFLECTION_HOLD := 6.0
+## Se Ari não chegar ao vidro, a cena acaba sozinha depois disto (s lá fora).
+const OUTSIDE_TIMEOUT := 150.0
+## Final 3: quanto dura a transferência do Zelador para a cápsula (s) e o preto antes de o jogo
+## fechar sozinho (s).
+const SWAP_SECONDS := 9.0
+const SWAP_BLACK_SECONDS := 3.0
+## Créditos: velocidade da rolagem (px/s) e quanto esperam antes de deixar pular (s).
+const CREDITS_SPEED := 38.0
+const CREDITS_SKIP_AFTER := 3.0
+## Bem-vindo de volta (depois do Final 3): o goblin da IA. Atira de até esta distância (m), começa
+## a chegar agachado nesta (m), segura a corda este tempo (s), come abaixo desta fome e volta para
+## a pele nesta hora. Sem dormir, o fim vem depois destas horas de jogo.
+const AUTOPILOT_SHOOT_RANGE := 14.0
+const AUTOPILOT_STALK_RANGE := 32.0
+const AUTOPILOT_DRAW_SECONDS := 1.1
+const AUTOPILOT_EAT_BELOW := 40.0
+const AUTOPILOT_SLEEP_HOUR := 19.5
+const WELCOME_MAX_HOURS := 26.0

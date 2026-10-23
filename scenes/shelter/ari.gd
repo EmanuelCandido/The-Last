@@ -39,6 +39,7 @@ var _footsteps: Footsteps
 var _heart: AudioStreamPlayer
 var _interaction: Node3D
 var _prompt := ""
+var _turn_tween: Tween
 
 
 func _init() -> void:
@@ -200,6 +201,21 @@ func stand_ready(face: Vector3) -> void:
 func look(direction: Vector3) -> void:
 	_yaw = atan2(-direction.x, -direction.z)
 	_pitch = asin(clampf(direction.normalized().y, -1.0, 1.0))
+
+
+## Vira a cabeça devagar até olhar para `point` (no mundo), em `seconds` segundos (as cenas).
+func turn_to(point: Vector3, seconds := 1.0) -> void:
+	var direction := point - camera.global_position
+	var yaw := atan2(-direction.x, -direction.z)
+	var pitch := clampf(asin(clampf(direction.normalized().y, -1.0, 1.0)), -PITCH_LIMIT, PITCH_LIMIT)
+	var from := Vector2(_yaw, _pitch)
+	var to := Vector2(from.x + angle_difference(from.x, yaw), pitch)
+	if _turn_tween != null:
+		_turn_tween.kill()
+	_turn_tween = create_tween()
+	_turn_tween.tween_method(func(view: Vector2) -> void:
+		_yaw = view.x
+		_pitch = view.y, from, to, seconds).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _place_head(weight: float, from: Transform3D, to: Transform3D) -> void:

@@ -40,12 +40,15 @@ func _ready() -> void:
 	add_child(_overlay)
 	_subtitle = Label.new()
 	_subtitle.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_subtitle.anchor_left = 0.1
-	_subtitle.anchor_right = 0.9
+	# Falas compridas (a conversa do Ato IV) quebram em linhas, longe do HUD vital no canto.
+	_subtitle.anchor_left = 0.18
+	_subtitle.anchor_right = 0.82
 	_subtitle.offset_left = 0.0
 	_subtitle.offset_right = 0.0
-	_subtitle.offset_top = -110.0
+	_subtitle.offset_top = -170.0
 	_subtitle.offset_bottom = -70.0
+	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_subtitle.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_subtitle.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_subtitle.add_theme_font_size_override(&"font_size", 22)

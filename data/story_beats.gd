@@ -9,7 +9,9 @@ extends RefCounted
 ##
 ## Gatilhos (`on`): "start", "slept", "woke", "died", "harvested", "ate", "ritual", "objective"
 ## (um objetivo real foi concluído; `reason` = o id), "memory" (passou a memória de um save
-## falso; `reason` = o ciclo dele, ex.: "346").
+## falso; `reason` = o ciclo dele, ex.: "346"), "shelter" (algo no Abrigo; `reason` = "control_room"
+## quando Ari entra na sala de controle, "recordings" quando abre as gravações) e "choice" (um
+## comando dos finais no terminal; `reason` = "ficar", "acordar" ou "trocar").
 ## Condições (`when`, todas precisam valer):
 ##   "act": n, "act_at_least": n, "marks_at_least": n, "flag": nome, "not_flag": nome,
 ##   "counter_at_least": {nome: n}, "reason": motivo do gatilho (ex.: "sleep"),
@@ -19,7 +21,8 @@ extends RefCounted
 ##   {"set_flag": nome}, {"clear_flag": nome}, {"set_act": n}, {"add_note": texto},
 ##   {"notify": texto}, {"flash": n} (passa no escuro do sono ou da morte; 0 = sorteado entre
 ##   os já vistos), {"recycle": motivo}, {"vigilance": n}, {"wake_real": true} (Ari acorda no
-##   Abrigo), {"freeze": true} (o falso travamento antes do próximo wake_real).
+##   Abrigo), {"freeze": true} (o falso travamento antes do próximo wake_real), {"ending": nome}
+##   (um dos finais: "stay", "wake" ou "swap"; quem faz a cena é o Endings).
 ##   Flags automáticos: "flash_<n>_seen" (o flash passou).
 ## Flags que escrevem arquivos de verdade (MetaFiles): "old_save" (ciclo_346.sav) e
 ## "letter_left" (leia_me_se_lembrar.txt).
@@ -48,7 +51,54 @@ const LINES := {
 	&"found": "Aí está você. Volte para a cama, Ari.",
 	&"heard": "Quem está aí? ...Ari?",
 	&"capture": "Shh. Está tudo bem. Durma.",
+	# A conversa (§8), na sala de controle, depois de Ari abrir as gravações.
+	&"confession_1": "Lá fora não sobrou nada, Ari. A Cinza levou a cidade. Aqui você caça, come, dorme. Aqui você é feliz. Eu medi.",
+	&"confession_2": "...Eles voltaram faz sete anos. Chamaram pelo rádio. Eu respondi que não havia ninguém aqui.",
+	&"confession_3": "Se você sair, eu não tenho mais paciente. Sem paciente, o protocolo me desliga. Eu não quero parar, Ari. Eu não sei o que é parar.",
+	&"waiting": "O terminal está aberto. A escolha é sua.",
+	# Os finais.
+	&"thanks": "Obrigado.",
+	&"cold": "Lá fora o ar é frio. Leve a coberta.",
+	&"swap_1": "O que você está fazendo?...",
+	&"swap_2": "Ah. Ah. Está quente.",
 }
+
+## O console do Zelador (§7), no terminal da sala de controle: os comandos que ele mostra.
+const CONSOLE_HELP := """comandos:
+  status                 o paciente e a simulação
+  neblina off | on       a neblina da floresta
+  teleport <lugar>       onde o goblin acorda (caverna, clareira, trilha, ruina, norte)
+  give <item> [n]        cria itens no inventário do goblin
+  ficar                  volta para a floresta. Ele para de apagar.
+  acordar                abre a saída blindada.
+  sair                   fecha o console"""
+
+## Créditos (§8), de cima para baixo. Linha que começa com "#" é título.
+const CREDITS := """#A TOCA
+
+Uma história de EmanuelCandido
+feita com o Claude
+
+#O goblin
+O Goblin da Toca, o livro que a mãe de Ari lia
+
+#Feito com
+Godot 4.7.1 · GDScript
+Blender
+
+#Sons
+Kenney (CC0): passos, flechas, madeira, coleta
+Medieval SFX, OpenGameArt (CC0): o arco
+Freesound (CC0): passos numa estrada de terra
+O resto foi gerado por código
+
+#Texturas, terreno, árvores, bichos
+Gerados por código
+
+#Abrigo 9 · Ala C · Leito 2714
+Ciclos: 347
+
+Para quem ainda conta os dias."""
 
 ## A carta do leia_me_se_lembrar.txt (§7): Ari para Ari. %d = o ciclo; %s = a senha do Final 3.
 const LETTER := """Ari,
@@ -171,7 +221,7 @@ const BEATS: Array[Dictionary] = [
 		# Zelador nota.
 		"id": "death_visit",
 		"on": "died",
-		"when": {"act_at_least": 3},
+		"when": {"act_at_least": 3, "not_flag": "ending_stay"},
 		"repeat": true,
 		"do": [{"vigilance": 20}],
 	},
@@ -181,7 +231,7 @@ const BEATS: Array[Dictionary] = [
 		# para não disparar junto no mesmo ritual).
 		"id": "real_visit",
 		"on": "ritual",
-		"when": {"act_at_least": 3},
+		"when": {"act_at_least": 3, "not_flag": "ending_stay"},
 		"repeat": true,
 		"do": [{"wake_real": true}],
 	},
@@ -218,12 +268,46 @@ const BEATS: Array[Dictionary] = [
 		"when": {"reason": "access_card"},
 		"do": [{"set_act": 4}, {"add_note": "O cartão abre a sala de controle."}],
 	},
+	# --- Ato IV: a verdade (Ari com o cartão; a sala de controle é a "visita R5") ------------
+	{
+		"id": "control_room",
+		"on": "shelter",
+		"when": {"reason": "control_room"},
+		"do": [{"set_flag": "control_room"}, {"add_note": "As câmeras da sala de controle olham para fora."}],
+	},
+	{
+		# O Zelador entra e conta tudo (a cena é do ControlRoom, que reage ao flag).
+		"id": "confession",
+		"on": "shelter",
+		"when": {"reason": "recordings"},
+		"do": [{"set_flag": "confession"}, {"add_note": "Lá fora tem gente. Ele disse que não havia ninguém aqui."}],
+	},
+	{
+		# Final 1: Ari fica. Acabam a Vigilância e a Reciclagem (o Story e o Game olham o flag).
+		"id": "choice_stay",
+		"on": "choice",
+		"when": {"reason": "ficar", "flag": "confession"},
+		"do": [{"set_flag": "ending_stay"}, {"add_note": "Escolhi ficar. A contagem agora é para a frente."}, {"ending": "stay"}],
+	},
+	{
+		"id": "choice_wake",
+		"on": "choice",
+		"when": {"reason": "acordar", "flag": "confession"},
+		"do": [{"set_flag": "ending_wake"}, {"ending": "wake"}],
+	},
+	{
+		# Final 3, o secreto: só com a senha da carta (o terminal confere antes).
+		"id": "choice_swap",
+		"on": "choice",
+		"when": {"reason": "trocar", "flag": "confession"},
+		"do": [{"set_flag": "ending_swap"}, {"ending": "swap"}],
+	},
 	# --- Reciclagem ----------------------------------------------------------------------
 	{
 		# A carne do cervo branco é o sedativo: comer reinicia o ciclo. Toda vez.
 		"id": "white_meat_recycle",
 		"on": "ate",
-		"when": {"reason": "white_meat"},
+		"when": {"reason": "white_meat", "not_flag": "ending_stay"},
 		"repeat": true,
 		"do": [{"recycle": "white_meat"}],
 	},

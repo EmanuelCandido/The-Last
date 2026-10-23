@@ -24,8 +24,8 @@ func has_save() -> bool:
 
 
 func save_game() -> bool:
-	# Acordado no Abrigo não dá para salvar (§6.2).
-	if Game.current_level == null or Game.awake:
+	# Acordado no Abrigo não dá para salvar (§6.2); o goblin da IA (Bem-vindo de volta) nunca salva.
+	if Game.current_level == null or Game.awake or Game.welcome:
 		return false
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -35,17 +35,38 @@ func save_game() -> bool:
 	return true
 
 
-func load_game() -> bool:
+## Carrega o save. `fresh` = numa fase nova (Continuar, do menu): o estado global entra antes, para a
+## floresta já nascer como o save deixou (o vazio do norte, a porta da ruína...).
+func load_game(fresh := false) -> bool:
 	if not has_save():
 		return false
 	var payload: Variant = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
 	if payload is not Dictionary:
 		push_error("Save corrompido: %s" % SAVE_PATH)
 		return false
+	if fresh:
+		var globals: Dictionary = (payload as Dictionary).get("globals", {})
+		for key: String in _globals():
+			_globals()[key].load_data(globals.get(key, {}))
+		var level_path: String = (payload as Dictionary).get("level", "")
+		if ResourceLoader.exists(level_path):
+			Game.change_level(level_path, false)
 	if not restore(payload):
 		return false
 	MetaFiles.ensure()
 	return true
+
+
+## Apaga o save (Novo jogo).
+func delete_save() -> void:
+	if has_save():
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+
+
+## Volta o estado global ao começo do jogo (o que load_data({}) dá).
+func reset_globals() -> void:
+	for key: String in _globals():
+		_globals()[key].load_data({})
 
 
 ## "Dia 4 · Ciclo 347", lido do save no disco ("" sem save).

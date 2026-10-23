@@ -62,6 +62,9 @@ func _process(_delta: float) -> void:
 	var north := _void.openness(at)
 	var fog := lerpf(_outdoor_fog_density, _outdoor_fog_density * 0.35, _ambience.indoor)
 	_environment.fog_density = lerpf(fog, Tuning.NORTH_FOG_DENSITY, north)
+	# O console do Zelador (§7): "neblina off" mostra o mundo como ele é, cortado na distância.
+	if Story.has_flag(&"fog_off"):
+		_environment.fog_density = 0.0
 	_environment.fog_sky_affect = lerpf(_fog_sky_affect, 0.1, north)
 	_environment.fog_light_energy = lerpf(1.0, 0.55, _ambience.indoor)
 	_day_night.void_amount = north * Tuning.VOID_SKY_DARKNESS
@@ -102,7 +105,7 @@ func hit_tree(id: int, from: Vector3) -> bool:
 
 
 func _on_level_loaded(level: Node3D) -> void:
-	if level != self or Game.player == null or DevTools.skip_intro:
+	if level != self or Game.player == null or DevTools.skip_intro or not Game.play_intro:
 		return
 	Events.screen_fade_requested.emit(1.0, 0.0)
 	Events.screen_fade_requested.emit(0.0, 5.0)

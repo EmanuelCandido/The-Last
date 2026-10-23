@@ -1,15 +1,17 @@
 extends Node
 ## Estado global da partida: fase atual, jogador, pausa, captura do mouse, o ouvido, a
-## passagem da noite (dormir e morrer), os flashes, a ida e volta ao mundo real (o Abrigo) e as
-## cenas do mistério meta (o falso travamento e a memória do ciclo 346).
+## passagem da noite (dormir e morrer), os flashes, a ida e volta ao mundo real (o Abrigo), as
+## cenas do mistério meta (o falso travamento e a memória do ciclo 346), o menu principal e os
+## finais (quem faz as cenas é o Endings, filho daqui).
 
 const FIRST_LEVEL := "res://scenes/levels/forest/forest.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const RECYCLE_SHADER := preload("res://assets/shaders/recycle.gdshader")
 const BEEP := preload("res://assets/audio/sfx/monitor_beep.wav")
 
-## Nó onde as fases são instanciadas. Definido pela cena Main.
+## Nó onde as fases são instanciadas e a camada da interface. Definidos pela cena Main.
 var level_root: Node3D
+var ui_root: CanvasLayer
 var current_level: Node3D
 var player: Player
 ## Dormindo ou desmaiado: relógio e corpo param, e não dá para dormir de novo.
@@ -22,6 +24,16 @@ var cutscene := false
 var shelter: Shelter
 ## A visão borrada de Ari (flashes e o despertar na cápsula).
 var vision: BlurredVision
+## O menu principal está aberto (a floresta fica atrás, vista de fora da caverna).
+var menu_open := false
+## Bem-vindo de volta (depois do Final 3): o goblin é da IA, e nada é salvo.
+var welcome := false
+## O final passando agora ("stay", "wake", "swap"; vazio = nenhum).
+var ending := &""
+## O console do Zelador escolheu onde o goblin acorda (Vector2.INF = onde estava).
+var forest_teleport := Vector2.INF
+## A próxima fase começa com o goblin acordando na pele (a fase lê; change_level põe).
+var play_intro := true
 
 ## O ouvido: um passa-baixa no Master que abre junto com o volume (ver open_ears).
 var _ear_filter := AudioEffectLowPassFilter.new()
@@ -39,6 +51,8 @@ var _leaving := false
 var _pending_recycle := &""
 ## Um beat pediu o falso travamento: o próximo despertar no Abrigo começa por ele.
 var _pending_freeze := false
+var _menu: MainMenu
+var _menu_camera: Camera3D
 
 
 func _ready() -> void:
@@ -54,21 +68,26 @@ func _ready() -> void:
 	Events.flash_requested.connect(func(number: int) -> void: _pending_flash = number)
 	Events.real_wake_requested.connect(wake_in_shelter)
 	Events.fake_freeze_requested.connect(func() -> void: _pending_freeze = true)
+	var endings := Endings.new()
+	endings.name = "Endings"
+	add_child(endings)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
-		if not cutscene:
+		if not cutscene and not menu_open:
 			set_paused(not get_tree().paused)
 		get_viewport().set_input_as_handled()
-	elif event is InputEventMouseButton and event.pressed and not get_tree().paused:
+	elif event is InputEventMouseButton and event.pressed and not get_tree().paused and not menu_open and not cutscene:
 		# Recaptura o mouse se o jogador clicar na janela depois de soltar o cursor.
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
-## Troca a fase atual e cria o jogador no Marker3D "PlayerSpawn" da nova fase.
-func change_level(path: String) -> void:
+## Troca a fase atual e cria o jogador no Marker3D "PlayerSpawn" da nova fase. `intro` = o goblin
+## acorda na pele (a fase faz a cena).
+func change_level(path: String, intro := true) -> void:
 	assert(level_root != null, "Game.level_root precisa ser definido antes de trocar de fase.")
+	play_intro = intro
 	if awake:
 		return_to_forest(true)
 	_pending_flash = -1
@@ -133,7 +152,7 @@ func pass_out(reason: StringName) -> void:
 			Inventory.remove(food, Inventory.count(food))
 		# Do Ato III em diante a morte acorda Ari de verdade: uma visita curta (§4), e o
 		# goblin volta na pele da caverna.
-		if Story.act >= Tuning.DEATH_VISIT_ACT:
+		if Story.act >= Tuning.DEATH_VISIT_ACT and not Story.has_flag(&"ending_stay"):
 			_pending_flash = -1
 			player.respawn()
 			resting = false
@@ -166,7 +185,8 @@ func pass_out(reason: StringName) -> void:
 ## afina até sobrar o bipe, e Ari acorda no dia 1: o Story avança o ciclo, o inventário
 ## zera, o corpo volta novo e a fase é recarregada (o arco volta para o chão da caverna).
 func recycle(reason: StringName) -> void:
-	if player == null:
+	# Depois do Final 1 o Zelador não apaga mais nada.
+	if player == null or Story.has_flag(&"ending_stay"):
 		return
 	if resting or awake:
 		_pending_recycle = reason
@@ -362,6 +382,26 @@ func return_to_forest(instant := false) -> void:
 	_recycle_if_pending()
 
 
+## O Final 1 (§8): Ari escolheu voltar. A tela escurece onde ele está, e a floresta volta sem a
+## cena da cápsula.
+func leave_shelter_by_choice() -> void:
+	Events.screen_fade_requested.emit(1.0, 2.0)
+	close_ears(2.0)
+	await get_tree().create_timer(2.4, false).timeout
+	return_to_forest(true)
+	Events.screen_fade_requested.emit(1.0, 0.0)
+	Events.screen_fade_requested.emit(0.0, 4.0)
+	open_ears(5.0, -36.0, 220.0)
+
+
+## O Final 3 fecha o jogo sozinho (num roteiro de teste, só avisa).
+func quit_after_swap() -> void:
+	if DevTools.scripted:
+		print("[Game] O jogo fecharia agora (Final 3).")
+		return
+	get_tree().quit()
+
+
 ## Ari apagou no Abrigo: a lucidez acabou (`reason` "fainted") ou o Zelador o sedou
 ## ("captured"). O que foi feito nesta visita se perde (o Zelador conserta enquanto Ari dorme),
 ## a Vigilância sobe e o goblin acorda na pele da caverna.
@@ -410,6 +450,15 @@ func _leave_shelter() -> void:
 	_set_forest_active(true)
 	if is_instance_valid(_forest_camera):
 		_forest_camera.make_current()
+	# O console do Zelador mandou o goblin acordar em outro lugar.
+	if forest_teleport != Vector2.INF and player != null and current_level.has_method("ground_height"):
+		var at := Vector3(forest_teleport.x, current_level.ground_height(forest_teleport.x, forest_teleport.y) + 0.1, forest_teleport.y)
+		forest_teleport = Vector2.INF
+		if player.lying:
+			player.get_up(at)
+		else:
+			player.global_position = at
+			player.velocity = Vector3.ZERO
 	awake = false
 	_leaving = false
 	Events.prompt_changed.emit("")
@@ -434,9 +483,108 @@ func _beep() -> void:
 	sound.finished.connect(sound.queue_free)
 
 
+# --- O menu principal --------------------------------------------------------------------------
+
+## Abre o menu principal (§8): a floresta carregada atrás, vista de fora da caverna, sem o goblin
+## acordar.
+func open_menu() -> void:
+	menu_open = true
+	change_level(FIRST_LEVEL, false)
+	if player != null:
+		player.set_controls_enabled(false)
+	_menu_camera = Camera3D.new()
+	_menu_camera.name = "MenuCamera"
+	_menu_camera.fov = 60.0
+	current_level.add_child(_menu_camera)
+	var ground := func(x: float, z: float) -> float: return current_level.ground_height(x, z) if current_level.has_method("ground_height") else 0.0
+	var eye := Vector3(5.5, float(ground.call(5.5, 50.0)) + 1.8, 50.0)
+	var mouth := Vector3(-0.5, float(ground.call(0.0, 64.0)) + 2.4, 66.0)
+	_menu_camera.look_at_from_position(eye, mouth)
+	_menu_camera.make_current()
+	_menu = MainMenu.new()
+	_menu.name = "MainMenu"
+	ui_root.add_child(_menu)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Events.screen_fade_requested.emit(1.0, 0.0)
+	Events.screen_fade_requested.emit(0.0, 2.5)
+	open_ears(3.0)
+
+
+## Novo jogo: o save e os arquivos de fora são apagados e a história começa do zero.
+func start_new_game() -> void:
+	_close_menu()
+	SaveSystem.delete_save()
+	MetaFiles.remove_all()
+	MetaFiles.forget_endings()
+	SaveSystem.reset_globals()
+	change_level(FIRST_LEVEL)
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	Events.game_started.emit()
+
+
+## Continuar: carrega o save numa floresta nova (ela nasce como o save deixou).
+func continue_game() -> void:
+	_close_menu()
+	if not SaveSystem.load_game(true):
+		SaveSystem.reset_globals()
+		change_level(FIRST_LEVEL)
+	Events.screen_fade_requested.emit(1.0, 0.0)
+	Events.screen_fade_requested.emit(0.0, 2.0)
+	open_ears(2.5)
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	Events.game_started.emit()
+
+
+## Bem-vindo de volta (§8, depois do Final 3): um goblin acorda na caverna e a IA joga por ele.
+func start_welcome() -> void:
+	_close_menu()
+	welcome = true
+	SaveSystem.reset_globals()
+	change_level(FIRST_LEVEL)
+	var watcher := WelcomeBack.new()
+	watcher.name = "WelcomeBack"
+	current_level.add_child(watcher)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Events.game_started.emit()
+
+
+## Novo ciclo (depois de assistir ao goblin da IA): esquece tudo e começa de novo.
+func new_cycle() -> void:
+	welcome = false
+	start_new_game()
+
+
+## Volta para o menu principal (depois dos créditos, ou do fim do Bem-vindo de volta).
+func back_to_menu() -> void:
+	if get_tree().paused:
+		set_paused(false)
+	if awake:
+		return_to_forest(true)
+	if shelter != null and shelter.outside != null:
+		shelter.outside.queue_free()
+		shelter.outside = null
+	cutscene = false
+	welcome = false
+	ending = &""
+	forest_teleport = Vector2.INF
+	vision.clear()
+	SaveSystem.reset_globals()
+	open_menu()
+
+
+func _close_menu() -> void:
+	menu_open = false
+	if _menu != null:
+		_menu.queue_free()
+		_menu = null
+	if is_instance_valid(_menu_camera):
+		_menu_camera.queue_free()
+	_menu_camera = null
+
+
 func set_paused(paused: bool) -> void:
 	get_tree().paused = paused
-	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if paused else Input.MOUSE_MODE_CAPTURED
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if paused or welcome else Input.MOUSE_MODE_CAPTURED
 	Events.game_paused.emit(paused)
 
 

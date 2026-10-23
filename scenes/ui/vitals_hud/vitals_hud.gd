@@ -63,7 +63,8 @@ func _process(delta: float) -> void:
 		bpm = lerpf(96.0, 132.0, hurt)
 		holding = Game.player.breath_held
 		spo2_rest -= 5.0 * hurt
-	if Game.in_flash():
+	# Nos flashes e no menu, nada; no Final 2, Ari subindo a escada já não está ligado ao monitor.
+	if Game.in_flash() or Game.menu_open or (shelter != null and shelter.outside != null and shelter.outside.progress() > 0.05):
 		target = 0.0
 	_alpha = move_toward(_alpha, target, delta * 1.5)
 	modulate.a = _alpha

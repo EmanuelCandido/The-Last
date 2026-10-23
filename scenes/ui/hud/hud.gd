@@ -11,6 +11,7 @@ extends Control
 @export var notice_duration := 3.5
 
 var _notice_tween: Tween
+var _hint_tween: Tween
 
 @onready var _debug_label: Label = %DebugLabel
 @onready var _controls_hint: Label = $ControlsHint
@@ -34,9 +35,9 @@ func _ready() -> void:
 	var vitals := VitalsHud.new()
 	vitals.name = "Vitals"
 	add_child(vitals)
-	var tween := create_tween()
-	tween.tween_interval(hint_duration)
-	tween.tween_property(_controls_hint, "modulate:a", 0.0, 2.0)
+	_show_hint()
+	# O menu principal fecha: as dicas de controle aparecem de novo para quem chega.
+	Events.game_started.connect(_show_hint)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -50,11 +51,12 @@ func _process(_delta: float) -> void:
 	if aiming:
 		_crosshair.queue_redraw()
 	# No mundo real (acordado ou num flash), o inventário e as teclas do goblin não existem; nas
-	# cenas do mistério (o travamento, a memória), nada do HUD.
-	var real := Game.awake or Game.in_flash() or Game.cutscene
+	# cenas do mistério (o travamento, a memória), no menu e com o goblin da IA, nada do HUD.
+	var watching := Game.cutscene or Game.menu_open or Game.welcome
+	var real := Game.awake or Game.in_flash() or watching
 	_items.visible = not real
 	_controls_hint.visible = not real
-	_prompt.visible = not Game.cutscene
+	_prompt.visible = not watching
 	_update_vignette()
 	if not _debug_label.visible:
 		return
@@ -64,6 +66,15 @@ func _process(_delta: float) -> void:
 		Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
 		Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0,
 	]
+
+
+func _show_hint() -> void:
+	if _hint_tween != null:
+		_hint_tween.kill()
+	_controls_hint.modulate.a = 1.0
+	_hint_tween = create_tween()
+	_hint_tween.tween_interval(hint_duration)
+	_hint_tween.tween_property(_controls_hint, "modulate:a", 0.0, 2.0)
 
 
 ## Ponto no centro e um anel que fecha conforme a corda é puxada.
@@ -90,7 +101,7 @@ func _update_vignette() -> void:
 	var hurt := clampf((Tuning.LOW_HEALTH - Vitals.health) / Tuning.LOW_HEALTH, 0.0, 1.0)
 	if Vitals.satiety <= 0.0:
 		hurt = maxf(hurt, 0.3)
-	_vignette.visible = hurt > 0.0 and Game.player != null and not Game.awake
+	_vignette.visible = hurt > 0.0 and Game.player != null and not Game.awake and not Game.menu_open
 	if not _vignette.visible:
 		return
 	var beat := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 1000.0 * TAU * lerpf(1.1, 2.0, hurt))

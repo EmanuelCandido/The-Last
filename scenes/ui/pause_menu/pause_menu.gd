@@ -1,5 +1,6 @@
 extends Control
-## Menu de pausa: continuar, salvar, carregar, dicas e sair. Só aparece com o jogo pausado.
+## Menu de pausa: continuar, salvar, carregar, dicas, menu principal e sair. Só aparece com o jogo
+## pausado.
 ## Do mistério meta (§7): com o ciclo_346.sav no disco, "Carregar" abre a lista de saves; com a
 ## carta no disco, aparece "Abrir pasta do jogo".
 
@@ -77,6 +78,7 @@ const NOTES_COLOR := "#d9c27a"
 @onready var _tips_text: RichTextLabel = %TipsText
 
 var _folder_button: Button
+var _menu_button: Button
 var _slots: PanelContainer
 var _slot_real: Button
 var _slot_old: Button
@@ -98,15 +100,21 @@ func _ready() -> void:
 	_folder_button.text = "Abrir pasta do jogo"
 	_folder_button.pressed.connect(MetaFiles.open_game_folder)
 	_tips_button.add_sibling(_folder_button)
+	_menu_button = Button.new()
+	_menu_button.name = "MenuButton"
+	_menu_button.text = "Menu principal"
+	_menu_button.pressed.connect(Game.back_to_menu)
+	_quit_button.add_sibling(_menu_button)
+	_quit_button.get_parent().move_child(_menu_button, _quit_button.get_index())
 	_build_slots()
 
 
 func _on_game_paused(paused: bool) -> void:
 	visible = paused
 	if paused:
-		_status_label.text = "Acordado, não dá para salvar." if Game.awake else ""
-		_save_button.disabled = Game.awake
-		_load_button.disabled = not SaveSystem.has_save() and not MetaFiles.has_old_save()
+		_status_label.text = "Acordado, não dá para salvar." if Game.awake else ("Bem-vindo de volta." if Game.welcome else "")
+		_save_button.disabled = Game.awake or Game.welcome
+		_load_button.disabled = Game.welcome or (not SaveSystem.has_save() and not MetaFiles.has_old_save())
 		_folder_button.visible = MetaFiles.has_letter()
 		_state_label.text = _state_text()
 		_tips_text.text = _tips_with_notes()

@@ -65,3 +65,9 @@ signal ritual_completed(place: StringName)
 
 ## O goblin fabricou algo da lista (R). `recipe`: o id em Recipes ("arrows", "clothes"...).
 signal crafted(recipe: StringName)
+
+## Um beat pediu um dos finais (§8): "stay", "wake" ou "swap" (quem faz a cena é o Endings).
+signal ending_requested(ending: StringName)
+
+## Uma partida começou de verdade (o menu principal fechou): o HUD volta a mostrar as dicas.
+signal game_started

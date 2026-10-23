@@ -7,6 +7,8 @@ extends Node3D
 ##
 ## A parede é irregular: cada grupo acha o seu ponto com um raio. Os raios esperam a
 ## primeira volta da física, porque a casca da caverna é montada depois do _ready.
+## Depois do Final 1 (ficar), as noites viram outra contagem, à direita (Story.forward_marks): um
+## risco deitado com a ponta para a frente, um por noite, sem grupos de cinco.
 ## Coordenadas da parede: u = z local da caverna (cresce para a direita de quem olha a
 ## parede), v = altura acima do chão.
 
@@ -21,6 +23,7 @@ const RAY_LENGTH := 4.0
 ## Áreas (u, v, largura, altura) dos riscos antigos e dos deste ciclo.
 const OLD_AREA := Rect2(-3.85, 0.22, 2.3, 0.72)
 const NEW_AREA := Rect2(-1.45, 0.3, 0.55, 0.68)
+const FORWARD_AREA := Rect2(-0.8, 0.3, 0.6, 0.68)
 ## Tamanho de um grupo de cinco e o espaço entre grupos.
 const GROUP_SIZE := Vector2(0.09, 0.085)
 const NEW_GAP := Vector2(0.05, 0.035)
@@ -57,6 +60,8 @@ var _ready_to_build := false
 ## Ponto e normal de cada grupo, por área: [[ponto, normal], ...] em espaço local.
 var _old_slots: Array = []
 var _new_slots: Array = []
+var _forward_slots: Array = []
+var _forward_mesh: MeshInstance3D
 var _old_mesh: MeshInstance3D
 var _new_mesh: MeshInstance3D
 var _moss: MeshInstance3D
@@ -74,6 +79,7 @@ func _ready() -> void:
 	_old_mesh = _add_mesh_node("OldMarks")
 	_new_mesh = _add_mesh_node("Marks")
 	_word_mesh = _add_mesh_node("Word")
+	_forward_mesh = _add_mesh_node("ForwardMarks")
 	Story.changed.connect(_refresh)
 	Story.flag_changed.connect(_on_flag_changed)
 	await get_tree().physics_frame
@@ -81,6 +87,7 @@ func _ready() -> void:
 	var space := get_world_3d().direct_space_state
 	_old_slots = _cast_slots(space, OLD_AREA, OLD_GAP)
 	_new_slots = _cast_slots(space, NEW_AREA, NEW_GAP)
+	_forward_slots = _cast_slots(space, FORWARD_AREA, NEW_GAP)
 	_ready_to_build = true
 	_refresh()
 
@@ -91,6 +98,8 @@ func _refresh() -> void:
 	_old_mesh.mesh = _build_marks(_old_slots, Story.old_marks, true)
 	_new_mesh.mesh = _build_marks(_new_slots, Story.marks, false)
 	_new_mesh.visible = not _hidden
+	_forward_mesh.mesh = _build_forward(Story.forward_marks)
+	_forward_mesh.visible = not _hidden
 	if _moss != null:
 		_moss.visible = not _hidden
 	if _moss_falling:
@@ -116,6 +125,17 @@ func _on_flag_changed(flag: StringName, value: bool) -> void:
 func hide_marks(hidden: bool) -> void:
 	_hidden = hidden
 	_refresh()
+
+
+## Onde fica o meio de `text` riscado na parede: [ponto, normal] no mundo (vazio se não achar).
+func word_spot(text: String) -> Array:
+	if not _ready_to_build:
+		return []
+	var center := WORD_START + Vector2(((text.length() - 1) * 0.5 + 0.32) * LETTER_HEIGHT, LETTER_HEIGHT * 0.5)
+	var hit := _wall_at(get_world_3d().direct_space_state, center.x, center.y)
+	if hit.is_empty():
+		return []
+	return [to_global(hit[0]), (global_basis * (hit[1] as Vector3)).normalized()]
 
 
 ## Risca `text` na parede, na altura dos riscos antigos, até a fração `amount` dos traços (o
@@ -218,6 +238,30 @@ func _build_marks(slots: Array, count: int, old: bool) -> ArrayMesh:
 			weathering = cycle_rng.randf_range(0.35, 0.8)
 		var color := FRESH_COLOR.lerp(ROCK_COLOR, weathering)
 		_add_group(st, slot[0], slot[1], strokes, color, rng)
+	st.generate_normals()
+	return st.commit()
+
+
+## A contagem para a frente: um risco deitado por noite, com a ponta virada para a direita.
+func _build_forward(count: int) -> ArrayMesh:
+	var marks := mini(count, _forward_slots.size())
+	if marks == 0:
+		return null
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+	for i in marks:
+		var slot: Array = _forward_slots[i]
+		var normal: Vector3 = slot[1]
+		var right := (Vector3.BACK - normal * normal.dot(Vector3.BACK)).normalized()
+		var up := normal.cross(right)
+		var origin: Vector3 = slot[0] + normal * MARK_LIFT
+		var tilt := rng.randf_range(-0.004, 0.004)
+		var color := FRESH_COLOR.darkened(rng.randf_range(0.0, 0.12))
+		_add_stroke(st, origin, right, up, Vector2(-0.034, -tilt), Vector2(0.03, tilt), color)
+		_add_stroke(st, origin, right, up, Vector2(0.03, tilt), Vector2(0.012, tilt + 0.016), color)
+		_add_stroke(st, origin, right, up, Vector2(0.03, tilt), Vector2(0.012, tilt - 0.016), color)
 	st.generate_normals()
 	return st.commit()
 

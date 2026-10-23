@@ -575,6 +575,15 @@ O terminal mostra os comandos disponíveis.
   - um goblin acorda na caverna, controlado pela IA (os mesmos sistemas dos bichos), e caça.
 - **Depois de 1 dia de jogo:** o goblin olha para a câmera, os riscos na parede formam **OBRIGADO** e o menu ganha "Novo ciclo" (novo jogo).
 
+**Feito (F8):**
+- **Sala de controle (`ControlRoom`):** o leitor de cartão abre a porta; dentro, o terminal, o rádio, as 4 telas (`camera_feed.gdshader`: mercado, telhados com fumaça, rua e portão, com gente; data 17/06/2039, seis anos depois da ordem de evacuação de 02/10/2033 presa na parede), o servidor da simulação e as luzes dele. "Abrir as gravações" liga as telas, o beat `confession` e a conversa: o Zelador entra (estado `TALK`) e diz as três falas. Daí em diante a lucidez não acaba e o terminal abre o console.
+- **Console (`KeeperConsole`):** `status`, `neblina off|on`, `teleport`, `give`, `ficar`, `acordar` e `trocar <senha>` (não aparece na ajuda).
+- **Os finais (`Endings`, ação de beat `ending`):** como descritos acima. No Final 1, o flag `ending_stay` desliga a Vigilância, a Reciclagem, o ritual e a visita da morte, e cada noite vira uma seta na parede (`Story.forward_marks`). No Final 2, a escada e a rua de Vilarrasa são o `Outside`, montado por código como o Abrigo. No Final 3, o jogo fecha sozinho.
+- **Fora do save:** `user://toca.cfg` guarda o título (`MetaFiles.title_mode`) e se o Bem-vindo de volta já foi assistido.
+- **Menu principal (`MainMenu`):** sobre a floresta de verdade. Continuar, Novo jogo (com confirmação: apaga o save, a carta, o `ciclo_346.sav` e os finais) e Sair; no modo "Bem-vindo de volta", Assistir, Novo ciclo e Sair.
+- **Bem-vindo de volta:** `WelcomeBack` e a IA do goblin (`GoblinAutopilot`), que joga pelas mesmas ações do `Input`.
+- **Roteiro:** os três finais, o Bem-vindo de volta e o menu de ponta a ponta, um caso por vez.
+
 ---
 
 ## 9. Maleabilidade: como mudar o plano sem quebrar o jogo
@@ -647,7 +656,7 @@ Cada fase termina jogável, com teste de fumaça, roteiro `--run` e print confer
 | **F5: O Abrigo** ✅ feita | Cena do Abrigo, controle em primeira pessoa, troca de mundo, flashes 1–3, shader de visão borrada | Flash 1 ao dormir no Ato II; ida e volta sem perder estado |
 | **F6: O Zelador** ✅ feita | Componente `Senses`, IA e ronda do Zelador, lucidez, captura, R1–R4 e os efeitos na floresta, Reciclagem | Fazer R1–R4 em sequência; ser pego desfaz o certo |
 | **F7: Mistério meta** ✅ feita | Anotações, `ciclo_346.sav` e a memória, `leia_me`, falso travamento, sons vazando, HUD vital, voz do Zelador | Cada item do §7 disparado pelo seu beat |
-| **F8: Verdade e finais** | Sala de controle, câmeras, conversa, terminal, os 3 finais, créditos, menu principal, modo "Bem-vindo de volta" | Os 3 finais jogados de ponta a ponta |
+| **F8: Verdade e finais** ✅ feita | Sala de controle, câmeras, conversa, terminal, os 3 finais, créditos, menu principal, modo "Bem-vindo de volta" | Os 3 finais jogados de ponta a ponta |
 
 ---
 
