@@ -2,11 +2,12 @@ shader_type canvas_item;
 // Visão de quem acorda dopado (flashes e o despertar na cápsula, §7): a imagem borra, as
 // cores se separam nas bordas, uma segunda imagem fantasma escorrega por cima, a borda
 // escurece e as pálpebras pesam. `amount` 0 = visão limpa; `lids` 0 = olhos abertos,
-// 1 = fechados.
+// 1 = fechados; `tunnel` fecha a visão pelas bordas (a lucidez acabando).
 
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear_mipmap;
 uniform float amount : hint_range(0.0, 1.0) = 1.0;
 uniform float lids : hint_range(0.0, 1.0) = 0.0;
+uniform float tunnel : hint_range(0.0, 1.0) = 0.0;
 uniform float aspect = 1.7778;
 
 vec3 blurred(vec2 uv, float lod, float spread) {
@@ -41,6 +42,7 @@ void fragment() {
 	float vignette = smoothstep(1.05, 0.3, edge);
 	color *= mix(1.0, vignette, 0.75 * amount + 0.15);
 	color += vec3(0.05, 0.07, 0.06) * amount * (1.0 - edge);
+	color *= 1.0 - tunnel * smoothstep(0.85 - tunnel * 0.6, 1.1 - tunnel * 0.5, edge);
 	// Pálpebras: bordas de cima e de baixo fechando, mais abertas no meio que nos cantos.
 	float lid_edge = 0.5 - lids * 0.52 - from_center.x * from_center.x * 0.7 * lids;
 	float open = smoothstep(lid_edge, lid_edge - 0.08, abs(from_center.y));

@@ -10,7 +10,11 @@ extends Node3D
 @onready var _spawn: Marker3D = $PlayerSpawn
 @onready var _debris: GPUParticles3D = $WindDebris
 @onready var _environment: Environment = $WorldEnvironment.environment
+@onready var _day_night: DayNight = $DayNight
 @onready var _outdoor_fog_density := _environment.fog_density
+@onready var _fog_sky_affect := _environment.fog_sky_affect
+
+var _void: NorthVoid
 
 
 func _ready() -> void:
@@ -28,6 +32,10 @@ func _ready() -> void:
 	add_child(ruin)
 	ruin.build(_terrain)
 	_vegetation.populate(_terrain)
+	_void = NorthVoid.new()
+	_void.name = "NorthVoid"
+	add_child(_void)
+	_void.build(_terrain, _vegetation)
 	var half := ForestLayout.TERRAIN_SIZE * 0.5
 	Wind.set_exposure(_terrain.build_wind_exposure(), Rect2(-half, -half, half * 2.0, half * 2.0))
 	_ambience.vegetation = _vegetation
@@ -49,9 +57,14 @@ func _process(_delta: float) -> void:
 	_debris.amount_ratio = (1.0 - ForestLayout.cave_interior(Vector2(at.x, at.z))) * clampf(strength * 1.3, 0.1, 1.0)
 	var push := Wind.direction * (0.6 + strength * 2.4)
 	(_debris.process_material as ParticleProcessMaterial).gravity = Vector3(push.x, -0.35, push.y)
-	# Dentro da caverna a neblina cinza lavaria as paredes escuras: afina e escurece.
-	_environment.fog_density = lerpf(_outdoor_fog_density, _outdoor_fog_density * 0.35, _ambience.indoor)
+	# Dentro da caverna a neblina cinza lavaria as paredes escuras: afina e escurece. Com o
+	# clima cortado (R3), no setor norte ela quase some e o vazio aparece.
+	var north := _void.openness(at)
+	var fog := lerpf(_outdoor_fog_density, _outdoor_fog_density * 0.35, _ambience.indoor)
+	_environment.fog_density = lerpf(fog, Tuning.NORTH_FOG_DENSITY, north)
+	_environment.fog_sky_affect = lerpf(_fog_sky_affect, 0.1, north)
 	_environment.fog_light_energy = lerpf(1.0, 0.55, _ambience.indoor)
+	_day_night.void_amount = north * Tuning.VOID_SKY_DARKNESS
 
 
 ## Tipo de chão para os passos (usado pelo componente Footsteps).

@@ -5,10 +5,14 @@ extends Node
 ## rápido, e liga "<flag>_seen". Nenhuma interrompe o jogo: tem que parecer bug ou estilo.
 ##
 ## Do Ato II em diante, os vazamentos repetem: o bipe às vezes à noite na caverna e o
-## ventilador nas rajadas fortes.
+## ventilador nas rajadas fortes. Do Ato III em diante, quando a Vigilância dá um salto, a voz
+## do Zelador sai de dentro da rocha, embaixo do goblin, onde não há nada.
 
 const BEEP := preload("res://assets/audio/sfx/monitor_beep.wav")
 const FAN := preload("res://assets/audio/sfx/fan_hum.wav")
+const KEEPER_VOICE := preload("res://assets/audio/sfx/keeper_voice_2.wav")
+## Segundos entre o salto da Vigilância e a voz (deixa o goblin acordar, se foi isso).
+const ROCK_VOICE_DELAY := 4.0
 
 var watchers: Watchers
 
@@ -16,10 +20,23 @@ var _fan_cooldown := 0.0
 ## Noite (dia em que começou) em que já se sorteou o bipe vazando.
 var _beep_night := -1
 var _beep_at := -1.0
+var _last_vigilance := 0.0
+var _rock_cooldown := 0.0
+var _rock_voice_in := -1.0
+
+
+func _ready() -> void:
+	_last_vigilance = Story.vigilance
+	Story.vigilance_changed.connect(_on_vigilance)
 
 
 func _process(delta: float) -> void:
 	var player := Game.player
+	_rock_cooldown = maxf(_rock_cooldown - delta, 0.0)
+	if _rock_voice_in >= 0.0 and player != null and not Game.resting:
+		_rock_voice_in -= delta
+		if _rock_voice_in < 0.0:
+			_rock_voice(player)
 	if player == null or Game.resting or not player.can_act():
 		return
 	_fan_cooldown = maxf(_fan_cooldown - delta, 0.0)
@@ -115,6 +132,25 @@ func _leaks(player: Player) -> void:
 	if _beep_at >= 0.0 and _indoor(player) > 0.8 and _night_progress() >= _beep_at:
 		_beep_at = -1.0
 		_beeps()
+
+
+func _on_vigilance(value: float) -> void:
+	var rise := value - _last_vigilance
+	_last_vigilance = value
+	if Story.act >= 3 and rise >= Tuning.KEEPER_ROCK_VOICE_RISE and _rock_cooldown <= 0.0:
+		_rock_cooldown = Tuning.KEEPER_ROCK_VOICE_COOLDOWN
+		_rock_voice_in = ROCK_VOICE_DELAY
+
+
+## A voz vem de dentro do chão, ao lado do goblin: a rocha abafa (OccludedAudio).
+func _rock_voice(player: Player) -> void:
+	var level := Game.current_level
+	var angle := randf() * TAU
+	var at := player.global_position + Vector3(cos(angle), 0.0, sin(angle)) * 3.0
+	if level != null and level.has_method("ground_height"):
+		at.y = float(level.ground_height(at.x, at.z)) - 1.5
+	OccludedAudio.play_at(self, KEEPER_VOICE, at, &"World", 2.0, 5.0, 0.95)
+	Game.vision.say(StoryBeats.LINES[&"rock"], 3.6)
 
 
 ## Quanto da noite fechada já passou (0 às 20h30 .. 1 às 5h).

@@ -301,8 +301,7 @@ func _sense(dt: float) -> void:
 
 
 func _line_of_sight(from: Vector3, to: Vector3) -> bool:
-	var query := PhysicsRayQueryParameters3D.create(from, to, SIGHT_MASK)
-	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+	return Senses.line_of_sight(get_world_3d().direct_space_state, from, to, SIGHT_MASK)
 
 
 func _on_noise(at: Vector3, radius: float) -> void:

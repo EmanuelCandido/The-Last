@@ -6,6 +6,7 @@ extends Node3D
 ## - espiões: de tempos em tempos um corvo pousa perto do goblin e fica olhando
 ##   (com Vigilância alta, o dobro de vezes e mais perto);
 ## - o cervo branco: com Vigilância ≥ Tuning.VIGILANCE_WHITE_DEER, um por dia.
+## Do Ato III em diante, parte dos espiões fala com a voz do Zelador.
 ## Quem precisa saber se o Zelador está vendo pergunta Watchers.watching(ponto).
 ## A pista do corvo que encara (Clues) também pousa um corvo daqui.
 
@@ -138,7 +139,9 @@ func _land_spy() -> void:
 	var close := Story.vigilance >= Tuning.VIGILANCE_MORE_CROWS
 	var spot := ground_spot_near_player(Tuning.SPY_LAND_DISTANCE_CLOSE if close else Tuning.SPY_LAND_DISTANCE)
 	if spot != Vector3.INF:
-		perch_crow(spot, Game.player, Tuning.SPY_WATCH_SECONDS)
+		var crow := perch_crow(spot, Game.player, Tuning.SPY_WATCH_SECONDS)
+		if Story.act >= 3 and randf() < Tuning.KEEPER_CROW_VOICE_CHANCE:
+			crow.speech = StoryBeats.LINES[&"crow"]
 
 
 func _ground(p: Vector2) -> Vector3:

@@ -10,6 +10,13 @@ extends Node
 @export var sun: DirectionalLight3D
 @export var environment: WorldEnvironment
 
+## O vazio além da borda norte (R3): 0..1, quanto o céu embaixo do horizonte fica preto.
+var void_amount := 0.0:
+	set(value):
+		if absf(value - void_amount) > 0.01 or (value == 0.0 and void_amount != 0.0):
+			void_amount = value
+			apply(_last_night)
+
 var _sky: ProceduralSkyMaterial
 var _sky_rest := {}
 var _last_night := -1.0
@@ -46,5 +53,6 @@ func apply(night: float) -> void:
 	# O horizonte some na neblina: puxa as cores do céu para a cor dela.
 	var tint := fog * (1.0 / maxf(fog.get_luminance(), 0.001)) * Color(_sky_rest.horizon).get_luminance()
 	_sky.sky_horizon_color = Color(_sky_rest.horizon).lerp(tint, night * 0.6 + twilight)
-	_sky.ground_horizon_color = Color(_sky_rest.ground_horizon).lerp(tint, night * 0.6 + twilight)
+	_sky.ground_horizon_color = Color(_sky_rest.ground_horizon).lerp(tint, night * 0.6 + twilight).lerp(Color.BLACK, void_amount)
+	_sky.ground_bottom_color = Color(_sky_rest.ground_bottom).lerp(Color.BLACK, void_amount)
 	_sky.sky_top_color = Color(_sky_rest.top).lerp(Color(0.2, 0.24, 0.36), night * 0.6)

@@ -109,12 +109,21 @@ func crow_saw_keypad() -> void:
 	add_vigilance(Tuning.VIGILANCE_KEYPAD_SEEN)
 
 
-## Um objetivo real foi concluído (F6): liga o flag de mesmo nome.
+## Um objetivo real foi concluído: liga o flag de mesmo nome e avalia os beats "objective".
 func complete_objective(objective: StringName) -> void:
 	if String(objective) in objectives:
 		return
 	objectives.append(String(objective))
 	set_flag(objective)
+	trigger(&"objective", objective)
+
+
+## O objetivo pode ser feito agora: ainda não foi, e o anterior da corrente já foi.
+func objective_ready(objective: StringName) -> bool:
+	if has_flag(objective) or not StoryBeats.OBJECTIVES.has(objective):
+		return false
+	var needs: StringName = StoryBeats.OBJECTIVES[objective]
+	return needs == &"" or has_flag(needs)
 
 
 ## A Reciclagem (§3): o ciclo avança, os riscos viram antigos, a Vigilância volta a

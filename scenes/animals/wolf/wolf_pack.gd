@@ -54,6 +54,9 @@ func _pick_origin() -> Vector2:
 	for attempt in 24:
 		var angle := randf() * TAU
 		var point := Vector2(cos(angle), sin(angle)) * (ForestLayout.VALLEY_RADIUS - 12.0)
+		# Com o clima cortado (R3), o norte acaba antes da borda do vale.
+		if Story.has_flag(&"climate_cut") and point.y < Tuning.VOID_EDGE_Z + 8.0:
+			continue
 		if point.distance_to(player) > best.distance_to(player):
 			best = point
 		if point.distance_to(player) >= Tuning.WOLF_SPAWN_MIN_DISTANCE:

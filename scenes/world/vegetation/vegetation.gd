@@ -347,6 +347,14 @@ func _build_multimeshes() -> void:
 			add_child(instance)
 
 
+## Esconde os blocos de vegetação que ficam inteiros ao norte de `z` (R3). -INF mostra tudo.
+func set_north_cut(z: float) -> void:
+	for child in get_children():
+		if child is MultiMeshInstance3D:
+			var block := child as MultiMeshInstance3D
+			block.visible = block.position.z + CHUNK_SIZE * 0.5 > z + 0.01
+
+
 func _make_body(body_name: String, layer: int) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.name = body_name

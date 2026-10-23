@@ -10,7 +10,8 @@ extends Node
 ## - dia e noite (Clock.night): de dia pássaros, pica-pau e gafanhotos; de noite grilos,
 ##   coruja e uivos ao longe;
 ## - dentro da caverna o som de fora fica abafado (passa-baixa no bus Ambience) e o
-##   fogo, os passos e as gotas ganham eco (reverb no bus World).
+##   fogo, os passos e as gotas ganham eco (reverb no bus World);
+## - depois do R4 (flag "access_card"), os chamados carregam a voz do Zelador.
 
 const WIND_LOOP := preload("res://assets/audio/ambience/wind_loop.wav")
 const LEAVES_LOOP := preload("res://assets/audio/ambience/leaves_loop.wav")
@@ -25,6 +26,8 @@ const WOODPECKER := preload("res://assets/audio/animals/woodpecker.wav")
 const WOLF := preload("res://assets/audio/animals/wolf_howl.wav")
 const WOLF_REAL_PATTERN := "res://assets/audio/animals/wolf_howl_real_%d.%s"
 const OWLS := [preload("res://assets/audio/animals/owl_1.wav"), preload("res://assets/audio/animals/owl_2.wav")]
+## Depois do R4, parte dos chamados traz a voz do Zelador junto (do mesmo ponto).
+const KEEPER_VOICES := [preload("res://assets/audio/sfx/keeper_voice_1.wav"), preload("res://assets/audio/sfx/keeper_voice_2.wav")]
 
 ## Fontes de vento em volta do ouvinte e a distância delas.
 const WIND_RING := 4
@@ -216,8 +219,15 @@ func _tick_calls(delta: float, ear: Vector3, night: float) -> void:
 			_call(_wolf_sounds.pick_random(), far, 70.0, -4.0, randf_range(0.92, 1.05))
 
 
-## Toca um som solto num ponto do mundo, usando um dos tocadores livres.
+## Toca um chamado num ponto do mundo. Depois do R4, às vezes a voz do Zelador vem junto.
 func _call(stream: AudioStream, at: Vector3, unit_size: float, volume_db: float, pitch: float) -> void:
+	_play_call(stream, at, unit_size, volume_db, pitch)
+	if Story.has_flag(&"access_card") and randf() < Tuning.KEEPER_CALL_VOICE_CHANCE:
+		_play_call(KEEPER_VOICES.pick_random(), at, unit_size, volume_db - 4.0, pitch * 0.92)
+
+
+## Toca um som solto num ponto do mundo, usando um dos tocadores livres.
+func _play_call(stream: AudioStream, at: Vector3, unit_size: float, volume_db: float, pitch: float) -> void:
 	for caller in _callers:
 		if caller.playing:
 			continue

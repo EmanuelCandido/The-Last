@@ -13,6 +13,8 @@ const HIT_LAYER := 8
 const PICKUP_SOUND := preload("res://assets/audio/real/pickup_1.ogg")
 const FLAP_SOUND := preload("res://assets/audio/animals/wing_flap.wav")
 const CAWS := [preload("res://assets/audio/animals/crow_1.wav"), preload("res://assets/audio/animals/crow_2.wav")]
+## A voz do Zelador saindo do bico (Ato III).
+const KEEPER_VOICE := preload("res://assets/audio/sfx/keeper_voice_1.wav")
 ## Segundos descendo até o pouso e de onde vem (m acima e para o lado).
 const LANDING_TIME := 2.2
 const LANDING_FROM := Vector3(6.0, 12.0, 0.0)
@@ -27,6 +29,8 @@ var mode := Mode.FLOCK
 var watch: Node3D
 ## Pousado sem crocitar (a pista do Ato I).
 var silent := false
+## O primeiro crocito pousado vira esta fala do Zelador, com legenda (vazio = só corvo).
+var speech := ""
 
 var _head: Node3D
 var _fall_speed := 0.0
@@ -92,7 +96,14 @@ func _physics_process(delta: float) -> void:
 			_fold_wings()
 			_look_at_watch(delta)
 			_caw_timer -= delta
-			if not silent and _caw_timer <= 0.0:
+			if speech != "" and _caw_timer <= 0.0:
+				_caw_timer = randf_range(5.0, 9.0)
+				_voice.stream = KEEPER_VOICE
+				_voice.pitch_scale = 1.12
+				_voice.play()
+				Game.vision.say(speech, 3.2)
+				speech = ""
+			elif not silent and _caw_timer <= 0.0:
 				_caw_timer = randf_range(4.0, 9.0)
 				_voice.stream = CAWS.pick_random()
 				_voice.pitch_scale = randf_range(0.9, 1.1)

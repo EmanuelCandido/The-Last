@@ -17,6 +17,11 @@ var lids := 0.0:
 	set(value):
 		lids = value
 		_refresh()
+## A visão fechando pelas bordas (0 = aberta): a lucidez acabando.
+var tunnel := 0.0:
+	set(value):
+		tunnel = value
+		_refresh()
 
 var _material: ShaderMaterial
 var _overlay: ColorRect
@@ -76,6 +81,7 @@ func clear() -> void:
 	_subtitle.modulate.a = 0.0
 	amount = 0.0
 	lids = 0.0
+	tunnel = 0.0
 
 
 func _refresh() -> void:
@@ -83,4 +89,5 @@ func _refresh() -> void:
 		return
 	_material.set_shader_parameter(&"amount", amount)
 	_material.set_shader_parameter(&"lids", lids)
-	_overlay.visible = amount > 0.001 or lids > 0.001
+	_material.set_shader_parameter(&"tunnel", tunnel)
+	_overlay.visible = amount > 0.001 or lids > 0.001 or tunnel > 0.001

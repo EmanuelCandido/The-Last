@@ -265,6 +265,16 @@ func _build_meshes() -> void:
 			add_child(chunk)
 
 
+## Esconde os blocos da malha que ficam inteiros ao norte de `z` (o mundo acabando, R3).
+## `z` = -INF mostra tudo.
+func set_north_cut(z: float) -> void:
+	var span := ForestLayout.TERRAIN_SIZE / CHUNKS
+	for cz in CHUNKS:
+		var hidden := -_half + (cz + 1) * span <= z + 0.01
+		for cx in CHUNKS:
+			(get_node("Chunk_%d_%d" % [cx, cz]) as Node3D).visible = not hidden
+
+
 func _build_collision() -> void:
 	var data := PackedFloat32Array()
 	data.resize(_heights.size())

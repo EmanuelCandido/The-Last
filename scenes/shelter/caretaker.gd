@@ -24,6 +24,7 @@ var moving := false:
 			_wheel.stream_paused = not value
 
 var _lens_material: StandardMaterial3D
+var _card: MeshInstance3D
 var _lens_light: OmniLight3D
 var _wheel: AudioStreamPlayer3D
 var _voice: AudioStreamPlayer3D
@@ -39,6 +40,7 @@ func _ready() -> void:
 	# O peito: a caixa onde fica o cartão de acesso (R4), com a fenda acesa.
 	ShelterLook.box(self, Vector3(0.3, 0.24, 0.16), Vector3(0.0, 1.02, 0.0), &"metal")
 	ShelterLook.box(self, Vector3(0.09, 0.015, 0.01), Vector3(0.0, 1.06, 0.082), &"amber")
+	_card = ShelterLook.box(self, Vector3(0.07, 0.045, 0.006), Vector3(0.0, 1.035, 0.083), &"plastic")
 	ShelterLook.cylinder(self, 0.03, 0.44, Vector3(0.0, 1.16, 0.0), &"dark_metal", Vector3(0.0, 0.0, PI * 0.5))
 	for side in [-1.0, 1.0]:
 		arms.append(_build_arm(side))
@@ -88,6 +90,11 @@ func set_light(state: StringName) -> void:
 	var color: Color = LIGHTS.get(state, LIGHTS[&"green"])
 	_lens_material.emission = color
 	_lens_light.light_color = color
+
+
+## O cartão de acesso no peito (R4 tira).
+func set_card(present: bool) -> void:
+	_card.visible = present
 
 
 ## Brilho da lente (1 = normal): chega perto e acende.

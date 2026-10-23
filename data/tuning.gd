@@ -318,3 +318,75 @@ const FLASH_LOOK_DEGREES := 10.0
 ## Batimento mostrado no monitor: normal e durante o flash 1 ("Leve agitação").
 const SHELTER_BPM := 72.0
 const FLASH_BPM := 112.0
+
+# --- O Zelador (§6.3) -------------------------------------------------------------------------
+
+## Velocidade (m/s): na ronda, atrás de Ari e com a bateria baixa (depois do R3).
+const KEEPER_SPEED := 1.2
+const KEEPER_CHASE_SPEED := 1.6
+const KEEPER_LOW_BATTERY_SPEED := 0.8
+## Visão: cone (graus) e alcance (m) com luz e no escuro (almoxarifado). Rastejando, Ari é
+## visto a uma fração disso.
+const KEEPER_FOV := 60.0
+const KEEPER_SIGHT := 10.0
+const KEEPER_SIGHT_DARK := 4.0
+const KEEPER_SIGHT_CRAWLING := 0.6
+## Segundos vendo Ari de perto até ter certeza (de longe demora mais).
+const KEEPER_SIGHT_TIME := 1.0
+## O térmico (o "faro" dele): alcance em m, atravessa paredes.
+const KEEPER_THERMAL := 3.0
+## A esta distância (m) ele seda.
+const KEEPER_CAPTURE_DISTANCE := 1.2
+## Sem ver Ari por tanto tempo (s), vai olhar onde o viu por último; e olha em volta por tanto.
+const KEEPER_LOSE_SECONDS := 4.0
+const KEEPER_LOOK_AROUND := 3.5
+## A ronda: começa a cada tanto (s), mais vezes com Vigilância alta; a primeira, depois de Ari
+## acordar. Paradas: cápsula, sala de controle, recarga.
+const KEEPER_ROUND_INTERVAL := 90.0
+const KEEPER_ROUND_INTERVAL_ALERT := 45.0
+const KEEPER_ROUND_ALERT_VIGILANCE := 80.0
+const KEEPER_FIRST_ROUND := 25.0
+const KEEPER_CAPSULE_CHECK := 8.0
+const KEEPER_CONTROL_STAY := 20.0
+const KEEPER_DOCK_STAY := 30.0
+## O sensor térmico do corredor: raio do cone no chão (m), antes do R2.
+const SENSOR_RADIUS := 1.4
+
+# --- Lucidez (§6.2) ---------------------------------------------------------------------------
+
+## Deste ato em diante, morrer na floresta acorda Ari no Abrigo (uma visita curta).
+const DEATH_VISIT_ACT := 3
+## Quanto dura uma visita acordado (s); com fome, uma fração disso; depois de morrer, menos.
+const LUCIDITY_SECONDS := 180.0
+const LUCIDITY_HUNGRY_BELOW := 30.0
+const LUCIDITY_HUNGRY_FACTOR := 0.6
+const LUCIDITY_AFTER_DEATH := 90.0
+## Nos últimos segundos o coração dispara e a visão fecha pelas bordas.
+const LUCIDITY_WARNING := 30.0
+
+# --- Vigilância no Abrigo (§5, §6) ------------------------------------------------------------
+
+## Desmaiar (a lucidez acabou), ser sedado, o Zelador achar a cápsula vazia, passar no sensor.
+const VIGILANCE_FAINT := 10.0
+const VIGILANCE_CAPTURED := 30.0
+const VIGILANCE_CAPSULE_EMPTY := 5.0
+const VIGILANCE_SENSOR := 5.0
+
+# --- O Zelador na floresta (Ato III) ----------------------------------------------------------
+
+## Chance de um corvo espião falar com a voz dele; quanto a Vigilância precisa subir de uma vez
+## para a voz sair da rocha (e o intervalo mínimo entre duas, s); chance de um chamado de bicho
+## sair com a voz dele (depois do R4).
+const KEEPER_CROW_VOICE_CHANCE := 0.5
+const KEEPER_ROCK_VOICE_RISE := 8.0
+const KEEPER_ROCK_VOICE_COOLDOWN := 120.0
+const KEEPER_CALL_VOICE_CHANCE := 0.3
+## Clima cortado (R3): a neblina abre no setor norte entre estes z (começa, aberta) e fica nesta
+## densidade; o chão do céu fica preto (o vazio).
+const NORTH_SECTOR_Z := Vector2(-15.0, -60.0)
+const NORTH_FOG_DENSITY := 0.0015
+## Onde o mundo acaba ao norte (z, m): o terreno e a vegetação somem depois daqui. Tem de cair
+## numa divisa de bloco (múltiplo de 48 m a partir de -192 no terreno e de 0 na vegetação).
+const VOID_EDGE_Z := -96.0
+## Quanto o céu embaixo do horizonte escurece no setor norte (o vazio).
+const VOID_SKY_DARKNESS := 0.92

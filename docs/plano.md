@@ -134,6 +134,14 @@ Durante o Ato III, na floresta, continua valendo:
   - pelos corvos, um grasnado que vira palavra: *"Volte... para a toca."*;
   - por um `OccludedAudio` que vem de dentro da rocha onde não há nada: *"Você está agitado. Isso não é bom para você."*
 
+**Feito (F6):**
+- **A corrente:** `StoryBeats.OBJECTIVES` diz o que cada objetivo precisa (o id é o flag). Na visita, a `Visit` guarda os objetivos feitos como pendentes; dentro da mesma visita o pendente já destrava o seguinte. Só valem quando Ari deita na cápsula (`Story.complete_objective`, gatilho `objective`, que põe a anotação de cada um). Desmaiar ou ser sedado perde tudo o que foi feito naquela visita, e a Reciclagem desfaz o último guardado.
+- **R1:** o monitor (até 3 m) e a janela (até 5 m) perto do centro da tela. O `leia_me` fica para a F7.
+- **R2:** o fusível vermelho do quadro da sala 2714 apaga o sensor do corredor. O sensor fica entre a sala e o almoxarifado (não no meio), para o R3 precisar do R2: passar embaixo dele aceso dá +5 de Vigilância e traz o Zelador.
+- **R3:** o alicate na estante do meio do almoxarifado e o cabo do quadro do clima. Na floresta (`NorthVoid`), depois de `Tuning.VOID_EDGE_Z` (z = -96) o terreno e a vegetação somem; na borda fica o corte do chão, preto e sem neblina, uma parede invisível e, ao longe, um fundo preto que sobe do horizonte e se desfaz no céu. A neblina só abre no setor norte (`Tuning.NORTH_SECTOR_Z`), e o céu embaixo do horizonte escurece (`DayNight.void_amount`). A matilha não nasce além da borda. Até o R4, o Zelador fica dormente na recarga (bateria baixa).
+- **R4:** o cartão no peito do Zelador dormente, que só ouve: parado ou rastejando longe, ele não acorda. Abre o Ato IV. Depois, parte dos chamados dos bichos (`Ambience`) vem com a voz do Zelador junto.
+- **A voz na floresta (Ato III em diante):** metade dos corvos espiões fala no primeiro crocito pousado (legenda pela `BlurredVision.say`). Um salto de Vigilância de 8 ou mais faz a voz sair de 1,5 m dentro do chão, ao lado do goblin (`Clues`, `OccludedAudio`), 4 s depois e no máximo a cada 2 min.
+
 ### Ato IV: A Verdade
 
 | Beat | Quando dispara | O que acontece |
@@ -402,6 +410,8 @@ Concreto, tubos, luz de emergência verde e poeira. Mesmo estilo pixelado e dess
   - **voltar para a cápsula antes:** não tem custo.
 - **Não dá para salvar acordado.** O menu de pausa diz isso.
 
+**Feito (F6):** a `Visit` (`scenes/shelter/visit.gd`) conta a lucidez (`Visit.lucidity_seconds`). Nos últimos 30 s o coração toca cada vez mais rápido e a `BlurredVision.tunnel` fecha a visão pelas bordas. Se acabar, as pálpebras fecham, `Game.faint_in_shelter(&"fainted")` soma +10 e o goblin acorda na pele. Do Ato III em diante, morrer vira uma visita de 90 s (o beat `death_visit` soma +20; o flash de morte fica só no Ato II). Uma Reciclagem pedida no meio da visita ou do sono acontece logo que o goblin acorda.
+
 **Feito (F5):**
 - **O Abrigo:** `Shelter` (`scenes/shelter/`), montado por código na primeira vez que é preciso, filho do `Game`, em `Tuning.SHELTER_ORIGIN`. As salas do §6.1 com paredes, portas e janela; a arquitetura vira uma malha por material, com colisão em caixas (o piso tem `surface = stone` para os passos). Tem a cápsula (`CareCapsule`), o monitor (`VitalsMonitor`, com o ciclo, o dia e a fome de verdade), a janela com persiana (`WindowBlinds`, que abre e fecha com E e pode ficar meio erguida), luzes de emergência que piscam ou falham (`FlickerLight`), o sensor térmico, o quadro de fusíveis, o almoxarifado com o quadro do clima, a sala de controle fechada, a saída blindada e o Zelador encaixado na recarga (`Caretaker`: só o corpo, a lente que muda de cor, a roda, o servo, o bipe de passo e a voz; a IA é da F6).
 - **Vista da janela:** `window_view.gdshader` pinta o pinheiral e a ruína pela direção do olhar, como um céu. A paisagem fica no infinito, com o horizonte na altura dos olhos, e a capela cai no meio do que se vê deitado na cápsula.
@@ -428,6 +438,14 @@ Concreto, tubos, luz de emergência verde e poeira. Mesmo estilo pixelado e dess
 - **Ronda:** cápsula (confere por 8 s), corredor, estação de recarga (30 s encaixado), sala de controle (20 s) e de volta. Repete a cada 90 s, ou 45 s com Vigilância ≥ 80.
 - **Ele se ouve chegando:** zumbido da roda, servo dos braços e um bipe de passo. Dá para planejar pelo som.
 - **Nunca machuca Ari.** No pior caso, seda.
+
+**Feito (F6):**
+- **Senses** (`components/senses.gd`): contas soltas de visão em cone com linha de visada, audição pelo raio do barulho e térmico (só a distância). Os bichos usam a linha de visada; o Zelador, tudo.
+- **Keeper** (`scenes/shelter/keeper.gd`): a cabeça do Zelador; o corpo continua sendo o `Caretaker`. Estados `DOCKED`, `ROUND`, `CHECK`, `FOUND`, `CAPTURE` e `DORMANT` (bateria baixa, só ouve). A visão enche uma certeza (`awareness`) mais rápido de perto. No escuro do almoxarifado o alcance cai para 4 m e, com Ari rastejando, para 60%. Ouve `Ari.noise_level()` e `Events.noise_made`, e o térmico atravessa parede. Anda pelo grafo de pontos do Abrigo (`POINTS`/`LINKS`) ou reto quando a linha está livre; a porta da sala de controle abre sozinha para ele.
+- **Ronda:** a primeira sai 25 s depois de Ari acordar e vai à cápsula, que ele confere por 8 s. Vazia, ela dá +5 de Vigilância e ele procura pela sala, pelo corredor e pelo almoxarifado. Depois vai à sala de controle (20 s) e volta à recarga. A ronda repete a cada 90 s (45 s com Vigilância ≥ 80). Sem ver Ari por 4 s, vai até onde o viu por último e olha em volta.
+- **Captura:** a 1,2 m, ergue o braço e `Game.faint_in_shelter(&"captured")`: tela preta, +30, o que foi feito na visita se perde e o goblin acorda na pele.
+- **Interação:** `ShelterSwitch` (texto, quando dá e o que faz vêm do `Shelter`) é o fusível, o alicate, o cabo e o cartão.
+- **Fica para depois:** "objeto caindo 10 m" (não há o que derrubar no Abrigo ainda).
 
 ---
 
@@ -611,7 +629,7 @@ Cada fase termina jogável, com teste de fumaça, roteiro `--run` e print confer
 | **F3: Caça completa** ✅ feita | Pegadas, farejar, prender o ar, pedras, lama, lista de fabricar (com a roupa de couro), penas, laço, tocha | Seguir um cervo ferido pelas pegadas; tocar a manada com pedra |
 | **F4: Rachaduras** ✅ feita | Pistas do Ato I, Vigilância, corvos espiões, cervo branco, ruína (malha, porta, teclado), pintura, sala-espelho, sarcófago | Do musgo até a porta aberta, com os 4 beats de pista disparando |
 | **F5: O Abrigo** ✅ feita | Cena do Abrigo, controle em primeira pessoa, troca de mundo, flashes 1–3, shader de visão borrada | Flash 1 ao dormir no Ato II; ida e volta sem perder estado |
-| **F6: O Zelador** | Componente `Senses`, IA e ronda do Zelador, lucidez, captura, R1–R4 e os efeitos na floresta, Reciclagem | Fazer R1–R4 em sequência; ser pego desfaz o certo |
+| **F6: O Zelador** ✅ feita | Componente `Senses`, IA e ronda do Zelador, lucidez, captura, R1–R4 e os efeitos na floresta, Reciclagem | Fazer R1–R4 em sequência; ser pego desfaz o certo |
 | **F7: Mistério meta** | Anotações, `ciclo_346.sav` e a memória, `leia_me`, falso travamento, sons vazando, HUD vital, voz do Zelador | Cada item do §7 disparado pelo seu beat |
 | **F8: Verdade e finais** | Sala de controle, câmeras, conversa, terminal, os 3 finais, créditos, menu principal, modo "Bem-vindo de volta" | Os 3 finais jogados de ponta a ponta |
 

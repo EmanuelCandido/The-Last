@@ -28,6 +28,12 @@ var _pending_flash := -1
 var _flash_director: FlashDirector
 ## A câmera da floresta, para voltar a ela depois da visita.
 var _forest_camera: Camera3D
+## De onde veio esta visita: "ritual" ou "death" (depois de morrer, a lucidez é curta).
+var _visit_from := &"ritual"
+## A visita está acabando (deitando na cápsula, desmaiando ou sedado): nada mais a encerra.
+var _leaving := false
+## Reciclagem pedida no meio do sono ou da visita: acontece logo que o goblin acorda.
+var _pending_recycle := &""
 
 
 func _ready() -> void:
@@ -59,6 +65,7 @@ func change_level(path: String) -> void:
 	if awake:
 		return_to_forest(true)
 	_pending_flash = -1
+	_pending_recycle = &""
 	if current_level != null:
 		level_root.remove_child(current_level)
 		current_level.queue_free()
@@ -116,6 +123,15 @@ func pass_out(reason: StringName) -> void:
 		for food: StringName in Tuning.FOOD_PREFERENCE:
 			lost += Inventory.count(food)
 			Inventory.remove(food, Inventory.count(food))
+		# Do Ato III em diante a morte acorda Ari de verdade: uma visita curta (§4), e o
+		# goblin volta na pele da caverna.
+		if Story.act >= Tuning.DEATH_VISIT_ACT:
+			_pending_flash = -1
+			player.respawn()
+			resting = false
+			_visit_from = &"death"
+			wake_in_shelter()
+			return
 		Events.notification_shown.emit("Acordou na toca." + (" A carne se perdeu." if lost > 0 else ""))
 	else:
 		Vitals.rest()
@@ -135,13 +151,17 @@ func pass_out(reason: StringName) -> void:
 	Events.woke_up.emit(reason)
 	if reason == &"sleep":
 		SaveSystem.save_game()
+	_recycle_if_pending()
 
 
 ## A Reciclagem (§3): a floresta se desmancha em pixels da borda para o centro, o som
 ## afina até sobrar o bipe, e Ari acorda no dia 1: o Story avança o ciclo, o inventário
 ## zera, o corpo volta novo e a fase é recarregada (o arco volta para o chão da caverna).
 func recycle(reason: StringName) -> void:
-	if resting or awake or player == null:
+	if player == null:
+		return
+	if resting or awake:
+		_pending_recycle = reason
 		return
 	resting = true
 	player.set_controls_enabled(false)
@@ -188,6 +208,7 @@ func get_shelter() -> Shelter:
 		shelter = Shelter.new()
 		shelter.name = "Shelter"
 		add_child(shelter)
+		shelter.fainted.connect(faint_in_shelter)
 	return shelter
 
 
@@ -225,6 +246,7 @@ func wake_in_shelter(instant := false) -> void:
 	if awake or resting or player == null:
 		return
 	awake = true
+	_leaving = false
 	player.set_controls_enabled(false)
 	if not instant:
 		Events.screen_fade_requested.emit(1.0, 2.0)
@@ -236,9 +258,12 @@ func wake_in_shelter(instant := false) -> void:
 	place.set_active(true)
 	var ari := place.spawn_ari()
 	ari.camera.make_current()
+	var seconds := Visit.lucidity_seconds(_visit_from)
+	_visit_from = &"ritual"
+	place.begin_visit(seconds)
 	Events.prompt_changed.emit("")
 	Events.shelter_entered.emit()
-	print("[Game] Ari acordou no Abrigo.")
+	print("[Game] Ari acordou no Abrigo (%.0f s de lucidez)." % seconds)
 	if instant:
 		Events.screen_fade_requested.emit(0.0, 0.0)
 		open_ears(0.5)
@@ -250,26 +275,25 @@ func wake_in_shelter(instant := false) -> void:
 
 
 ## Ari deita de volta na cápsula (§6.2: voltar antes de a lucidez acabar não custa nada) e o
-## goblin acorda onde estava. `instant` = sem cenas (carregar um save acordado).
+## goblin acorda onde estava. Os objetivos feitos nesta visita só valem agora.
+## `instant` = sem cenas e sem guardar nada (carregar um save acordado).
 func return_to_forest(instant := false) -> void:
-	if not awake or shelter == null or shelter.ari == null:
+	if not awake or shelter == null or shelter.ari == null or (_leaving and not instant):
 		return
+	_leaving = true
 	var ari := shelter.ari
+	shelter.hold_visit()
 	if not instant:
 		await ari.lie_down_in(shelter.capsule)
 		Events.screen_fade_requested.emit(1.0, 1.2)
 		close_ears(1.2)
 		await get_tree().create_timer(1.6, false).timeout
-	shelter.remove_ari()
-	shelter.set_active(false)
-	vision.clear()
-	_set_forest_active(true)
-	if is_instance_valid(_forest_camera):
-		_forest_camera.make_current()
-	awake = false
-	Events.prompt_changed.emit("")
-	Events.shelter_left.emit()
-	print("[Game] Ari voltou para a floresta.")
+	var done := shelter.end_visit(not instant)
+	_leave_shelter()
+	print("[Game] Ari deitou na cápsula e voltou para a floresta.")
+	for objective in done:
+		print("[Game] Objetivo concluído: %s." % objective)
+		Story.complete_objective(objective)
 	# Deitado no sarcófago, continua deitado (Espaço levanta); senão, o controle volta.
 	if player != null and not player.lying:
 		player.set_controls_enabled(true)
@@ -278,6 +302,61 @@ func return_to_forest(instant := false) -> void:
 		return
 	Events.screen_fade_requested.emit(0.0, 3.0)
 	open_ears(4.0, -36.0, 220.0)
+	_recycle_if_pending()
+
+
+## Ari apagou no Abrigo: a lucidez acabou (`reason` "fainted") ou o Zelador o sedou
+## ("captured"). O que foi feito nesta visita se perde (o Zelador conserta enquanto Ari dorme),
+## a Vigilância sobe e o goblin acorda na pele da caverna.
+func faint_in_shelter(reason: StringName) -> void:
+	if not awake or _leaving or shelter == null or shelter.ari == null:
+		return
+	_leaving = true
+	shelter.hold_visit()
+	shelter.ari.controls = false
+	var captured := reason == &"captured"
+	var fade := 0.5 if captured else 2.5
+	if not captured:
+		create_tween().tween_property(vision, ^"lids", 1.0, fade).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	Events.screen_fade_requested.emit(1.0, fade)
+	close_ears(fade)
+	await get_tree().create_timer(fade + Tuning.DARK_HOLD, false).timeout
+	shelter.end_visit(false)
+	_leave_shelter()
+	Story.add_vigilance(Tuning.VIGILANCE_CAPTURED if captured else Tuning.VIGILANCE_FAINT)
+	print("[Game] Ari apagou no Abrigo (%s)." % reason)
+	if player != null:
+		if player.lying:
+			player.lying = false
+			player.ritual_place = &""
+		player.respawn()
+		player.wake_up()
+	Events.screen_fade_requested.emit(0.0, 5.0)
+	open_ears(7.5, -42.0, 160.0)
+	_recycle_if_pending()
+
+
+## Uma Reciclagem pedida enquanto o goblin dormia ou Ari estava acordado acontece agora.
+func _recycle_if_pending() -> void:
+	if _pending_recycle == &"":
+		return
+	var reason := _pending_recycle
+	_pending_recycle = &""
+	recycle(reason)
+
+
+## Desmonta a visita e devolve a floresta (a câmera, os sons e o processamento).
+func _leave_shelter() -> void:
+	shelter.remove_ari()
+	shelter.set_active(false)
+	vision.clear()
+	_set_forest_active(true)
+	if is_instance_valid(_forest_camera):
+		_forest_camera.make_current()
+	awake = false
+	_leaving = false
+	Events.prompt_changed.emit("")
+	Events.shelter_left.emit()
 
 
 ## Liga ou para a floresta inteira (o processamento e os sons de fora e do mundo).

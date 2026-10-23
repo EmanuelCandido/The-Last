@@ -10,9 +10,15 @@ extends Node3D
 ##                      |    sensor térmico (meio)
 ##                 [Sala 2714]          [Sala de controle] (cartão)
 ##
-## Coordenadas locais: o corredor corre em X (de -10 a 10), as salas de baixo ficam em +Z.
+## Coordenadas locais: o corredor corre em X (de -10 a 10), as salas de baixo ficam em +Z. O
+## sensor térmico fica entre a sala 2714 e o almoxarifado: para chegar ao clima (R3), é
+## preciso desligá-lo antes (R2).
 ## Tudo o que se vê aqui fica na camada visual LAYER, que o sol da floresta não ilumina.
 ## Fora de uso (sem flash nem visita), o Abrigo fica escondido e parado (set_active).
+## Nas visitas, a Visit conta a lucidez e guarda os objetivos, e o Keeper move o Zelador.
+
+## Ari desmaiou (`reason` "fainted": a lucidez acabou) ou foi sedado ("captured").
+signal fainted(reason: StringName)
 
 ## Camada visual do Abrigo (a 11ª). O Sun da floresta tira esta camada do light_cull_mask.
 const LAYER := 1 << 10
@@ -20,6 +26,10 @@ const HEIGHT := 2.7
 const WALL := 0.2
 const DOOR_HEIGHT := 2.05
 const AMBIENT := preload("res://assets/audio/ambience/shelter_loop.wav")
+const CLICK := preload("res://assets/audio/sfx/stone_click_1.wav")
+const SNIP := preload("res://assets/audio/sfx/snare_snap.wav")
+const PICKUP := preload("res://assets/audio/real/pickup_2.ogg")
+const ALARM := preload("res://assets/audio/sfx/keeper_beep.wav")
 const ROOMS := {
 	&"room": Rect2(-7.0, 1.0, 5.0, 6.0),
 	&"corridor": Rect2(-10.0, -1.0, 20.0, 2.0),
@@ -35,8 +45,11 @@ var blinds: WindowBlinds
 var caretaker: Caretaker
 ## Onde o Zelador fica encaixado para recarregar.
 var dock := Transform3D.IDENTITY
-## O sensor térmico do meio do corredor (R2, F6).
+## O sensor térmico do corredor (o R2 desliga).
 var sensor: Node3D
+## A visita em curso (lucidez e objetivos) e a cabeça do Zelador.
+var visit: Visit
+var keeper: Keeper
 ## Os olhos de Ari nos flashes (deitado na cápsula).
 var eyes: Camera3D
 ## Ar limpo, sem neblina: a câmera de Ari e os olhos dos flashes usam este ambiente.
@@ -45,6 +58,22 @@ var ari: Ari
 
 var _surfaces := {}
 var _body: StaticBody3D
+var _sensor_light: OmniLight3D
+var _sensor_led: StandardMaterial3D
+var _sensor_on := true
+var _sensor_alarm := 0.0
+var _fuse: ShelterSwitch
+var _fuse_handle: MeshInstance3D
+var _pliers: ShelterSwitch
+var _cable: ShelterSwitch
+var _cable_whole: MeshInstance3D
+var _cable_cut: Node3D
+var _climate_lamp: StandardMaterial3D
+var _card: ShelterSwitch
+var _control_door: StaticBody3D
+var _door_open := false
+var _door_tween: Tween
+var _sounds: AudioStreamPlayer3D
 
 
 func _ready() -> void:
@@ -69,6 +98,20 @@ func _ready() -> void:
 	_build_environment()
 	for node in find_children("*", "VisualInstance3D", true, false):
 		(node as VisualInstance3D).layers = LAYER
+	visit = Visit.new()
+	visit.name = "Visit"
+	visit.shelter = self
+	add_child(visit)
+	keeper = Keeper.new()
+	keeper.name = "Keeper"
+	keeper.shelter = self
+	add_child(keeper)
+	visit.ran_out.connect(func() -> void: fainted.emit(&"fainted"))
+	keeper.captured.connect(func() -> void: fainted.emit(&"captured"))
+	_sounds = AudioStreamPlayer3D.new()
+	_sounds.bus = &"Shelter"
+	_sounds.unit_size = 2.0
+	add_child(_sounds)
 	set_active(false)
 
 
@@ -91,6 +134,80 @@ func spawn_ari() -> Ari:
 	ari.global_position = capsule.out_point()
 	ari.camera.environment = environment
 	return ari
+
+
+## Começo de uma visita: o Abrigo fica como os objetivos já feitos deixaram (o fusível puxado,
+## o cabo cortado, o cartão tirado), e o Zelador volta para a recarga.
+func begin_visit(seconds: float) -> void:
+	var blind := Story.has_flag(&"blind_spot")
+	_set_sensor(not blind)
+	_fuse.enabled = not blind
+	_fuse_handle.position.x = -2.24 if blind else -2.2
+	_pliers.visible = true
+	_set_cable(Story.has_flag(&"climate_cut"))
+	var card := not Story.has_flag(&"access_card")
+	caretaker.set_card(card)
+	_card.enabled = card
+	set_control_door(false, true)
+	monitor.bpm = Tuning.SHELTER_BPM
+	visit.begin(seconds)
+	keeper.begin()
+
+
+## A visita está acabando (Ari deitando na cápsula, desmaiando ou sedado): a lucidez e o
+## Zelador param onde estão.
+func hold_visit() -> void:
+	visit.active = false
+	keeper.active = false
+	caretaker.moving = false
+
+
+## Fim da visita. `keep` = Ari deitou na cápsula: devolve os objetivos feitos para guardar.
+func end_visit(keep: bool) -> Array[StringName]:
+	keeper.end()
+	return visit.finish(keep)
+
+
+## O sensor do corredor está ligado (antes do R2, e sem o fusível puxado nesta visita).
+func sensor_active() -> bool:
+	return _sensor_on
+
+
+## Ari passou embaixo do sensor: a luz pisca e ele apita.
+func sensor_alarm() -> void:
+	_sensor_alarm = 3.0
+	_play(ALARM, sensor.global_position, -4.0)
+
+
+## Abre ou fecha a porta da sala de controle (desliza para dentro da parede).
+func set_control_door(open: bool, instant := false) -> void:
+	if open == _door_open and not instant:
+		return
+	_door_open = open
+	if _door_tween != null:
+		_door_tween.kill()
+	var x := 5.0 if open else 4.0
+	if instant:
+		_control_door.position.x = x
+		return
+	_door_tween = create_tween()
+	_door_tween.tween_property(_control_door, ^"position:x", x, 0.9).set_trans(Tween.TRANS_SINE)
+	_play(Caretaker.SERVO, _control_door.global_position + Vector3.UP, -12.0)
+
+
+## No escuro (o almoxarifado) o Zelador enxerga menos.
+func is_dark(point: Vector3) -> bool:
+	var local := to_local(point)
+	return (ROOMS[&"store"] as Rect2).has_point(Vector2(local.x, local.z))
+
+
+func _process(delta: float) -> void:
+	if _sensor_alarm > 0.0:
+		_sensor_alarm -= delta
+		var blink := 1.0 if fmod(_sensor_alarm, 0.3) < 0.15 else 0.2
+		_sensor_light.light_energy = 1.2 * blink
+		if _sensor_alarm <= 0.0:
+			_set_sensor(_sensor_on)
 
 
 ## A porta da sala 2714 para o corredor (para onde Ari olha ao levantar).
@@ -203,10 +320,22 @@ func _build_room() -> void:
 	blinds.name = "Blinds"
 	blinds.position = Vector3(-3.6, 1.55, 7.0 - WALL * 0.5)
 	add_child(blinds)
-	# Quadro de fusíveis na parede leste (R2, F6), com o conduíte subindo.
+	# Quadro de fusíveis na parede leste, com o conduíte subindo. O fusível vermelho é o do
+	# sensor do corredor (R2).
 	_add_box(Vector3(0.08, 0.5, 0.36), Vector3(-2.14, 1.4, 5.6), &"metal")
 	_add_cylinder(0.02, 1.05, Vector3(-2.14, 2.17, 5.6), &"dark_metal")
 	ShelterLook.label(self, "QUADRO 2714", Vector3(-2.19, 1.72, 5.6), 0.04, Color(0.75, 0.75, 0.7), false, -PI * 0.5)
+	for row in 3:
+		ShelterLook.box(self, Vector3(0.03, 0.05, 0.03), Vector3(-2.19, 1.28 + row * 0.08, 5.5), &"plastic")
+	_fuse_handle = ShelterLook.box(self, Vector3(0.04, 0.06, 0.03), Vector3(-2.2, 1.44, 5.68), &"red")
+	_fuse = _switch(Vector3(-2.2, 1.42, 5.62), "Puxar o fusível do sensor", "",
+		func() -> bool: return visit.can(&"blind_spot"),
+		func(_body: Node) -> void:
+			visit.add(&"blind_spot")
+			_fuse.enabled = false
+			_fuse_handle.position.x = -2.24
+			_set_sensor(false)
+			_play(CLICK, _fuse.global_position, -6.0))
 	# Armário, cadeira e a grade da ventilação.
 	_add_box(Vector3(0.5, 1.1, 0.45), Vector3(-6.68, 0.55, 1.5), &"metal")
 	_add_box(Vector3(0.45, 0.05, 0.45), Vector3(-2.7, 0.46, 3.0), &"plastic", &"", false)
@@ -242,19 +371,23 @@ func _build_corridor() -> void:
 	_light(Vector3(6.5, HEIGHT - 0.03, 0.0), Vector3(0.24, 0.05, 0.12), &"green", 0.6, 4.5, &"steady")
 	_light(Vector3(-6.0, HEIGHT - 0.03, 0.2), Vector3(1.2, 0.04, 0.08), &"white", 0.6, 5.0, &"steady")
 	_light(Vector3(4.0, HEIGHT - 0.03, 0.2), Vector3(1.2, 0.04, 0.08), &"white", 1.0, 5.5, &"flicker", 1.0, true)
-	# O sensor térmico, no meio: uma cúpula escura com a luz vermelha (o "faro" do Zelador).
+	# O sensor térmico, entre a sala e o almoxarifado: uma cúpula escura com a luz vermelha
+	# (o "faro" do Zelador). O fio desce pela parede até o quadro da sala 2714.
 	sensor = Node3D.new()
 	sensor.name = "Sensor"
-	sensor.position = Vector3(0.5, HEIGHT - 0.06, 0.0)
+	sensor.position = Vector3(-6.5, HEIGHT - 0.06, 0.0)
 	add_child(sensor)
 	ShelterLook.sphere(sensor, 0.08, Vector3.ZERO, &"dark_metal")
-	ShelterLook.box(sensor, Vector3(0.02, 0.02, 0.02), Vector3(0.0, -0.075, 0.03), &"red")
-	var red := OmniLight3D.new()
-	red.light_color = Color(1.0, 0.2, 0.15)
-	red.light_energy = 0.3
-	red.omni_range = 1.2
-	red.position = Vector3(0.0, -0.15, 0.0)
-	sensor.add_child(red)
+	var led := ShelterLook.box(sensor, Vector3(0.02, 0.02, 0.02), Vector3(0.0, -0.075, 0.03), &"red")
+	_sensor_led = ShelterLook.light_material(&"red")
+	led.material_override = _sensor_led
+	_sensor_light = OmniLight3D.new()
+	_sensor_light.light_color = Color(1.0, 0.2, 0.15)
+	_sensor_light.light_energy = 0.3
+	_sensor_light.omni_range = 1.2
+	_sensor_light.position = Vector3(0.0, -0.15, 0.0)
+	sensor.add_child(_sensor_light)
+	ShelterLook.rod(self, Vector3(-6.5, HEIGHT - 0.02, 0.0), Vector3(-6.5, HEIGHT - 0.02, 0.86), 0.008, &"rubber", 4)
 	# Placas pintadas na parede.
 	var paint := Color(0.7, 0.7, 0.66)
 	ShelterLook.label(self, "ALMOXARIFADO", Vector3(-9.89, 2.3, 0.0), 0.09, paint, false, PI * 0.5)
@@ -281,10 +414,44 @@ func _build_store() -> void:
 			var at := Vector3(-13.3 + box * 0.45, 0.0, z)
 			var level := box % 4
 			_add_box(Vector3(0.36, 0.28, 0.34), at + Vector3(0.0, 0.31 + level * 0.55, 0.0), &"paper", &"", false)
-	# O quadro do clima (R3, F6) com o cabo grosso subindo para o teto.
+	# A estante do meio, de costas para a porta: atrás dela, quem entra não vê (o Zelador
+	# também não). O fundo é uma chapa inteira.
+	_add_box(Vector3(0.04, 1.85, 2.2), Vector3(-11.05, 0.925, 0.0), &"metal")
+	for level in 4:
+		_add_box(Vector3(0.45, 0.03, 2.2), Vector3(-11.3, 0.15 + level * 0.55, 0.0), &"metal")
+	for z in [-1.08, 1.08]:
+		_add_box(Vector3(0.04, 1.85, 0.04), Vector3(-11.5, 0.925, z), &"dark_metal", &"", false)
+	for box in 5:
+		var level := (box * 3) % 4
+		_add_box(Vector3(0.34, 0.26, 0.36), Vector3(-11.32, 0.3 + level * 0.55, -0.85 + box * 0.4), &"paper", &"", false)
+	# O alicate, numa prateleira da estante do meio.
+	_pliers = _switch(Vector3(-11.35, 0.735, 0.55), "Pegar o alicate", "",
+		func() -> bool: return not visit.has_pliers,
+		func(_body: Node) -> void:
+			visit.has_pliers = true
+			_pliers.visible = false
+			_play(PICKUP, _pliers.global_position, -8.0))
+	ShelterLook.rod(_pliers, Vector3(0.0, 0.0, -0.09), Vector3(0.012, 0.0, 0.02), 0.007, &"red", 5)
+	ShelterLook.rod(_pliers, Vector3(-0.025, 0.0, -0.09), Vector3(-0.012, 0.0, 0.02), 0.007, &"red", 5)
+	ShelterLook.box(_pliers, Vector3(0.03, 0.012, 0.07), Vector3(0.0, 0.0, 0.055), &"dark_metal")
+	# O quadro do clima (R3) com o cabo grosso subindo para o teto.
 	_add_box(Vector3(0.12, 0.8, 0.6), Vector3(-13.9, 1.3, 0.6), &"metal")
-	_add_cylinder(0.035, 1.0, Vector3(-13.9, 2.2, 0.75), &"rubber")
 	ShelterLook.label(self, "CLIMA", Vector3(-13.83, 1.82, 0.6), 0.05, Color(0.75, 0.75, 0.7), false, PI * 0.5)
+	var lamp := ShelterLook.box(self, Vector3(0.02, 0.04, 0.04), Vector3(-13.835, 1.55, 0.4), &"green")
+	_climate_lamp = ShelterLook.light_material(&"green")
+	lamp.material_override = _climate_lamp
+	_cable_whole = ShelterLook.cylinder(self, 0.035, 1.0, Vector3(-13.9, 2.2, 0.75), &"rubber")
+	_cable_cut = Node3D.new()
+	add_child(_cable_cut)
+	ShelterLook.cylinder(_cable_cut, 0.035, 0.62, Vector3(-13.9, 2.39, 0.75), &"rubber")
+	ShelterLook.rod(_cable_cut, Vector3(-13.9, 1.7, 0.75), Vector3(-13.78, 1.92, 0.8), 0.035, &"rubber")
+	ShelterLook.box(_cable_cut, Vector3(0.02, 0.02, 0.02), Vector3(-13.78, 1.94, 0.8), &"amber")
+	_cable = _switch(Vector3(-13.82, 1.9, 0.75), "Cortar o cabo do clima", "Um cabo grosso saindo do quadro do clima.",
+		func() -> bool: return visit.has_pliers and visit.can(&"climate_cut"),
+		func(_body: Node) -> void:
+			visit.add(&"climate_cut")
+			_set_cable(true)
+			_play(SNIP, _cable.global_position, -2.0))
 	_light(Vector3(-12.0, HEIGHT - 0.35, 0.0), Vector3(0.08, 0.1, 0.08), &"amber", 0.45, 4.0, &"steady")
 	ShelterLook.rod(self, Vector3(-12.0, HEIGHT, 0.0), Vector3(-12.0, HEIGHT - 0.3, 0.0), 0.006, &"rubber", 4)
 	_ambient(Vector3(-12.0, 1.6, 0.0))
@@ -307,11 +474,31 @@ func _build_dock() -> void:
 	caretaker.name = "Caretaker"
 	caretaker.transform = dock
 	add_child(caretaker)
+	# R4: o cartão de acesso, no peito dele. Só dá para pegar com ele dormente na recarga.
+	_card = _switch(Vector3.ZERO, "Pegar o cartão do peito dele", "",
+		func() -> bool: return keeper.state == Keeper.State.DORMANT and visit.can(&"access_card"),
+		func(_body: Node) -> void:
+			visit.add(&"access_card")
+			caretaker.set_card(false)
+			_card.enabled = false
+			_play(PICKUP, _card.global_position, -10.0))
+	remove_child(_card)
+	caretaker.add_child(_card)
+	_card.position = Vector3(0.0, 1.06, 0.1)
 
 
 func _build_control() -> void:
-	# A porta fechada (precisa do cartão, F6) e o leitor do lado do corredor.
-	_add_box(Vector3(1.0, DOOR_HEIGHT, 0.06), Vector3(4.0, DOOR_HEIGHT * 0.5, 1.0), &"dark_metal")
+	# A porta (abre para o cartão: o Zelador o tem no peito) e o leitor do lado do corredor.
+	_control_door = StaticBody3D.new()
+	_control_door.name = "ControlDoor"
+	_control_door.position = Vector3(4.0, DOOR_HEIGHT * 0.5, 1.0)
+	add_child(_control_door)
+	ShelterLook.box(_control_door, Vector3(1.0, DOOR_HEIGHT, 0.06), Vector3.ZERO, &"dark_metal")
+	var door_shape := CollisionShape3D.new()
+	var door_box := BoxShape3D.new()
+	door_box.size = Vector3(1.0, DOOR_HEIGHT, 0.06)
+	door_shape.shape = door_box
+	_control_door.add_child(door_shape)
 	_add_box(Vector3(0.1, 0.16, 0.04), Vector3(4.75, 1.3, 0.87), &"plastic", &"", false)
 	_add_box(Vector3(0.03, 0.02, 0.01), Vector3(4.75, 1.35, 0.848), &"red", &"", false)
 	# Dentro: mesa, terminal, as quatro telas das câmeras e o servidor (F8).
@@ -339,6 +526,38 @@ func _build_exit() -> void:
 
 
 # --- Peças -----------------------------------------------------------------------------------
+
+## Uma coisa em que Ari mexe (ShelterSwitch), em `at`.
+func _switch(at: Vector3, prompt: String, locked: String, available: Callable, action: Callable) -> ShelterSwitch:
+	var item := ShelterSwitch.new()
+	item.prompt = prompt
+	item.locked_prompt = locked
+	item.available = available
+	item.action = action
+	item.position = at
+	add_child(item)
+	return item
+
+
+func _set_sensor(on: bool) -> void:
+	_sensor_on = on
+	_sensor_light.light_energy = 0.3 if on else 0.0
+	_sensor_led.emission_energy_multiplier = 3.0 if on else 0.0
+
+
+func _set_cable(cut: bool) -> void:
+	_cable_whole.visible = not cut
+	_cable_cut.visible = cut
+	_cable.enabled = not cut
+	_climate_lamp.emission = Color(1.0, 0.2, 0.12) if cut else Color(0.35, 1.0, 0.5)
+
+
+func _play(stream: AudioStream, at: Vector3, volume: float) -> void:
+	_sounds.stream = stream
+	_sounds.global_position = at
+	_sounds.volume_db = volume
+	_sounds.play()
+
 
 ## Luminária com a luz dela (FlickerLight).
 func _light(at: Vector3, size: Vector3, color: StringName, energy: float, reach: float, mode: StringName, period := 1.6, buzzing := false) -> FlickerLight:

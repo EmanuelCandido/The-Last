@@ -7,7 +7,8 @@ extends RefCounted
 ## história, edite esta lista; o Story só a interpreta, e os sistemas reagem aos flags
 ## (o musgo cai quando "moss_fell" liga; o cervo trava quando "clue_deer_freeze" liga).
 ##
-## Gatilhos (`on`): "start", "slept", "woke", "died", "harvested", "ate", "ritual".
+## Gatilhos (`on`): "start", "slept", "woke", "died", "harvested", "ate", "ritual", "objective"
+## (um objetivo real foi concluído; `reason` = o id).
 ## Condições (`when`, todas precisam valer):
 ##   "act": n, "act_at_least": n, "marks_at_least": n, "flag": nome, "not_flag": nome,
 ##   "counter_at_least": {nome: n}, "reason": motivo do gatilho (ex.: "sleep"),
@@ -23,6 +24,22 @@ extends RefCounted
 const DOOR_CODE := "2714"
 ## A porta só aceita o código com este flag (Ari viu a ruína pela janela, no flash 3).
 const DOOR_FLAG := &"saw_ruin_window"
+
+## Objetivos reais (§3, Ato III), em corrente: cada um precisa do anterior. O id é o flag que
+## o objetivo liga quando Ari volta para a cápsula com ele feito (desmaiar ou ser sedado perde
+## o que foi feito naquela visita; a Reciclagem desfaz o último).
+const OBJECTIVES := {
+	&"room_seen": &"",  # R1: sair da cápsula, ver o monitor e a janela, voltar.
+	&"blind_spot": &"room_seen",  # R2: puxar o fusível do sensor do corredor.
+	&"climate_cut": &"blind_spot",  # R3: cortar o cabo do clima no almoxarifado.
+	&"access_card": &"climate_cut",  # R4: pegar o cartão do peito do Zelador.
+}
+
+## O que o Zelador diz (sem dublagem: murmúrio sintético e legenda).
+const LINES := {
+	&"crow": "Volte... para a toca.",
+	&"rock": "Você está agitado. Isso não é bom para você.",
+}
 
 const BEATS: Array[Dictionary] = [
 	# --- Ato I: pistas que parecem bug ou estilo (o sistema é o Clues, na floresta) ----
@@ -88,12 +105,21 @@ const BEATS: Array[Dictionary] = [
 		"do": [{"flash": 3}, {"set_flag": "saw_ruin_window"}, {"add_note": "A ruína. Eu vi a ruína pela janela."}],
 	},
 	{
-		# Morrer do Ato II em diante: um flash curto, sorteado entre os já vistos.
+		# Morrer no Ato II: um flash curto, sorteado entre os já vistos.
 		"id": "death_flash",
 		"on": "died",
-		"when": {"act_at_least": 2, "flag": "flash_1_seen"},
+		"when": {"act": 2, "flag": "flash_1_seen"},
 		"repeat": true,
 		"do": [{"flash": 0}],
+	},
+	{
+		# Do Ato III em diante a morte acorda Ari no Abrigo (o Game faz a visita curta) e o
+		# Zelador nota.
+		"id": "death_visit",
+		"on": "died",
+		"when": {"act_at_least": 3},
+		"repeat": true,
+		"do": [{"vigilance": 20}],
 	},
 	# --- O ritual: acordar no mundo real ----------------------------------------------------
 	{
@@ -111,6 +137,31 @@ const BEATS: Array[Dictionary] = [
 		"on": "ritual",
 		"when": {"act": 2, "reason": "sarcophagus"},
 		"do": [{"set_act": 3}, {"set_flag": "first_wake"}, {"wake_real": true}],
+	},
+	# --- Ato III: os objetivos reais (o efeito na floresta vem dos flags) ---------------------
+	{
+		"id": "r1_room",
+		"on": "objective",
+		"when": {"reason": "room_seen"},
+		"do": [{"add_note": "Deixei uma coisa fora daqui. Fora do jogo."}],
+	},
+	{
+		"id": "r2_fuse",
+		"on": "objective",
+		"when": {"reason": "blind_spot"},
+		"do": [{"add_note": "Sem o sensor, ele não me vê acordar."}],
+	},
+	{
+		"id": "r3_climate",
+		"on": "objective",
+		"when": {"reason": "climate_cut"},
+		"do": [{"add_note": "No norte a neblina abriu. O mundo acaba lá."}],
+	},
+	{
+		"id": "r4_card",
+		"on": "objective",
+		"when": {"reason": "access_card"},
+		"do": [{"set_act": 4}, {"add_note": "O cartão abre a sala de controle."}],
 	},
 	# --- Reciclagem ----------------------------------------------------------------------
 	{
