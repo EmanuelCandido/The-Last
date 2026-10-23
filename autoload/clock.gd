@@ -1,7 +1,8 @@
 extends Node
 ## Relógio do jogo: dia e hora (Tuning.SECONDS_PER_HOUR segundos reais por hora).
 ##
-## Corre enquanto há um jogador e ele não está dormindo ou desmaiado (Game.resting).
+## Corre enquanto há um jogador e ele não está dormindo ou desmaiado (Game.resting) nem
+## acordado no Abrigo (Game.awake: a floresta para).
 ## Dormir pula o tempo de uma vez (sleep_until_morning) e avisa quanto pulou, para quem
 ## gasta com o tempo (a fogueira queima a lenha) acompanhar.
 
@@ -17,7 +18,7 @@ var hours_awake := 0.0
 
 
 func _process(delta: float) -> void:
-	if Game.player == null or Game.resting:
+	if Game.player == null or Game.resting or Game.awake:
 		return
 	advance(delta / Tuning.SECONDS_PER_HOUR)
 

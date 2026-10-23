@@ -90,7 +90,8 @@ func _ready() -> void:
 func _on_game_paused(paused: bool) -> void:
 	visible = paused
 	if paused:
-		_status_label.text = ""
+		_status_label.text = "Acordado, não dá para salvar." if Game.awake else ""
+		_save_button.disabled = Game.awake
 		_load_button.disabled = not SaveSystem.has_save()
 		_state_label.text = _state_text()
 		_tips_text.text = _tips_with_notes()

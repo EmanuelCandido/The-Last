@@ -1,6 +1,6 @@
 extends Node
-## Estado global da partida: fase atual, jogador, pausa, captura do mouse, o ouvido e a
-## passagem da noite (dormir e morrer).
+## Estado global da partida: fase atual, jogador, pausa, captura do mouse, o ouvido, a
+## passagem da noite (dormir e morrer), os flashes e a ida e volta ao mundo real (o Abrigo).
 
 const FIRST_LEVEL := "res://scenes/levels/forest/forest.tscn"
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
@@ -13,10 +13,21 @@ var current_level: Node3D
 var player: Player
 ## Dormindo ou desmaiado: relógio e corpo param, e não dá para dormir de novo.
 var resting := false
+## Ari acordado no Abrigo (§6): a floresta, o relógio e o corpo ficam parados.
+var awake := false
+## O Abrigo 9, montado na primeira vez que é preciso (get_shelter).
+var shelter: Shelter
+## A visão borrada de Ari (flashes e o despertar na cápsula).
+var vision: BlurredVision
 
 ## O ouvido: um passa-baixa no Master que abre junto com o volume (ver open_ears).
 var _ear_filter := AudioEffectLowPassFilter.new()
 var _ear_tween: Tween
+## Flash pedido por um beat, mostrado no escuro do sono ou da morte (-1 = nenhum).
+var _pending_flash := -1
+var _flash_director: FlashDirector
+## A câmera da floresta, para voltar a ela depois da visita.
+var _forest_camera: Camera3D
 
 
 func _ready() -> void:
@@ -26,6 +37,11 @@ func _ready() -> void:
 	AudioServer.add_bus_effect(0, _ear_filter)
 	Events.player_died.connect(func(_cause: StringName) -> void: pass_out(&"death"))
 	Events.recycle_requested.connect(recycle)
+	vision = BlurredVision.new()
+	vision.name = "BlurredVision"
+	add_child(vision)
+	Events.flash_requested.connect(func(number: int) -> void: _pending_flash = number)
+	Events.real_wake_requested.connect(wake_in_shelter)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -40,6 +56,9 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Troca a fase atual e cria o jogador no Marker3D "PlayerSpawn" da nova fase.
 func change_level(path: String) -> void:
 	assert(level_root != null, "Game.level_root precisa ser definido antes de trocar de fase.")
+	if awake:
+		return_to_forest(true)
+	_pending_flash = -1
 	if current_level != null:
 		level_root.remove_child(current_level)
 		current_level.queue_free()
@@ -79,7 +98,7 @@ func close_ears(duration: float, to_db := -42.0, to_hz := 160.0) -> void:
 ## pula para a manhã e o goblin acorda na pele da caverna. `reason`: "sleep" ou "death".
 ## Quem precisa reagir escuta Events.slept, Events.woke_up e Clock.skipped.
 func pass_out(reason: StringName) -> void:
-	if resting or player == null:
+	if resting or awake or player == null:
 		return
 	resting = true
 	player.set_controls_enabled(false)
@@ -101,6 +120,13 @@ func pass_out(reason: StringName) -> void:
 	else:
 		Vitals.rest()
 		Events.slept.emit()
+	# Um beat pediu um flash (ao dormir no Ato II, ou ao morrer): passa no escuro.
+	if _pending_flash >= 0:
+		var number := _pending_flash
+		_pending_flash = -1
+		await play_flash(number, reason == &"death")
+		if player == null or not resting:
+			return
 	player.respawn()
 	resting = false
 	Events.screen_fade_requested.emit(0.0, 5.0)
@@ -115,7 +141,7 @@ func pass_out(reason: StringName) -> void:
 ## afina até sobrar o bipe, e Ari acorda no dia 1: o Story avança o ciclo, o inventário
 ## zera, o corpo volta novo e a fase é recarregada (o arco volta para o chão da caverna).
 func recycle(reason: StringName) -> void:
-	if resting or player == null:
+	if resting or awake or player == null:
 		return
 	resting = true
 	player.set_controls_enabled(false)
@@ -154,6 +180,112 @@ func recycle(reason: StringName) -> void:
 		Events.screen_fade_requested.emit(0.0, 1.0)
 	await get_tree().process_frame
 	SaveSystem.save_game()
+
+
+## O Abrigo, montado na primeira vez (no mesmo mundo, 2 km abaixo da floresta).
+func get_shelter() -> Shelter:
+	if shelter == null:
+		shelter = Shelter.new()
+		shelter.name = "Shelter"
+		add_child(shelter)
+	return shelter
+
+
+## Mostra um flash do mundo real (§7) com a tela já escura (e a deixa escura no fim).
+## `number` 0 = sorteado entre os já vistos; `short` = a versão curta (morte).
+func play_flash(number: int, short := false) -> void:
+	if number == 0:
+		var seen: Array[int] = []
+		for flash: int in Tuning.FLASH_SECONDS:
+			if Story.has_flag(StringName("flash_%d_seen" % flash)):
+				seen.append(flash)
+		if seen.is_empty():
+			return
+		number = seen.pick_random()
+	var seconds: float = Tuning.DEATH_FLASH_SECONDS if short else Tuning.FLASH_SECONDS.get(number, 6.0)
+	if _flash_director == null:
+		_flash_director = FlashDirector.new()
+		_flash_director.name = "Flashes"
+		_flash_director.shelter = get_shelter()
+		_flash_director.vision = vision
+		add_child(_flash_director)
+	print("[Game] Flash %d (%.1f s)." % [number, seconds])
+	await _flash_director.play(number, seconds)
+	Story.set_flag(StringName("flash_%d_seen" % number))
+
+
+## Um flash do mundo real está passando agora.
+func in_flash() -> bool:
+	return _flash_director != null and _flash_director.is_playing()
+
+
+## Ari acorda no mundo real (§6): a tela escurece, a floresta para (processamento e sons) e
+## Ari abre os olhos na cápsula. `instant` = sem cenas, já de pé (DevTools e testes).
+func wake_in_shelter(instant := false) -> void:
+	if awake or resting or player == null:
+		return
+	awake = true
+	player.set_controls_enabled(false)
+	if not instant:
+		Events.screen_fade_requested.emit(1.0, 2.0)
+		close_ears(2.0)
+		await get_tree().create_timer(2.6, false).timeout
+	var place := get_shelter()
+	_forest_camera = get_viewport().get_camera_3d()
+	_set_forest_active(false)
+	place.set_active(true)
+	var ari := place.spawn_ari()
+	ari.camera.make_current()
+	Events.prompt_changed.emit("")
+	Events.shelter_entered.emit()
+	print("[Game] Ari acordou no Abrigo.")
+	if instant:
+		Events.screen_fade_requested.emit(0.0, 0.0)
+		open_ears(0.5)
+		ari.stand_ready(place.room_door())
+		return
+	Events.screen_fade_requested.emit(0.0, 1.5)
+	open_ears(5.0, -30.0, 400.0)
+	await ari.wake_in(place.capsule, place.room_door())
+
+
+## Ari deita de volta na cápsula (§6.2: voltar antes de a lucidez acabar não custa nada) e o
+## goblin acorda onde estava. `instant` = sem cenas (carregar um save acordado).
+func return_to_forest(instant := false) -> void:
+	if not awake or shelter == null or shelter.ari == null:
+		return
+	var ari := shelter.ari
+	if not instant:
+		await ari.lie_down_in(shelter.capsule)
+		Events.screen_fade_requested.emit(1.0, 1.2)
+		close_ears(1.2)
+		await get_tree().create_timer(1.6, false).timeout
+	shelter.remove_ari()
+	shelter.set_active(false)
+	vision.clear()
+	_set_forest_active(true)
+	if is_instance_valid(_forest_camera):
+		_forest_camera.make_current()
+	awake = false
+	Events.prompt_changed.emit("")
+	Events.shelter_left.emit()
+	print("[Game] Ari voltou para a floresta.")
+	# Deitado no sarcófago, continua deitado (Espaço levanta); senão, o controle volta.
+	if player != null and not player.lying:
+		player.set_controls_enabled(true)
+	if instant:
+		Events.screen_fade_requested.emit(0.0, 0.0)
+		return
+	Events.screen_fade_requested.emit(0.0, 3.0)
+	open_ears(4.0, -36.0, 220.0)
+
+
+## Liga ou para a floresta inteira (o processamento e os sons de fora e do mundo).
+func _set_forest_active(active: bool) -> void:
+	if current_level != null:
+		current_level.process_mode = Node.PROCESS_MODE_INHERIT if active else Node.PROCESS_MODE_DISABLED
+	for bus: StringName in [&"Ambience", &"World"]:
+		AudioServer.set_bus_mute(AudioServer.get_bus_index(bus), not active)
 
 
 func _beep() -> void:

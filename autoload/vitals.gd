@@ -21,7 +21,7 @@ var _dead := false
 
 
 func _process(delta: float) -> void:
-	if Game.player == null or Game.resting or _dead:
+	if Game.player == null or Game.resting or Game.awake or _dead:
 		return
 	satiety = maxf(satiety - Tuning.SATIETY_DECAY * delta, 0.0)
 	nausea = maxf(nausea - delta, 0.0)

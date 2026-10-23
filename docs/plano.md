@@ -108,11 +108,13 @@ A partir daqui a Vigilância (§5) está ligada.
 | `first_wake` | Deitar no sarcófago e fazer o ritual (§4.9) | **Falso travamento** (§7) e, em seguida, a primeira visita real (R1). Começa o Ato III. |
 
 **Feito (F4):**
-- **Flashes:** os beats `flash_1..3` já disparam (contador automático `sleeps_act_2`), põem as anotações e emitem `Events.flash_requested(n)`; a cena do flash é da F5. O `flash_3` liga `saw_ruin_window`, que libera a porta.
+- **Flashes:** os beats `flash_1..3` já disparam (contador automático `sleeps_act_2`), põem as anotações e emitem `Events.flash_requested(n)`. O `flash_3` liga `saw_ruin_window`, que libera a porta. (Na F5 passaram a disparar em `slept`, no escuro do sono, e a cena existe: ver §7.)
 - **Pintura:** `CavePainting` (filho da Cave), figuras em ocre num atlas feito em código, coladas no teto por raios. Só pega a luz do fogo com a face da frente para baixo (com a face do verso, a normal ia para a rocha). Com a lenha cheia lê bem; com 1, fica fraca.
 - **Ruína:** `Ruin` (`scenes/world/ruin/`), paredes numa malha só com colisão exata, cada bloco no chão embaixo dele (ali o terreno não é plano); a sala-espelho tem piso próprio e rampa até a nave (o goblin não sobe degrau).
 - **Porta:** `RuinDoor`. E entra nos discos; ←/→ (ou A/D) escolhe, ↑/↓ (ou W/S, roda) gira, E empurra, Espaço sai. A dica mostra os números, porque os discos são pequenos para ler de longe. Aberta, liga `ruin_door_open`.
-- **Sarcófago:** `Sarcophagus`. Deitar (`Player.lie_at`) é lugar de ritual; o fundo da caverna, agachado e parado, também. Com 20 s de ar preso: `Events.ritual_completed(lugar)`, Vigilância +10 (+25 com corvo vendo) e o gatilho `ritual` no Story. O que vem depois (`first_wake`: falso travamento e R1) é da F5/F6.
+- **Sarcófago:** `Sarcophagus`. Deitar (`Player.lie_at`) é lugar de ritual; o fundo da caverna, agachado e parado, também. Com 20 s de ar preso: `Events.ritual_completed(lugar)`, Vigilância +10 (+25 com corvo vendo) e o gatilho `ritual` no Story.
+
+**Feito (F5):** o beat `first_wake` (ritual no sarcófago, Ato II) abre o Ato III e acorda Ari no Abrigo (ação `wake_real`). Do Ato III em diante, `real_visit` faz todo ritual, em qualquer lugar de ritual, levar ao Abrigo. O falso travamento antes da volta fica para a F7 e o objetivo R1 para a F6.
 
 ### Ato III: O Zelador
 
@@ -400,6 +402,14 @@ Concreto, tubos, luz de emergência verde e poeira. Mesmo estilo pixelado e dess
   - **voltar para a cápsula antes:** não tem custo.
 - **Não dá para salvar acordado.** O menu de pausa diz isso.
 
+**Feito (F5):**
+- **O Abrigo:** `Shelter` (`scenes/shelter/`), montado por código na primeira vez que é preciso, filho do `Game`, em `Tuning.SHELTER_ORIGIN`. As salas do §6.1 com paredes, portas e janela; a arquitetura vira uma malha por material, com colisão em caixas (o piso tem `surface = stone` para os passos). Tem a cápsula (`CareCapsule`), o monitor (`VitalsMonitor`, com o ciclo, o dia e a fome de verdade), a janela com persiana (`WindowBlinds`, que abre e fecha com E e pode ficar meio erguida), luzes de emergência que piscam ou falham (`FlickerLight`), o sensor térmico, o quadro de fusíveis, o almoxarifado com o quadro do clima, a sala de controle fechada, a saída blindada e o Zelador encaixado na recarga (`Caretaker`: só o corpo, a lente que muda de cor, a roda, o servo, o bipe de passo e a voz; a IA é da F6).
+- **Vista da janela:** `window_view.gdshader` pinta o pinheiral e a ruína pela direção do olhar, como um céu. A paisagem fica no infinito, com o horizonte na altura dos olhos, e a capela cai no meio do que se vê deitado na cápsula.
+- **Ari:** `Ari` (`scenes/shelter/ari.gd`), em primeira pessoa e montado por código. A velocidade no passo bom é `Tuning.ARI_WALK_SPEED` (1,1 m/s); a perna direita segura metade da passada (`ARI_LIMP`), então a média fica em ~0,9 m/s. A cabeça afunda e pende no passo manco. Ctrl rasteja, Q prende o ar (15 s, depois arfa: `Events.noise_made`), E mexe no que está no meio da tela (até 2 m e 30°). Shift mostra uma vez "A perna não deixa." (flag `leg_warned`). `noise_level()` já existe para o Zelador da F6. Cenas de acordar (`wake_in`) e de deitar (`lie_down_in`).
+- **Troca de mundo:** `Game.wake_in_shelter()` escurece a tela, para a floresta (`process_mode` desligado, buses `Ambience` e `World` mudos), põe a câmera de Ari com o ambiente sem neblina e roda a cena de acordar. `Game.return_to_forest()` (E na cápsula) faz o caminho de volta: o goblin continua onde estava (deitado no sarcófago, Espaço levanta). Acordado, o relógio e o corpo param (`Game.awake`), o HUD esconde os itens e as teclas do goblin, salvar fica bloqueado, e carregar um save volta antes para a floresta.
+- **Luz:** as malhas do Abrigo ficam na camada visual `Shelter.LAYER`, que o `Sun` da floresta não ilumina. O som do Abrigo vai para o bus `Shelter`, com eco de sala de concreto.
+- **Lucidez:** é da F6 (o tempo da visita, a visão que fecha e o desmaio). Na F5 a visita dura o quanto o jogador quiser.
+
 ### 6.3 O Zelador (IA)
 
 - **Sentidos:** os mesmos dos bichos, extraídos para um componente `Senses` (F6).
@@ -427,6 +437,11 @@ Concreto, tubos, luz de emergência verde e poeira. Mesmo estilo pixelado e dess
 
 - **O que são:** 5–8 s em primeira pessoa no Abrigo, com a visão borrada (shader de desfoque e aberração) e o bipe. Sem controle, só a cabeça mexe um pouco com o mouse.
 - **Como são feitos:** usam a mesma cena do Abrigo do Ato III, então são construídos uma vez e reaproveitados.
+- **Feito (F5):**
+  - O `FlashDirector` mostra o flash no escuro do sono (beats em `slept`) ou da morte (`death_flash`, 5 s, sorteado entre os vistos; ação `{"flash": 0}`), antes de o goblin acordar. Cada flash é uma função do tempo (câmera deitada, Zelador, pálpebras, foco e legendas), e o flash curto passa a mesma linha do tempo mais depressa. No fim liga `flash_<n>_seen`.
+  - A visão borrada é a `BlurredVision` (`blurred_vision.gdshader`): borrão por mipmap, cores separadas, imagem dupla, borda escura e pálpebras. Cada flash tem a própria curva de foco: no 2 a vista firma no monitor (dá para ler LEITO 2714 · CICLO · DIA), e no 3 a persiana está meio erguida e a vista fecha na ruína.
+  - A voz do Zelador é um murmúrio de vogais sintéticas com um bipe no fim (`keeper_voice_*`), com a legenda na tela.
+  - No flash 2 a vista não gira os 90° da cabeça deitada de lado: o olho compensa em parte, para o texto continuar legível.
 
 | Flash | O que mostra |
 |---|---|
@@ -572,7 +587,7 @@ O plano vai mudar, talvez muito. O código segue estas regras para que uma mudan
 - **`WallMarks`:** `scenes/world/cave/wall_marks.gd`. Monta a malha dos riscos (uma superfície só) a partir de `Story.marks` e `old_marks`, colada na parede com um raio no primeiro frame de física. Tem o musgo por cima.
 - **`EatAbility` e `BodyFeedback`:** `scenes/player/parts/`. A tecla F e os avisos do corpo (ronco da barriga, "Com fome").
 - **`GoblinAnimator`:** ações novas `eat`, `cook` e `lie_down` (F1); `craft` e `shiver` (F2/F3).
-- **Abrigo (F5):** fica no **mesmo World3D**, 2 km abaixo da floresta (`y = -2000`).
+- **Abrigo (F5, feito):** fica no **mesmo World3D**, 2 km abaixo da floresta (`y = -2000`), como filho do `Game` (sobrevive à troca de fase e à Reciclagem). Fora de uso, fica escondido e parado (`Shelter.set_active`).
   - A câmera de Ari usa o próprio `environment` (sem neblina) e as malhas do Abrigo ficam numa camada visual que o `Sun` não ilumina.
   - Enquanto Ari está acordado, a floresta fica com `process_mode` desligado, e os buses `Ambience` ficam mudos.
   - Sem trocar de fase, não é preciso regerar a floresta e nada se perde.
@@ -595,7 +610,7 @@ Cada fase termina jogável, com teste de fumaça, roteiro `--run` e print confer
 | **F2: Noite e perigo** ✅ feita | Dia e noite visual, sons da noite, frio (efeito da roupa), lobos, uivo de aviso, `shiver` | Print de noite com fogueira legível; lobo persegue e foge do fogo |
 | **F3: Caça completa** ✅ feita | Pegadas, farejar, prender o ar, pedras, lama, lista de fabricar (com a roupa de couro), penas, laço, tocha | Seguir um cervo ferido pelas pegadas; tocar a manada com pedra |
 | **F4: Rachaduras** ✅ feita | Pistas do Ato I, Vigilância, corvos espiões, cervo branco, ruína (malha, porta, teclado), pintura, sala-espelho, sarcófago | Do musgo até a porta aberta, com os 4 beats de pista disparando |
-| **F5: O Abrigo** | Cena do Abrigo, controle em primeira pessoa, troca de mundo, flashes 1–3, shader de visão borrada | Flash 1 ao dormir no Ato II; ida e volta sem perder estado |
+| **F5: O Abrigo** ✅ feita | Cena do Abrigo, controle em primeira pessoa, troca de mundo, flashes 1–3, shader de visão borrada | Flash 1 ao dormir no Ato II; ida e volta sem perder estado |
 | **F6: O Zelador** | Componente `Senses`, IA e ronda do Zelador, lucidez, captura, R1–R4 e os efeitos na floresta, Reciclagem | Fazer R1–R4 em sequência; ser pego desfaz o certo |
 | **F7: Mistério meta** | Anotações, `ciclo_346.sav` e a memória, `leia_me`, falso travamento, sons vazando, HUD vital, voz do Zelador | Cada item do §7 disparado pelo seu beat |
 | **F8: Verdade e finais** | Sala de controle, câmeras, conversa, terminal, os 3 finais, créditos, menu principal, modo "Bem-vindo de volta" | Os 3 finais jogados de ponta a ponta |

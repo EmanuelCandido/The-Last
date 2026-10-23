@@ -645,6 +645,97 @@ def wing_flap():
     return concat(*parts)
 
 
+# --- O Abrigo -----------------------------------------------------------------------
+
+def shelter_loop(seconds=12):
+    """Ar parado de sala fechada: o zumbido de 50 Hz da rede, a ventilação e o concreto."""
+    rng = np.random.default_rng(400)
+    n = seconds * SR
+    t = np.arange(n) / SR
+    mains = tone(np.full(n, 50.0), ((1, 1.0), (2, 0.6), (3, 0.35), (4, 0.15), (6, 0.06)))
+    vent = band(periodic_noise(n, rng, beta=0.8), 90, 900) * slow_env(n, rng, 1, 3, 0.7, 1.0)
+    rattle = band(periodic_noise(n, rng), 1800, 3200, edge=0.06) * (0.5 + 0.5 * np.sin(TAU * 0.25 * t)) ** 6
+    return 0.5 * rms_norm(mains) + rms_norm(vent) + 0.08 * rms_norm(rattle)
+
+
+def light_buzz(seconds=4):
+    """Lâmpada fluorescente velha: zumbido áspero de 100 Hz, cheio de harmônicos."""
+    rng = np.random.default_rng(410)
+    n = seconds * SR
+    harmonics = tuple((k, 1.0 / k) for k in range(1, 30))
+    buzz = tone(np.full(n, 100.0), harmonics)
+    buzz = band(np.sign(buzz) * np.abs(buzz) ** 0.6, 100, 5000)
+    hiss = band(periodic_noise(n, rng), 3000, 8000) * slow_env(n, rng, 2, 6, 0.3, 1.0)
+    return rms_norm(buzz) + 0.15 * rms_norm(hiss)
+
+
+def servo():
+    """Servo do braço do Zelador: um gemido que sobe e desce, com dente de engrenagem."""
+    rng = np.random.default_rng(420)
+    n = int(0.7 * SR)
+    t = np.arange(n) / SR
+    pitch = 620 + 260 * np.sin(np.pi * t / 0.7) ** 2
+    whine = tone(pitch, ((1, 1.0), (2, 0.4), (3, 0.3), (5, 0.1)))
+    gears = band_oneshot(rng.standard_normal(n), 2000, 6000) * (0.5 + 0.5 * np.sin(TAU * 140 * t)) ** 4
+    env = smoothstep(0.0, 0.05, t) * (1 - smoothstep(0.6, 0.7, t))
+    return (peak_norm(whine) + 0.3 * peak_norm(gears)) * env
+
+
+def wheel_loop(seconds=4):
+    """A roda do Zelador no concreto: ronco grave com o tique da emenda do piso."""
+    rng = np.random.default_rng(430)
+    n = seconds * SR
+    rumble = band(periodic_noise(n, rng, beta=1.2), 30, 260)
+    motor = tone(np.full(n, 180.0), ((1, 1.0), (2, 0.5), (3, 0.2)))
+    ticks = place_events(n, np.arange(0, n, int(0.5 * SR)), lambda: band_oneshot(burst(rng, 0.03, 0.006, 0.0005), 600, 3000))
+    return rms_norm(rumble) + 0.3 * rms_norm(motor) + 0.35 * peak_norm(ticks)
+
+
+def keeper_beep():
+    """O bipe de passo do Zelador: dois tons curtos e limpos, um acima do outro."""
+    parts = []
+    for f in (1400.0, 1850.0):
+        n = int(0.06 * SR)
+        t = np.arange(n) / SR
+        parts.append(tone(np.full(n, f), ((1, 1.0), (2, 0.08))) * smoothstep(0.0, 0.004, t) * (1 - smoothstep(0.045, 0.06, t)))
+        parts.append(silence(0.025))
+    return concat(*parts)
+
+
+def keeper_voice(variant):
+    """A voz do Zelador sem dublagem: sílabas de vogais sintéticas num zumbido de alto-falante
+    pequeno, com um bipe no fim de cada frase."""
+    rng = np.random.default_rng(440 + variant)
+    vowels = [(730, 1090, 2440), (270, 2290, 3010), (300, 870, 2240), (530, 1840, 2480), (570, 840, 2410)]
+    parts = []
+    syllables = (6, 9)[variant - 1]
+    for i in range(syllables):
+        dur = rng.uniform(0.12, 0.2)
+        n = int(dur * SR)
+        t = np.arange(n) / SR
+        f0 = 118 * (1.0 - 0.12 * i / syllables) * (1 + 0.04 * np.sin(TAU * 5 * t))
+        carrier = tone(f0, tuple((k, 1.0 / k) for k in range(1, 40)))
+        f1, f2, f3 = vowels[rng.integers(len(vowels))]
+        voiced = formants(carrier, [(f1, 90, 1.0), (f2, 120, 0.6), (f3, 160, 0.3)])
+        env = smoothstep(0.0, 0.02, t) * (1 - smoothstep(dur - 0.04, dur, t))
+        parts.append(peak_norm(voiced) * env)
+        parts.append(silence(rng.uniform(0.02, 0.06)))
+    voice = concat(*parts)
+    # Alto-falante pequeno: sem graves, sem brilho, um pouco quantizado.
+    voice = band_oneshot(voice, 350, 3200)
+    voice = np.round(peak_norm(voice) * 24) / 24
+    return concat(voice, silence(0.08), 0.4 * keeper_beep())
+
+
+def blind_rattle():
+    """As lâminas da persiana girando: estalinhos de plástico em cascata."""
+    rng = np.random.default_rng(450)
+    n = int(0.5 * SR)
+    times = np.sort(rng.uniform(0, 0.38 * SR, 22))
+    clicks = place_events(n, times, lambda: band_oneshot(burst(rng, 0.02, 0.003, 0.0003), 1500, 7000) * rng.uniform(0.3, 1.0))
+    return clicks
+
+
 def main():
     print("Gerando sons em", ROOT)
     write_wav(ROOT / "ambience" / "wind_loop.wav", wind_loop(), loop=True)
@@ -690,6 +781,14 @@ def main():
     for v in range(1, 3):
         write_wav(ROOT / "sfx" / f"stone_click_{v}.wav", stone_click(v))
     write_wav(ROOT / "animals" / "wing_flap.wav", wing_flap())
+    write_wav(ROOT / "ambience" / "shelter_loop.wav", shelter_loop(), loop=True)
+    write_wav(ROOT / "ambience" / "light_buzz.wav", light_buzz(), loop=True)
+    write_wav(ROOT / "sfx" / "servo.wav", servo())
+    write_wav(ROOT / "ambience" / "wheel_loop.wav", wheel_loop(), loop=True)
+    write_wav(ROOT / "sfx" / "keeper_beep.wav", keeper_beep())
+    for v in range(1, 3):
+        write_wav(ROOT / "sfx" / f"keeper_voice_{v}.wav", keeper_voice(v))
+    write_wav(ROOT / "sfx" / "blind_rattle.wav", blind_rattle())
 
 
 if __name__ == "__main__":

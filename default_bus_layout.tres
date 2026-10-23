@@ -30,6 +30,16 @@ wet = 0.03
 resource_name = "LowPassFilter"
 cutoff_hz = 900.0
 
+[sub_resource type="AudioEffectReverb" id="AudioEffectReverb_shelter"]
+resource_name = "Reverb"
+predelay_msec = 18.0
+predelay_feedback = 0.25
+room_size = 0.5
+damping = 0.25
+spread = 0.7
+hipass = 0.05
+wet = 0.22
+
 [resource]
 bus/1/name = &"Ambience"
 bus/1/solo = false
@@ -65,3 +75,11 @@ bus/4/volume_db = 0.0
 bus/4/send = &"World"
 bus/4/effect/0/effect = SubResource("AudioEffectLowPassFilter_world_muffled")
 bus/4/effect/0/enabled = true
+bus/5/name = &"Shelter"
+bus/5/solo = false
+bus/5/mute = false
+bus/5/bypass_fx = false
+bus/5/volume_db = 0.0
+bus/5/send = &"Master"
+bus/5/effect/0/effect = SubResource("AudioEffectReverb_shelter")
+bus/5/effect/0/enabled = true

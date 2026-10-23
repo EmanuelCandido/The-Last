@@ -31,6 +31,7 @@ python tools/generate_sounds.py                                         # regera
   - `--load`, `--save`, `--pause`, `--tips`;
   - `--screenshot`, `--skip-intro`, `--teleport=x,z`, `--camera=yaw,pitch`;
   - `--set=story.act:2,story.flag:moss_fell,vitals.satiety:10,clock.hour:19` (põe o estado global em qualquer ponto);
+  - `--shelter` (acorda Ari no Abrigo, já de pé) e `--flash=n` (começa o flash n, para prints);
   - `--run=roteiro.gd`.
 - **`--run`:** recebe um `RefCounted` com `func run() -> void` (pode usar `await`). É o jeito de testar mecânicas de ponta a ponta: pegar o arco, quebrar árvore, caçar, furtividade, assar, dormir, farejar, jogar pedra, fabricar.
 - Roteiros que dormem salvam de verdade em `%APPDATA%/Godot/app_userdata/Jogo Pessoal/save.json`. Apague esse save depois do teste.
@@ -70,7 +71,10 @@ scenes/
   world/day_night/   DayNight: sol, céu e neblina pela hora (Clock.night)
   animals/           Animal (sentidos, fuga, ferimento, caça), Deer, WhiteDeer, Rabbit, CrowFlock e Crow, Wolf e WolfPack,
                      Watchers (os olhos do Zelador: corvos sentinela e espiões, cervo branco)
-  ui/                HUD (ação, avisos, itens, mira), menu de pausa (com Dicas), ScreenFade
+  shelter/           o Abrigo 9 (mundo real, 2 km abaixo): Shelter (salas por código), ShelterLook (materiais e peças),
+                     CareCapsule, VitalsMonitor, WindowBlinds, FlickerLight, Caretaker (corpo do Zelador), Ari (primeira
+                     pessoa) e FlashDirector (os flashes)
+  ui/                HUD (ação, avisos, itens, mira), menu de pausa (com Dicas), ScreenFade, BlurredVision (visão borrada)
 components/          Footsteps (passos por chão), OccludedAudio (som 3D abafado atrás de rocha)
 assets/
   textures/ shaders/ gerados por tools/ (exceto shaders)
@@ -89,13 +93,17 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - `notification_shown`: avisos na tela;
   - `prompt_changed`: ação disponível agora.
 - **Inventory:** quantidade por item (`bow`, `arrow`, `feathered_arrow`, `wood`, `stone`, `meat`, `cooked_meat`, `white_meat`, `hide`, `feather`, `snare`, `clothes`). Emite `changed` e vai junto no save. `Inventory.HUD_ORDER` diz o que aparece no HUD.
-- **Plano e maleabilidade:** `docs/plano.md` é a fonte da história e das mecânicas, dividida em fases (F1 a F4 feitas). Receitas ficam em `Recipes` (`data/recipes.gd`). Números ficam em `Tuning` (`data/tuning.gd`), nunca soltos no código. Acontecimentos da história ficam em `StoryBeats` (`data/story_beats.gd`): cada beat tem gatilho (`on`), condições (`when`) e ações (`do`). Os sistemas reagem a flags (`Story.flag_changed`), sem saber qual beat as ligou.
-- **Story:** ato, ciclo (347), riscos deste ciclo (`marks`) e antigos (`old_marks`), flags, contadores (`deer_harvested`, `sleeps_act_2`...), anotações (`notes`, que viram a seção ANOTAÇÕES das Dicas), a Vigilância (`vigilance`, 0..100, só do Ato II em diante) e os objetivos reais (`objectives`, F6). Avalia os beats quando acontece `start`, `slept`, `woke`, `died`, `harvested`, `ate` ou `ritual`; beat com `"repeat"` dispara toda vez. Ações de beat: `set_flag`, `set_act`, `add_note`, `notify`, `flash` (pede o flash, F5), `recycle` e `vigilance`.
+- **Plano e maleabilidade:** `docs/plano.md` é a fonte da história e das mecânicas, dividida em fases (F1 a F5 feitas). Receitas ficam em `Recipes` (`data/recipes.gd`). Números ficam em `Tuning` (`data/tuning.gd`), nunca soltos no código. Acontecimentos da história ficam em `StoryBeats` (`data/story_beats.gd`): cada beat tem gatilho (`on`), condições (`when`) e ações (`do`). Os sistemas reagem a flags (`Story.flag_changed`), sem saber qual beat as ligou.
+- **Story:** ato, ciclo (347), riscos deste ciclo (`marks`) e antigos (`old_marks`), flags, contadores (`deer_harvested`, `sleeps_act_2`...), anotações (`notes`, que viram a seção ANOTAÇÕES das Dicas), a Vigilância (`vigilance`, 0..100, só do Ato II em diante) e os objetivos reais (`objectives`, F6). Avalia os beats quando acontece `start`, `slept`, `woke`, `died`, `harvested`, `ate` ou `ritual`; beat com `"repeat"` dispara toda vez. Ações de beat: `set_flag`, `set_act`, `add_note`, `notify`, `flash` (0 = sorteado entre os vistos), `recycle`, `vigilance` e `wake_real` (Ari acorda no Abrigo).
 - **Vigilância e Reciclagem:** `Story.add_vigilance()` sobe e desce (números em `Tuning.VIGILANCE_*`); em 100, `Events.recycle_requested`. `Game.recycle()` desmancha a tela (`recycle.gdshader`), roda `Story.recycle()` (ciclo +1, riscos viram antigos, Vigilância 30, desfaz o último objetivo; ato, flags e anotações ficam), zera o inventário e o corpo, volta ao dia 1 e recarrega a fase.
 - **Watchers (os olhos do Zelador):** do Ato II em diante, corvos sentinela pousados na boca da caverna (`ForestLayout.CAVE_CROW`) e no ninho da ruína (somem com o flag `blind_spot`), corvos que pousam perto do goblin de tempos em tempos (fora do capim alto) e, com Vigilância alta, um cervo branco por dia. `Watchers.watching(ponto)` responde se algum corvo pousado vê o ponto. `Crow` tem o modo do bando e o modo pousado (`perch`: desce planando, segue o goblin com a cabeça, vai embora).
 - **Pistas (`Clues`):** os beats do Ato I só ligam flags; o `Clues` faz cada pista na hora certa (cervo que trava com `Animal.freeze`, corvo que encara, três bipes à noite na caverna, ventilador na rajada forte) e liga `<flag>_seen`. Do Ato II em diante, bipe e ventilador voltam a vazar às vezes.
 - **Ruína (`Ruin`):** capela no fim da trilha, montada por código; cada bloco de parede acompanha o chão. Porta lisa com 4 discos (`RuinDoor`, código em `StoryBeats.DOOR_CODE`, só depois do flag `saw_ruin_window`) e, atrás, a sala-espelho com o `Sarcophagus` (deitar: `Player.lie_at`/`get_up`), a frase de Ari e o ninho. O ritual (`BreathControl`): deitado no sarcófago, ou agachado no fundo da caverna, o ar não acaba e aos 20 s sai `Events.ritual_completed`.
 - **Pintura (`CavePainting`):** 2 cervos, 7 corvos, 1 lobo e 4 coelhos (o código 2714) no teto da caverna, legível com a fogueira cheia.
+- **O Abrigo (`Shelter`, F5):** o mundo real, no mesmo World3D, 2 km abaixo (`Tuning.SHELTER_ORIGIN`), filho do `Game` e montado na primeira vez que é preciso (`Game.get_shelter()`). Fora de uso fica escondido e parado (`set_active`). As malhas ficam na camada visual `Shelter.LAYER`, que o `Sun` da floresta não ilumina (`forest.gd` tira do `light_cull_mask`); a câmera usa `Shelter.environment` (sem neblina); o som vai para o bus `Shelter`. A arquitetura é uma malha por material (`_add_box` junta num `SurfaceTool`) com colisão em caixas; as peças que mexem são nós próprios.
+- **Troca de mundo:** `Game.wake_in_shelter(instant)` (pedido por `Events.real_wake_requested`, ação de beat `wake_real`) e `Game.return_to_forest(instant)` (E na cápsula). Com `Game.awake`, a fase fica com `process_mode` desligado, os buses `Ambience` e `World` ficam mudos, o relógio e o corpo param, o HUD esconde itens e teclas, `SaveSystem.save_game()` recusa, e `load_game()` volta antes. Emitem `shelter_entered` e `shelter_left`.
+- **Ari (`Ari`):** primeira pessoa, mesmo corpo do goblin: manca (fase da passada; no passo da perna ruim a velocidade cai `Tuning.ARI_LIMP` e a cabeça afunda e pende), rasteja (Ctrl), prende o ar (Q), E no que está no meio da tela (grupo `interactable` dentro do Abrigo, com `interaction_point()` opcional). `noise_level()` para o Zelador da F6. Passos pelo mesmo `Footsteps` (piso com `surface = stone`).
+- **Flashes (`FlashDirector`):** `Events.flash_requested` guarda o pedido; `Game.pass_out` mostra o flash no escuro, antes de acordar (`Game.play_flash`, com a versão curta na morte). Cada flash é uma função do tempo (`seek(t)` reproduz qualquer instante), com a câmera `Shelter.eyes` deitada na cápsula, a `BlurredVision` (`amount` = borrão, `lids` = pálpebras, `say()` = legenda) e o Zelador. No fim liga `flash_<n>_seen`.
 - **Clock:** dia e hora (1 h de jogo = 60 s). Para enquanto `Game.resting`. Dormir pula o tempo de uma vez e emite `skipped(horas)` (a fogueira queima a lenha, a matilha some). `night()` vai de 0 (dia) a 1 (noite fechada, 20h30–5h), suave no anoitecer e no amanhecer.
 - **Dia e noite (`DayNight`):** sol, cor e energia do céu e cor da neblina misturam `Tuning.DAY_LIGHT` e `NIGHT_LIGHT` por `Clock.night()`, com lusco-fusco quente no meio. A luz ambiente vem do céu, então a noite escurece tudo o que o fogo não ilumina. De noite os bichos enxergam pior o goblin (`Tuning.NIGHT_VISIBILITY`).
 - **Vitals:** o corpo de Ari: saciedade, vida, frio e enjoo. Fome zerada machuca, frio no máximo machuca, queda acima de 8 m/s machuca (`Player`), mordida de lobo machuca; vida 0 emite `Events.player_died`. Sem barra no HUD: o corpo avisa (ronco, mão na barriga, tremor, vapor da respiração, dentes batendo, borda escura da tela com vida baixa).
@@ -214,7 +222,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 
 ## Ainda não existe
 
-- O resto do plano (`docs/plano.md`, fases F5–F8): flashes e o Abrigo (mundo real), o Zelador, o mistério meta e os finais. O que acontece depois do ritual (`first_wake`) é da F5/F6.
+- O resto do plano (`docs/plano.md`, fases F6–F8): a IA do Zelador, a lucidez e os objetivos R1–R4, o mistério meta (falso travamento, `ciclo_346.sav`, `leia_me`, HUD vital) e os finais.
 - Combate corpo a corpo de verdade, diálogos, missões, atributos.
 - Menu principal e configurações (vídeo, áudio e controles).
 - Subir degraus (step-up), água.

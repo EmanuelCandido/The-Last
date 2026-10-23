@@ -39,8 +39,16 @@ signal animal_harvested(kind: StringName)
 ## O goblin comeu. `food`: o item do inventário ("meat", "cooked_meat").
 signal ate(food: StringName)
 
-## Um beat pediu um flash do mundo real (F5 mostra; antes disso, ninguém escuta).
+## Um beat pediu um flash do mundo real (o Game mostra durante o sono ou a morte). `number`
+## 0 = sorteado entre os já vistos.
 signal flash_requested(number: int)
+
+## Um beat pediu para Ari acordar no mundo real (o ritual, §4.9).
+signal real_wake_requested
+
+## Ari acordou no Abrigo (a floresta parou) / voltou a dormir na cápsula (a floresta voltou).
+signal shelter_entered
+signal shelter_left
 
 ## A floresta vai se desmanchar e o ciclo recomeça. `reason`: "vigilance", "white_meat"...
 signal recycle_requested(reason: StringName)

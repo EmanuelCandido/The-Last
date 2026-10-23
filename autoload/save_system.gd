@@ -21,7 +21,8 @@ func has_save() -> bool:
 
 func save_game() -> bool:
 	var level := Game.current_level
-	if level == null:
+	# Acordado no Abrigo não dá para salvar (§6.2).
+	if level == null or Game.awake:
 		return false
 
 	var nodes := {}
@@ -56,6 +57,8 @@ func load_game() -> bool:
 		push_error("Save corrompido: %s" % SAVE_PATH)
 		return false
 
+	if Game.awake:
+		Game.return_to_forest(true)
 	var level_path: String = payload.get("level", "")
 	if not ResourceLoader.exists(level_path):
 		push_error("Fase do save não existe: %s" % level_path)

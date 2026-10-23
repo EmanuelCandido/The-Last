@@ -273,6 +273,8 @@ func _run(actions: Array) -> void:
 					Events.notification_shown.emit(String(value))
 				"flash":
 					Events.flash_requested.emit(int(value))
+				"wake_real":
+					Events.real_wake_requested.emit()
 				"recycle":
 					Events.recycle_requested.emit(StringName(String(value)))
 				"vigilance":

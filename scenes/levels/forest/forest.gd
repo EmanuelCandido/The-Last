@@ -15,6 +15,8 @@ extends Node3D
 
 func _ready() -> void:
 	var started := Time.get_ticks_msec()
+	# O sol da floresta não ilumina o Abrigo (que fica no mesmo mundo, 2 km abaixo).
+	($Sun as DirectionalLight3D).light_cull_mask &= ~Shelter.LAYER
 	_terrain.generate()
 	_terrain.publish_height_texture()
 	_cave.build(_terrain.cave_floor_height)

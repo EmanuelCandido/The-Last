@@ -15,7 +15,9 @@ extends RefCounted
 ##   Contadores automáticos: "<bicho>_harvested", "<receita>_crafted", "sleeps_act_<n>".
 ## Ações (`do`, em ordem):
 ##   {"set_flag": nome}, {"clear_flag": nome}, {"set_act": n}, {"add_note": texto},
-##   {"notify": texto}, {"flash": n} (F5 mostra), {"recycle": motivo}, {"vigilance": n}.
+##   {"notify": texto}, {"flash": n} (passa no escuro do sono ou da morte; 0 = sorteado entre
+##   os já vistos), {"recycle": motivo}, {"vigilance": n}, {"wake_real": true} (Ari acorda no
+##   Abrigo). Flags automáticos: "flash_<n>_seen" (o flash passou).
 
 ## Código da porta da ruína: a pintura do teto (2 cervos, 7 corvos, 1 lobo, 4 coelhos).
 const DOOR_CODE := "2714"
@@ -66,24 +68,49 @@ const BEATS: Array[Dictionary] = [
 		},
 		"do": [{"set_flag": "moss_fell"}, {"set_act": 2}],
 	},
-	# --- Ato II: os flashes (a cena é da F5; as anotações já entram) --------------------
+	# --- Ato II: os flashes, no escuro de cada sono (o Game mostra antes de acordar) -------
 	{
 		"id": "flash_1",
-		"on": "woke",
-		"when": {"act": 2, "reason": "sleep", "counter_at_least": {"sleeps_act_2": 1}},
+		"on": "slept",
+		"when": {"act": 2, "counter_at_least": {"sleeps_act_2": 1}},
 		"do": [{"flash": 1}, {"add_note": "Se o braço direito doer, é normal."}],
 	},
 	{
 		"id": "flash_2",
-		"on": "woke",
-		"when": {"act": 2, "reason": "sleep", "counter_at_least": {"sleeps_act_2": 2}},
+		"on": "slept",
+		"when": {"act": 2, "counter_at_least": {"sleeps_act_2": 2}},
 		"do": [{"flash": 2}, {"add_note": "NÃO COMA A CARNE DO CERVO BRANCO."}],
 	},
 	{
 		"id": "flash_3",
-		"on": "woke",
-		"when": {"act": 2, "reason": "sleep", "counter_at_least": {"sleeps_act_2": 3}},
+		"on": "slept",
+		"when": {"act": 2, "counter_at_least": {"sleeps_act_2": 3}},
 		"do": [{"flash": 3}, {"set_flag": "saw_ruin_window"}, {"add_note": "A ruína. Eu vi a ruína pela janela."}],
+	},
+	{
+		# Morrer do Ato II em diante: um flash curto, sorteado entre os já vistos.
+		"id": "death_flash",
+		"on": "died",
+		"when": {"act_at_least": 2, "flag": "flash_1_seen"},
+		"repeat": true,
+		"do": [{"flash": 0}],
+	},
+	# --- O ritual: acordar no mundo real ----------------------------------------------------
+	{
+		# Do Ato III em diante, todo ritual leva ao Abrigo (fica antes do first_wake na lista,
+		# para não disparar junto no mesmo ritual).
+		"id": "real_visit",
+		"on": "ritual",
+		"when": {"act_at_least": 3},
+		"repeat": true,
+		"do": [{"wake_real": true}],
+	},
+	{
+		# O primeiro: deitado no sarcófago. O falso travamento antes da volta é da F7.
+		"id": "first_wake",
+		"on": "ritual",
+		"when": {"act": 2, "reason": "sarcophagus"},
+		"do": [{"set_act": 3}, {"set_flag": "first_wake"}, {"wake_real": true}],
 	},
 	# --- Reciclagem ----------------------------------------------------------------------
 	{

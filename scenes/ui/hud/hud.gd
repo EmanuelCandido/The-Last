@@ -45,6 +45,10 @@ func _process(_delta: float) -> void:
 	_crosshair.visible = aiming
 	if aiming:
 		_crosshair.queue_redraw()
+	# No mundo real (acordado ou num flash), o inventário e as teclas do goblin não existem.
+	var real := Game.awake or Game.in_flash()
+	_items.visible = not real
+	_controls_hint.visible = not real
 	_update_vignette()
 	if not _debug_label.visible:
 		return
@@ -80,7 +84,7 @@ func _update_vignette() -> void:
 	var hurt := clampf((Tuning.LOW_HEALTH - Vitals.health) / Tuning.LOW_HEALTH, 0.0, 1.0)
 	if Vitals.satiety <= 0.0:
 		hurt = maxf(hurt, 0.3)
-	_vignette.visible = hurt > 0.0 and Game.player != null
+	_vignette.visible = hurt > 0.0 and Game.player != null and not Game.awake
 	if not _vignette.visible:
 		return
 	var beat := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 1000.0 * TAU * lerpf(1.1, 2.0, hurt))

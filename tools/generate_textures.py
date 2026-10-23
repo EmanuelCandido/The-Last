@@ -361,6 +361,48 @@ def wood(w=32, h=64):
     return ramp(val, [(0.0, (0.3, 0.2, 0.12)), (0.5, (0.47, 0.34, 0.21)), (1.0, (0.6, 0.47, 0.31))])
 
 
+def concrete(size=128):
+    """Parede de concreto do Abrigo: cinza frio, poros, marcas de fôrma e escorridos de umidade."""
+    rng = np.random.default_rng(151)
+    v = spectral_noise(size, size, 1.3, 151) * 0.6 + spectral_noise(size, size, 0.5, 152) * 0.4
+    img = ramp(v, [(0.0, (0.25, 0.26, 0.25)), (0.5, (0.38, 0.39, 0.37)), (1.0, (0.5, 0.5, 0.47))])
+    # Junta da fôrma de madeira: uma linha horizontal a cada metade.
+    img[[size // 2 - 1, size - 1], :] *= 0.72
+    # Escorridos: manchas alongadas na vertical que escurecem para baixo.
+    streaks = spectral_noise(size, size, 1.6, 153, stretch_y=0.08)
+    img *= (1.0 - 0.3 * np.clip((streaks - 0.55) * 3.0, 0.0, 1.0))[..., None]
+    pores = rng.random((size, size)) < 0.012
+    img[pores] *= 0.78
+    return img
+
+
+def concrete_floor(size=128):
+    """Piso de concreto: mais escuro, gasto no meio, com a junta de dilatação e manchas de óleo."""
+    rng = np.random.default_rng(161)
+    v = spectral_noise(size, size, 1.5, 161) * 0.7 + spectral_noise(size, size, 0.4, 162) * 0.3
+    img = ramp(v, [(0.0, (0.19, 0.2, 0.19)), (0.5, (0.29, 0.3, 0.28)), (1.0, (0.4, 0.4, 0.37))])
+    img[size - 1, :] *= 0.55
+    img[:, size - 1] *= 0.55
+    stains = spectral_noise(size, size, 1.8, 163) > 0.72
+    img[stains] *= 0.7
+    img[rng.random((size, size)) < 0.03] *= 1.2
+    return img
+
+
+def metal(size=64):
+    """Chapa pintada de verde-acinzentado, descascada, com arranhões e ferrugem nas falhas."""
+    rng = np.random.default_rng(171)
+    v = spectral_noise(size, size, 1.2, 171)
+    img = ramp(v, [(0.0, (0.3, 0.34, 0.31)), (1.0, (0.44, 0.48, 0.44))])
+    chips = spectral_noise(size, size, 1.6, 172) > 0.82
+    img[chips] = ramp(spectral_noise(size, size, 0.6, 173), [(0.0, (0.2, 0.15, 0.11)), (1.0, (0.32, 0.24, 0.17))])[chips]
+    for _ in range(10):
+        x, y = rng.uniform(0, size, 2)
+        a = rng.normal(0.0, 0.3)
+        stroke(img, x, y, np.cos(a), np.sin(a), rng.integers(3, 8), np.array([0.49, 0.52, 0.48]))
+    return img
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     print("Gerando texturas em", OUT)
@@ -378,6 +420,9 @@ def main():
     save("goblin_cloth.png", goblin_cloth())
     save("leather.png", leather())
     save("wood.png", wood())
+    save("concrete.png", concrete())
+    save("concrete_floor.png", concrete_floor())
+    save("metal.png", metal())
     save_gray("macro_noise.png", spectral_noise(256, 256, 1.8, 101))
     save_gray("dither_noise.png", spectral_noise(64, 64, 0.2, 102))
 

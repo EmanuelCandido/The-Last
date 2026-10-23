@@ -279,3 +279,42 @@ const RECYCLE_SECONDS := 5.0
 
 ## Segundos da laje descendo no chão.
 const RUIN_DOOR_OPEN_TIME := 3.0
+
+# --- O Abrigo (§6) ----------------------------------------------------------------------------
+
+## Onde fica o Abrigo: no mesmo mundo da floresta, 2 km abaixo (sem trocar de fase).
+const SHELTER_ORIGIN := Vector3(0.0, -2000.0, 0.0)
+## Ari andando e rastejando (m/s). Sem pulo e sem corrida. Andando, é a velocidade no passo
+## bom: mancando, a média fica em ~0,9 m/s (§6.2).
+const ARI_WALK_SPEED := 1.1
+const ARI_CRAWL_SPEED := 0.4
+## Uma passada inteira (passo bom + passo manco) em metros, e quanto a perna direita segura o
+## corpo para trás (0 = anda reto; 1 = quase para no passo manco).
+const ARI_STRIDE := 1.1
+const ARI_LIMP := 0.55
+## Altura dos olhos de pé e rastejando (m).
+const ARI_EYE_HEIGHT := 1.62
+const ARI_CRAWL_EYE := 0.5
+## Prender o ar acordado (s) e quanto tempo fica arfando depois de não aguentar.
+const ARI_BREATH_SECONDS := 15.0
+const ARI_GASP_SECONDS := 4.0
+## Barulho de Ari (raio em m, para o Zelador da F6): andando, rastejando, arfando.
+const ARI_NOISE_WALK := 4.0
+const ARI_NOISE_CRAWL := 1.5
+const ARI_NOISE_PANT := 6.0
+## Distância e ângulo (graus a partir do centro da tela) para interagir com algo.
+const ARI_INTERACT_DISTANCE := 2.0
+const ARI_INTERACT_ANGLE := 30.0
+## Segundos para a visão clarear depois de acordar na cápsula.
+const ARI_WAKE_BLUR_SECONDS := 6.0
+
+# --- Flashes (§7) -----------------------------------------------------------------------------
+
+## Duração de cada flash (s), pelo número; o flash de morte é mais curto.
+const FLASH_SECONDS := {1: 8.0, 2: 7.0, 3: 8.0}
+const DEATH_FLASH_SECONDS := 5.0
+## Quanto a cabeça mexe com o mouse durante um flash (graus para cada lado).
+const FLASH_LOOK_DEGREES := 10.0
+## Batimento mostrado no monitor: normal e durante o flash 1 ("Leve agitação").
+const SHELTER_BPM := 72.0
+const FLASH_BPM := 112.0
