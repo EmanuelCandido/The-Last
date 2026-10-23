@@ -146,6 +146,8 @@ static func build_dead_tree(rng: RandomNumberGenerator, bark: Material) -> Array
 			add_branch(st, twig_start, twig_start + twig_dir * rng.randf_range(0.6, 1.4), r * 0.35, 0.01, 4)
 	var mesh := builder.commit()
 	mesh.set_meta("trunk_radius", radius)
+	# O eixo torto do tronco (o pica-pau se agarra nele).
+	mesh.set_meta("trunk", PackedVector3Array(trunk))
 	return mesh
 
 

@@ -73,13 +73,15 @@ scenes/
   world/tracks/      Tracks: pegadas dos bichos (MultiMesh)
   world/clues/       Clues: as pistas do Ato I e os sons que vazam do mundo real
   world/ruin/        Ruin (capela e sala-espelho), RuinDoor (porta e discos) e Sarcophagus
-  world/ambience/    Ambience: vento 3D, folhas nas árvores, chamados de bichos (de dia e de noite)
+  world/ambience/    Ambience: vento 3D, folhas nas árvores, uivos distantes e os tocadores de chamados;
+                     InsectField: grilos e gafanhotos de verdade no capim
   world/day_night/   DayNight: sol, céu e neblina pela hora (Clock.night)
   world/north_void/  NorthVoid: o mundo acabando ao norte depois do R3 (clima cortado)
   world/memory/      Memory346: a memória do ciclo 346 (o goblin riscando ACORDA), que passa ao carregar o ciclo_346.sav
   animals/           Animal (sentidos, fuga, ferimento, caça, sono), Herd (manada com casa e agenda), Deer, WhiteDeer,
                      OldDeer (o Velho), Rabbit, Boar (javali), CrowFlock e Crow, Wolf e WolfPack, Watchers (os olhos do
-                     Zelador: corvos sentinela e espiões, cervo branco)
+                     Zelador: corvos sentinela e espiões, cervo branco); birds/: BirdLife e Bird (pássaros
+                     pousados nas árvores)
   shelter/           o Abrigo 9 (mundo real, 2 km abaixo): Shelter (salas por código), ShelterLook (materiais e peças),
                      CareCapsule, VitalsMonitor, WindowBlinds, FlickerLight, Caretaker (corpo do Zelador), Keeper (a IA
                      dele), Visit (lucidez e objetivos da visita), ShelterSwitch (fusível, alicate, cabo, cartão), Ari
@@ -249,6 +251,22 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 
   O jogador expõe `noise_level()` e `visibility()` (agachado, parado e coberto por capim ou mata).
 - **Física, camadas:** 1 `world` (terreno, caverna, pedras, troncos caídos), 2 `trees`, 3 `player`, 4 `animals` (Area3D de acerto). Raios de som só testam a camada 1. Visão dos bichos: 1 e 2. Flechas: 1, 2 e 4.
+- **Bichos do ambiente:** os sons de bicho saem de bichos de verdade, sempre nos mesmos lugares (semente fixa).
+  Números em `Tuning` (bloco "Bichos do ambiente").
+  - **Insetos (`InsectField`, filho do `Ambience`, montado por `Ambience.build_life`):** `CRICKET_COUNT` grilos
+    (de noite, capim até a borda da mata) e `GRASSHOPPER_COUNT` gafanhotos (de dia, no aberto), cada um com tom e
+    hora de começar próprios. Os `INSECT_VOICES` mais perto que cantam ganham um `AudioStreamPlayer3D` com o canto
+    de um bicho só (`cricket_song`, `grasshopper_song`); os de além do alcance viram o coro (os loops antigos), no
+    volume de quantos cantam lá. Goblin andando perto ou `Events.noise_made` calam; o gafanhoto do pé pula.
+    Chuva e vento forte calam todos.
+  - **Pássaros (`BirdLife`, filho de Animals, e `Bird`):** canoros na copa das vivas, pica-paus agarrados no tronco
+    das secas (o eixo torto vem do meta `trunk` da malha, `TreeBuilder.build_dead_tree`) e corujas na mata fechada.
+    Cantam do galho pelo `Ambience.call_at` (abafa atrás de rocha; depois do R4 traz a voz do Zelador), com o coro
+    do amanhecer. O goblin a menos de `BIRD_FLUSH_RADIUS` (metade agachado e devagar) ou um barulho espanta: pio de
+    alarme, bater de asas e voo para outra árvore. Árvore derrubada também espanta. Só cantam perto do ouvido
+    (`BIRD_ACTIVE_RANGE`).
+  - **Uivos distantes (`Ambience._tick_howls`):** cada noite sorteia de 0 a 3 rodadas (`DISTANT_HOWL_WEIGHTS`)
+    entre 21h e 4h, de um lado só, com respostas; às vezes uma matilha distante responde ao uivo de aviso da do vale.
 - **Ouvido (`Game.open_ears`):** passa-baixa no Master. Toda troca de fase abre o som em 2,5 s (quem chega a um lugar); o despertar da floresta abre em 7,5 s, de -42 dB e 160 Hz: o volume sobe primeiro e os agudos chegam por último. Loops de ambiente e `OccludedAudio` com autoplay começam num ponto sorteado.
 - **Áudio, buses:**
   - `Ambience`: sons de fora. Passa-baixa que fecha dentro da caverna e eco de vale.

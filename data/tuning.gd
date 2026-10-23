@@ -580,3 +580,55 @@ const SETTINGS_MOUSE_SENSITIVITY_RANGE := Vector2(0.25, 3.0)
 ## Tamanho de avisos, prompt e legendas: as opções (escala da fonte) e o padrão (índice).
 const SETTINGS_TEXT_SCALES: Array[float] = [1.0, 1.5, 2.0]
 const SETTINGS_TEXT_SCALE := 0
+
+# --- Bichos do ambiente (grilos, gafanhotos, pássaros, uivos) ---------------------------------------
+
+## Insetos espalhados pelo capim (InsectField), sempre nos mesmos lugares. Grilos cantam de noite
+## (cada um começa num ponto do anoitecer), gafanhotos de dia, em campo aberto.
+const CRICKET_COUNT := 320
+const GRASSHOPPER_COUNT := 220
+## Até onde cada um se ouve sozinho (m) e quantos tocam de perto ao mesmo tempo; os de além disso
+## viram o coro distante (o loop), no volume de quantos estão cantando de verdade lá.
+const CRICKET_HEAR_RANGE := 28.0
+const GRASSHOPPER_HEAR_RANGE := 20.0
+const INSECT_VOICES := 14
+const INSECT_CHORUS_RANGE := 90.0
+## Com o goblin andando a menos disto (m), o inseto se cala; volta depois de INSECT_QUIET_SECONDS
+## com ele longe. Um barulho (Events.noise_made) cala os que estão dentro do raio dele.
+const CRICKET_QUIET_RADIUS := 4.5
+const GRASSHOPPER_QUIET_RADIUS := 3.0
+const INSECT_QUIET_SECONDS := Vector2(6.0, 16.0)
+## O gafanhoto de perto do pé pula para longe (m).
+const GRASSHOPPER_FLUSH_RADIUS := 1.6
+const GRASSHOPPER_JUMP := Vector2(1.2, 2.6)
+
+## Pássaros pousados nas árvores (BirdLife): canoros na copa das vivas, pica-paus no tronco das
+## secas, corujas na mata fechada. Cada um canta do seu galho.
+const SONGBIRD_COUNT := 40
+const WOODPECKER_COUNT := 4
+const OWL_COUNT := 4
+## Segundos entre um canto e outro (sorteado na faixa); de madrugada o coro do amanhecer canta
+## SONGBIRD_DAWN_BOOST vezes mais.
+const SONGBIRD_SONG_GAP := Vector2(5.0, 16.0)
+const SONGBIRD_DAWN_BOOST := 2.5
+const WOODPECKER_DRUM_GAP := Vector2(14.0, 40.0)
+const OWL_HOOT_GAP := Vector2(14.0, 45.0)
+## O goblin a menos disto (m, no plano) espanta o pássaro, que voa para outra árvore e fica
+## calado BIRD_SHY_SECONDS. Agachado e devagar, chega BIRD_CROUCH_FACTOR mais perto.
+const BIRD_FLUSH_RADIUS := 7.0
+const BIRD_CROUCH_FACTOR := 0.5
+const BIRD_SHY_SECONDS := Vector2(12.0, 35.0)
+## De tempos em tempos o pássaro troca de árvore sozinho (s).
+const BIRD_WANDER_SECONDS := Vector2(40.0, 140.0)
+## Só canta e se mexe perto do ouvido (m): longe disso não se ouviria mesmo.
+const BIRD_ACTIVE_RANGE := 80.0
+
+## Uivos de matilhas distantes: algumas noites ficam caladas. Peso de 0, 1, 2 e 3 rodadas por
+## noite; cada rodada é um lobo (às vezes outros respondem) de um lado só, entre 21h e 4h.
+const DISTANT_HOWL_WEIGHTS: Array[float] = [0.4, 0.35, 0.2, 0.05]
+const DISTANT_HOWL_HOURS := Vector2(21.0, 28.0)
+const DISTANT_HOWL_DISTANCE := Vector2(140.0, 210.0)
+## Chance de outro lobo responder dentro da mesma rodada (cada resposta pode puxar outra).
+const DISTANT_HOWL_ANSWER := 0.45
+## Chance de uma matilha distante responder ao uivo de aviso da matilha do vale.
+const DISTANT_HOWL_REPLY := 0.35

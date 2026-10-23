@@ -929,6 +929,61 @@ def boar_squeal():
     return band_oneshot(peak_norm(x) * smoothstep(0.0, 0.04, t) * (1 - smoothstep(dur - 0.2, dur, t)), 80, 6000)
 
 
+def cricket_song(seconds=4):
+    """Um grilo só: trinados de 3 a 4 pulsos num ritmo firme (o InsectField varia o tom por grilo)."""
+    rng = np.random.default_rng(200)
+    n = seconds * SR
+    out = np.zeros(n)
+    freq = 4600.0
+    period = seconds / 10.0
+    for c in range(10):
+        t0 = c * period
+        for p in range(4 if c % 3 else 3):
+            dur = 0.017
+            t = np.arange(int(dur * SR)) / SR
+            env = np.sin(np.pi * t / dur) ** 2
+            pulse = (np.sin(TAU * freq * t) + 0.12 * np.sin(TAU * 2 * freq * t)) * env * rng.uniform(0.85, 1.0)
+            start = int((t0 + p * 0.028) * SR)
+            np.add.at(out, (start + np.arange(len(pulse))) % n, pulse)
+    return out
+
+
+def grasshopper_song(seconds=8):
+    """Um gafanhoto só: rajadas de raspado (perna na asa) com pausas, no capim de dia."""
+    rng = np.random.default_rng(201)
+    n = seconds * SR
+    out = np.zeros(n)
+    t0 = 0.2
+    while t0 < seconds - 0.3:
+        dur = rng.uniform(0.5, 1.5)
+        rate = rng.uniform(22, 30)
+        t = np.arange(int(dur * SR)) / SR
+        pulses = (0.5 + 0.5 * np.sin(TAU * rate * t)) ** 5
+        env = np.minimum(t / 0.06, 1.0) * np.minimum((dur - t) / 0.12, 1.0)
+        rasp = band_oneshot(rng.standard_normal(len(t)), 5000, 9000)
+        rasp = rasp / (np.std(rasp) + 1e-9)
+        chirp = (0.6 * rasp + np.sin(TAU * 6200 * t + 0.4 * np.sin(TAU * 110 * t))) * pulses * env
+        np.add.at(out, (int(t0 * SR) + np.arange(len(chirp))) % n, chirp)
+        t0 += dur + rng.uniform(0.8, 2.6)
+    return out
+
+
+def bird_alarm():
+    """O pio de alarme do passarinho espantado: dois ou três "tchik" secos."""
+    rng = np.random.default_rng(202)
+    parts = []
+    for _ in range(3):
+        parts += [note(rng.uniform(6200, 6800), rng.uniform(3800, 4200), 0.035, harm=0.3), silence(rng.uniform(0.08, 0.12))]
+    return concat(*parts)
+
+
+def write_ambient_life():
+    """Os sons dos bichos do ambiente (dá para gerar só eles: python -c "import generate_sounds as g; g.write_ambient_life()")."""
+    write_wav(ROOT / "animals" / "cricket_song.wav", cricket_song(), loop=True)
+    write_wav(ROOT / "animals" / "grasshopper_song.wav", grasshopper_song(), loop=True)
+    write_wav(ROOT / "animals" / "bird_alarm.wav", bird_alarm())
+
+
 def main():
     print("Gerando sons em", ROOT)
     write_wav(ROOT / "ambience" / "wind_loop.wav", wind_loop(), loop=True)
@@ -990,6 +1045,7 @@ def main():
     write_wav(ROOT / "sfx" / "church_bell.wav", church_bell())
     write_wav(ROOT / "ambience" / "crowd_loop.wav", crowd_loop(), loop=True)
     write_f9()
+    write_ambient_life()
 
 
 def write_f9():

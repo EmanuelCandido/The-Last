@@ -51,6 +51,7 @@ func _ready() -> void:
 	var half := ForestLayout.TERRAIN_SIZE * 0.5
 	Wind.set_exposure(_terrain.build_wind_exposure(), Rect2(-half, -half, half * 2.0, half * 2.0))
 	_ambience.vegetation = _vegetation
+	_ambience.build_life(_terrain)
 	_spawn_animals()
 	_place_props()
 	_build_rain()
@@ -215,6 +216,13 @@ func _spawn_animals() -> void:
 	clues.name = "Clues"
 	clues.watchers = watchers
 	add_child(clues)
+	var birds := BirdLife.new()
+	birds.name = "Birds"
+	birds.terrain = _terrain
+	birds.vegetation = _vegetation
+	birds.ambience = _ambience
+	_animals.add_child(birds)
+	birds.build()
 	var wolves := WolfPack.new()
 	wolves.name = "WolfPack"
 	wolves.terrain = _terrain
