@@ -2,8 +2,8 @@
   "meshes": [
     {
       "name": "Corpo_continuo",
-      "vertices": 6259,
-      "triangles": 12522,
+      "vertices": 6243,
+      "triangles": 12490,
       "components": 1,
       "open_edges": 0,
       "flipped_normals": 0,
@@ -50,7 +50,7 @@
     "andando",
     "parado"
   ],
-  "triangles": 21118,
+  "triangles": 21086,
   "hand_sockets": {
     "D": [
       -0.23899997770786285,
@@ -63,5 +63,5 @@
       0.32899996638298035
     ]
   },
-  "height_m": 0.9769
+  "height_m": 0.9684
 }

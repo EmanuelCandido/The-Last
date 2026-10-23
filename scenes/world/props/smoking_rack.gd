@@ -88,26 +88,26 @@ func _refresh() -> void:
 			(meat.material_override as StandardMaterial3D).albedo_color = RAW.lerp(SMOKED, done)
 
 
-## Dois cavaletes de galho e a vara de um a outro, com os ganchos para a carne.
+## Dois cavaletes de galho torto (casca das árvores) e a vara de um a outro, onde a carne pende.
 func _build() -> void:
-	var bark := Animal.flat_material(Color(0.26, 0.19, 0.13))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2207
+	var builder := TreeBuilder.Builder.new()
+	var bark_st := builder.tool_for(PropLook.bark())
 	for side: float in [-0.55, 0.55]:
-		for lean: float in [-0.28, 0.28]:
-			var leg := MeshInstance3D.new()
-			var box := BoxMesh.new()
-			box.size = Vector3(0.045, 1.25, 0.045)
-			leg.mesh = box
-			leg.material_override = bark
-			leg.position = Vector3(side, 0.58, 0.0)
-			leg.rotation.z = lean
-			add_child(leg)
-	var bar := MeshInstance3D.new()
-	var rod := BoxMesh.new()
-	rod.size = Vector3(1.3, 0.04, 0.04)
-	bar.mesh = rod
-	bar.material_override = bark
-	bar.position = Vector3(0.0, 1.12, 0.0)
-	add_child(bar)
+		# As duas pernas se cruzam um pouco acima da vara, como num cavalete amarrado.
+		var cross := Vector3(side + rng.randf_range(-0.03, 0.03), 1.16, 0.0)
+		for lean: float in [-1.0, 1.0]:
+			var foot := Vector3(side + rng.randf_range(-0.04, 0.04), -0.03, 0.34 * lean)
+			var top := cross + (cross - foot).normalized() * 0.12
+			var leg := TreeBuilder.crooked_line(rng, foot, top - foot, foot.distance_to(top), 3, 0.05)
+			for i in leg.size() - 1:
+				TreeBuilder.add_branch(bark_st, leg[i], leg[i + 1], 0.03 - i * 0.004, 0.026 - i * 0.004, 5)
+	TreeBuilder.add_branch(bark_st, Vector3(-0.68, 1.12, 0.0), Vector3(0.0, 1.135, 0.01), 0.022, 0.02, 5)
+	TreeBuilder.add_branch(bark_st, Vector3(0.0, 1.135, 0.01), Vector3(0.68, 1.11, -0.01), 0.02, 0.017, 5)
+	var frame := MeshInstance3D.new()
+	frame.mesh = builder.commit()
+	add_child(frame)
 	for i in Tuning.SMOKE_RACK_SLOTS:
 		var meat := MeatMesh.instance(false)
 		meat.scale = Vector3(1.6, 2.2, 1.6)

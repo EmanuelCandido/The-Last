@@ -67,7 +67,8 @@ scenes/
                      (WallMarks), pintura no teto (CavePainting), troféus (Trophies), arco, gotejamento
   world/vegetation/  TreeBuilder (malhas por código) e Vegetation (espalha, instancia, derruba árvores)
   world/props/       fogueira (lenha, assar), folhas caindo, monte de pedras, poça de lama, laço (Snare e SnareField),
-                     defumador (SmokingRack), coleta (ForageField e ForageSpot) e tocaias (BlindField)
+                     defumador (SmokingRack), coleta (ForageField e ForageSpot), tocaias (BlindField) e PropLook
+                     (materiais compartilhados dos props montados por código)
   world/tracks/      Tracks: pegadas dos bichos (MultiMesh)
   world/clues/       Clues: as pistas do Ato I e os sons que vazam do mundo real
   world/ruin/        Ruin (capela e sala-espelho), RuinDoor (porta e discos) e Sarcophagus
@@ -266,7 +267,9 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
     & $blender --background --python assets\models\goblin\source\export_goblin.py   # valida malha/pesos e grava o glb
     ```
   - Não reexporte o `goblin_blueprint.json` com `export_game`: isso descarta o polimento e o rig articulado.
+  - Nada perfeito também na malha: o crânio é um `blob` deformado por `skull_shape` (testa baixa, alto da cabeça estreito subindo para trás, têmporas fundas, calombos, lado esquerdo mais cheio), e depois da união a pele inteira ganha calombos lentos (ondas com semente 346), mais fracos no rosto e em volta dos olhos.
 - **Bichos, arco e flechas:** montados em código.
+- **Props montados por código** (arbusto e cogumelos da coleta, tocaia, defumador, troféus): nada de caixa com cor chapada. Galhos com `TreeBuilder.add_branch`/`crooked_line` e a casca das árvores, folhagem em cartões no `foliage.gdshader` (`bush_card.png`, `berry_card.png`, `pine_branch.png`) e osso/cogumelo com textura pixelada triplanar, tudo pelos materiais de `PropLook`.
 - **Assets de terceiros:** só CC0 ou licença compatível, registrados em `assets/CREDITS.md`.
 
 ## Ainda não existe

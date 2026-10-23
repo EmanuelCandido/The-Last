@@ -2,7 +2,7 @@
   "nome": "goblin",
   "glb": "goblin.glb",
   "conceito": null,
-  "altura_m": 0.9769,
+  "altura_m": 0.9684,
   "frente": "+Z (MODEL_FRONT do Godot)",
   "animacoes": [
     {
@@ -158,7 +158,7 @@
     "fonte": "source/goblin.blend",
     "gerador": "source/polish_goblin.py",
     "exportador": "source/export_goblin.py",
-    "triangulos": 21118,
+    "triangulos": 21086,
     "corpo_continuo": true,
     "observacao": "Nao reexportar diretamente o blueprint do kit: o polimento esta na fonte Blender."
   }

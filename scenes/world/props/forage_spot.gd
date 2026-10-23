@@ -17,27 +17,127 @@ var _fruit: Node3D
 func build(spot_kind: StringName, rng: RandomNumberGenerator) -> void:
 	kind = spot_kind
 	add_to_group(&"interactable")
-	_fruit = Node3D.new()
-	add_child(_fruit)
+	var plant := MeshInstance3D.new()
+	var fruit := MeshInstance3D.new()
+	add_child(plant)
+	add_child(fruit)
+	_fruit = fruit
 	if kind == &"mushroom":
-		var stem := Animal.flat_material(Color(0.82, 0.78, 0.68))
-		var cap := Animal.flat_material(Color(0.55, 0.32, 0.2))
-		for i in rng.randi_range(3, 5):
-			var at := Vector3(rng.randf_range(-0.22, 0.22), 0.0, rng.randf_range(-0.22, 0.22))
-			var height := rng.randf_range(0.05, 0.11)
-			_box(_fruit, Vector3(0.025, height, 0.025), at + Vector3.UP * height * 0.5, stem)
-			_box(_fruit, Vector3(0.09, 0.03, 0.09) * rng.randf_range(0.8, 1.3), at + Vector3.UP * height, cap)
+		# Todo o tufo é "fruta": colhido, não sobra nada até voltar.
+		fruit.mesh = _mushrooms(rng)
 	else:
-		var leaf := Animal.flat_material(Color(0.18, 0.24, 0.13))
-		var berry := Animal.flat_material(Color(0.42, 0.06, 0.1))
-		# Mais alto que o capim, para se achar de longe.
-		for i in 7:
-			var at := Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(0.3, 0.9), rng.randf_range(-0.4, 0.4))
-			var blob := _box(self, Vector3(0.55, 0.45, 0.55) * rng.randf_range(0.7, 1.1), at, leaf)
-			blob.rotation.y = rng.randf() * TAU
-		for i in 22:
-			var at := Vector3(rng.randf_range(-0.5, 0.5), rng.randf_range(0.35, 1.15), rng.randf_range(-0.5, 0.5))
-			_box(_fruit, Vector3.ONE * 0.05, at, berry)
+		var meshes := _bush(rng)
+		plant.mesh = meshes[0]
+		fruit.mesh = meshes[1]
+
+
+## Um tufo de 3 a 5 cogumelos tortos, de pé creme e chapéu castanho, com as lamelas embaixo.
+func _mushrooms(rng: RandomNumberGenerator) -> ArrayMesh:
+	var builder := TreeBuilder.Builder.new()
+	var stem_st := builder.tool_for(PropLook.mushroom_stem())
+	var cap_st := builder.tool_for(PropLook.mushroom_cap())
+	for i in rng.randi_range(3, 5):
+		var at := Vector3(rng.randf_range(-0.2, 0.2), -0.01, rng.randf_range(-0.2, 0.2))
+		var height := rng.randf_range(0.05, 0.12)
+		var lean := Vector3(rng.randf_range(-0.35, 0.35), 1.0, rng.randf_range(-0.35, 0.35)).normalized()
+		var top := at + lean * height
+		var radius := rng.randf_range(0.03, 0.055) * (0.7 + height * 4.0)
+		TreeBuilder.add_branch(stem_st, at, top, radius * 0.38, radius * 0.26, 6)
+		_cap(cap_st, stem_st, rng, top, lean.lerp(Vector3.UP, 0.5).normalized(), radius)
+	return builder.commit()
+
+
+## Chapéu em domo, um pouco amassado, e a face de baixo (lamelas) no material do pé.
+func _cap(cap_st: SurfaceTool, under_st: SurfaceTool, rng: RandomNumberGenerator, top: Vector3, up: Vector3, radius: float) -> void:
+	var side := up.cross(Vector3.FORWARD if absf(up.z) < 0.9 else Vector3.RIGHT).normalized()
+	var other := up.cross(side)
+	var sides := 8
+	var rings := 3
+	var dome := radius * rng.randf_range(0.45, 0.7)
+	var center := top - up * dome * 0.3
+	var wobble: Array[float] = []
+	for k in sides:
+		wobble.append(rng.randf_range(0.85, 1.12))
+	var grid := []
+	for j in rings + 1:
+		var phi := PI * 0.5 * (1.0 + 0.12) * j / rings
+		var row := []
+		for k in sides:
+			var t := TAU * k / sides
+			var r := sin(phi) * radius * (1.0 if j == 0 else wobble[k])
+			row.append(center + (side * cos(t) + other * sin(t)) * r + up * cos(phi) * dome)
+		grid.append(row)
+	for j in rings:
+		for k in sides:
+			var n := (k + 1) % sides
+			var a: Vector3 = grid[j][k]
+			var b: Vector3 = grid[j][n]
+			var c: Vector3 = grid[j + 1][k]
+			var d: Vector3 = grid[j + 1][n]
+			_tri(cap_st, a, b, c, center)
+			_tri(cap_st, b, d, c, center)
+	var gills := center - up * dome * 0.15
+	for k in sides:
+		_tri(under_st, grid[rings][k], grid[rings][(k + 1) % sides], gills, gills + up * dome * 4.0)
+
+
+## Triângulo com a face da frente para longe de `inside` (sentido horário visto de fora).
+func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, inside: Vector3) -> void:
+	var out := ((a + b + c) / 3.0 - inside).normalized()
+	if (b - a).cross(c - a).dot(out) > 0.0:
+		var swap := b
+		b = c
+		c = swap
+	for p: Vector3 in [a, b, c]:
+		st.set_normal((p - inside).normalized())
+		# Sem uso (material triplanar), mas o pé, na mesma superfície, tem UV.
+		st.set_uv(Vector2.ZERO)
+		st.add_vertex(p)
+
+
+## O arbusto: galhos tortos saindo do chão com cachos de folhas miúdas (cartões no
+## foliage.gdshader, como a copa das árvores) e, numa malha à parte, os cachos de frutinhas.
+## Mais alto que o capim, para se achar de longe.
+func _bush(rng: RandomNumberGenerator) -> Array[ArrayMesh]:
+	var builder := TreeBuilder.Builder.new()
+	var bark_st := builder.tool_for(PropLook.bark())
+	var leaf_st := builder.tool_for(PropLook.bush())
+	var fruit := TreeBuilder.Builder.new()
+	var berry_st := fruit.tool_for(PropLook.berries())
+	var crown := Vector3(0.0, 0.3, 0.0)
+	for s in rng.randi_range(5, 7):
+		var angle := TAU * s / 6.0 + rng.randf_range(-0.4, 0.4)
+		var dir := Vector3(cos(angle) * rng.randf_range(0.3, 0.7), 1.0, sin(angle) * rng.randf_range(0.3, 0.7))
+		var base := Vector3(rng.randf_range(-0.08, 0.08), -0.02, rng.randf_range(-0.08, 0.08))
+		var stem := TreeBuilder.crooked_line(rng, base, dir, rng.randf_range(0.7, 1.1), 3, 0.3)
+		for i in stem.size() - 1:
+			TreeBuilder.add_branch(bark_st, stem[i], stem[i + 1], 0.022 - i * 0.006, 0.016 - i * 0.005, 5)
+		# Um cacho na ponta (galho pelado espetado para fora não parece arbusto) e outro no meio.
+		for c in 2:
+			var t := 1.0 if c == 0 else rng.randf_range(0.45, 0.85)
+			var i := mini(int(t * (stem.size() - 1)), stem.size() - 2)
+			var at: Vector3 = (stem[i] as Vector3).lerp(stem[i + 1], t * (stem.size() - 1) - i)
+			at += Vector3(rng.randf_range(-0.1, 0.1), rng.randf_range(-0.05, 0.1), rng.randf_range(-0.1, 0.1))
+			var size := rng.randf_range(0.45, 0.65)
+			_cluster(leaf_st, rng, at, size, crown)
+			if rng.randf() < 0.75:
+				_cluster(berry_st, rng, at + Vector3(rng.randf_range(-0.05, 0.05), 0.0, rng.randf_range(-0.05, 0.05)), size * 0.9, crown)
+	return [builder.commit(), fruit.commit()]
+
+
+## Três cartões quadrados cruzados em ângulos sorteados; o balanço cresce com a altura.
+func _cluster(st: SurfaceTool, rng: RandomNumberGenerator, center: Vector3, size: float, crown: Vector3) -> void:
+	var basis := Basis.from_euler(Vector3(rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU))
+	for axis in 3:
+		var u := basis[axis] * size * 0.5
+		var w := basis[(axis + 1) % 3] * size * 0.5
+		var corners := [center - u - w, center - u + w, center + u + w, center + u - w]
+		var normals := []
+		var sway := []
+		for c: Vector3 in corners:
+			normals.append((c - crown).normalized().lerp(Vector3.UP, 0.3).normalized())
+			sway.append(clampf(c.y, 0.0, 1.0))
+		TreeBuilder.add_card(st, corners, [Vector2(0, 0), Vector2(0, 1), Vector2(1, 1), Vector2(1, 0)], sway, normals)
 
 
 func ready_to_pick() -> bool:
@@ -66,13 +166,3 @@ func interact(_player: Node) -> void:
 	Events.notification_shown.emit("+%d %s" % [amount, String(Inventory.NAMES[kind]).to_lower()])
 	OccludedAudio.play_at(get_parent(), PICK_SOUND, global_position + Vector3.UP * 0.3, &"World", -6.0, 2.5)
 
-
-func _box(parent: Node3D, size: Vector3, center: Vector3, material: Material) -> MeshInstance3D:
-	var mesh := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	mesh.mesh = box
-	mesh.material_override = material
-	mesh.position = center
-	parent.add_child(mesh)
-	return mesh

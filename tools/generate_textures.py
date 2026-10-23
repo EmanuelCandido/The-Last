@@ -301,6 +301,48 @@ def leaves_card(size=64):
     return fill_transparent(rgb, alpha), alpha
 
 
+BUSH_COLORS = np.array([
+    (0.19, 0.24, 0.12), (0.25, 0.30, 0.15), (0.32, 0.35, 0.18),
+    (0.40, 0.39, 0.21), (0.27, 0.27, 0.14), (0.44, 0.38, 0.19),
+])
+
+
+def bush_card(size=64):
+    """Cacho de folhas miúdas e escuras de arbusto (coleta de frutinhas), com galhinhos."""
+    rng = np.random.default_rng(91)
+    rgb = np.zeros((size, size, 3))
+    alpha = np.zeros((size, size))
+    for _ in range(7):
+        a = rng.uniform(0, 2 * np.pi)
+        stroke(rgb, size / 2, size / 2, np.cos(a), np.sin(a), rng.uniform(16, 28), np.array([0.17, 0.12, 0.08]), alpha, wrap=False)
+    for _ in range(140):
+        cx, cy = np.clip(rng.normal(size / 2, 11, 2), 4, size - 4)
+        base = BUSH_COLORS[rng.integers(len(BUSH_COLORS))]
+        # Luz de cima: as folhas de baixo ficam mais escuras.
+        light = 1.15 - 0.45 * (cy / size)
+        ellipse(rgb, alpha, cx, cy, rng.uniform(2.0, 3.4), rng.uniform(1.1, 1.8), rng.uniform(0, np.pi),
+                lambda u, v, c=base * light: c * (0.8 if v > 0.35 else 1.0))
+    return fill_transparent(rgb, alpha), alpha
+
+
+def berry_card(size=64):
+    """Cachos de frutinhas escuras (vermelho de amora) com fundo transparente: vai por cima do arbusto."""
+    rng = np.random.default_rng(92)
+    rgb = np.zeros((size, size, 3))
+    alpha = np.zeros((size, size))
+    dark = np.array([0.17, 0.05, 0.07])
+    red = np.array([0.33, 0.09, 0.11])
+    for _ in range(7):
+        cx, cy = np.clip(rng.normal(size / 2, 13, 2), 6, size - 6)
+        stroke(rgb, cx, cy, rng.uniform(-0.4, 0.4), -1.0, rng.uniform(3, 6), np.array([0.2, 0.15, 0.08]), alpha, wrap=False)
+        for _ in range(rng.integers(3, 7)):
+            bx, by = cx + rng.normal(0, 2.2), cy + rng.normal(0, 2.2)
+            r = rng.uniform(1.3, 2.1)
+            ellipse(rgb, alpha, bx, by, r, r, 0.0,
+                    lambda u, v: (red * 1.3 if u < -0.2 and v < -0.2 else red if u + v < 0.6 else dark))
+    return fill_transparent(rgb, alpha), alpha
+
+
 def leaf(size=16):
     """Uma folha solta (partículas de folhas caindo)."""
     rgb = np.zeros((size, size, 3))
@@ -534,6 +576,8 @@ def main():
     save("pine_branch.png", *pine_branch())
     save("leaves_card.png", *leaves_card())
     save("leaf.png", *leaf())
+    save("bush_card.png", *bush_card())
+    save("berry_card.png", *berry_card())
     save("goblin_skin.png", goblin_skin())
     save("goblin_cloth.png", goblin_cloth())
     save("leather.png", leather())

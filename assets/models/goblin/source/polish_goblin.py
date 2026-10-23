@@ -6,6 +6,7 @@ O blueprint antigo serve apenas de base: export_game o reconstruiria sem o polim
 from pathlib import Path
 import json
 import math
+import random
 import bpy
 import bmesh
 from mathutils import Vector, Matrix
@@ -148,6 +149,43 @@ def ellipsoid(name, center, scale, mat='pele', segments=16, rings=10):
     faces += [(last,last-1-i,last-1-(i+1)%segments) for i in range(segments)]
     return mesh(name,verts,faces,mat)
 
+def blob(name, center, scale, shape, mat='pele', segments=24, rings=16):
+    """An ellipsoid bent by shape(n) -> n', in unit-sphere space: lumpy skulls, not balls."""
+    ob=ellipsoid(name,(0,0,0),(1,1,1),mat,segments,rings)
+    for v in ob.data.vertices:
+        n=Vector(shape(v.co.copy()))
+        v.co=Vector((center[0]+n.x*scale[0],center[1]+n.y*scale[1],center[2]+n.z*scale[2]))
+    ob.data.update()
+    return ob
+
+def gauss(n, at, width):
+    return math.exp(-(n-Vector(at).normalized()).length_squared/(width*width))
+
+def skull_shape(n):
+    """Goblin skull: low sloping forehead, a crown that narrows and rises toward the back (an
+    egg, not a ball), knobs, hollow temples and a left side a little fuller than the right."""
+    x,y,z=n
+    r=1.0
+    r*=1-.13*max(0,z)**2                        # flatter crown
+    r*=1+.11*max(0,y)*(1-abs(z))                # occiput sticks out behind
+    r*=1+.06*max(0,y)*max(0,z)*abs(x)*2         # parietal bossing, wide at the back
+    r*=1-.09*gauss(n,(1,-.25,.25),.45)-.10*gauss(n,(-1,-.25,.25),.42)  # temples sink in
+    r*=1-.05*gauss(n,(0,-.55,.75),.35)          # dip above the brows
+    for at,width,amount in [((.25,.10,1),.32,.04),((-.35,.45,.85),.30,.045),((.55,.60,.6),.28,.03),
+                            ((-.15,-.35,.9),.25,.025),((.05,.85,.35),.30,.035),((-.6,.2,.7),.22,-.03)]:
+        r*=1+amount*gauss(n,at,width)
+    out=Vector((x,y,z))*r
+    out.x*=(1.035 if x>0 else .985)*(1-.15*max(0,z))  # asymmetric, narrower on top
+    out.z+=.09*max(0,y)*max(0,z)               # the dome rises toward the back
+    out.y+=.16*max(0,-y)*max(0,z-.35)          # forehead slopes back above the brows
+    out.z+=.035*x-.05*max(0,y)*max(0,-z)       # tilted crown; back of the jaw tucks under
+    return out
+
+def nape_shape(n):
+    x,y,z=n
+    out=Vector((x*(1.04 if x>0 else .97),y,z))*(1-.06*gauss(n,(0,1,-.3),.5)+.05*gauss(n,(.6,.5,.4),.4))
+    return out
+
 def loft(name, profiles, mat='pele', sides=16):
     # Cross sections in XY; explicit taper makes elbows, wrists, knees and ankles.
     verts=[]; faces=[]
@@ -241,8 +279,8 @@ skin.append(ellipsoid('pescoco',(0,.005,.726),(.053,.054,.069)))
 skin.append(ellipsoid('trapezio',(0,.078,.666),(.126,.070,.053)))
 # Facial masses, continuous from skull through jaw, cheeks, nose and neck.
 # Skull a little longer at the back and lower on top; a hooked nose; real lips and a chin.
-skin.append(ellipsoid('cranio',(0,.010,.857),(.125,.110,.120),segments=24,rings=16))
-skin.append(ellipsoid('nuca',(0,.062,.846),(.098,.078,.096),segments=20,rings=12))
+skin.append(blob('cranio',(0,.012,.857),(.124,.116,.118),skull_shape,segments=32,rings=20))
+skin.append(blob('nuca',(0,.062,.842),(.098,.078,.096),nape_shape,segments=20,rings=12))
 skin.append(ellipsoid('maxilar',(0,-.028,.790),(.097,.088,.054),segments=20,rings=12))
 skin.append(ellipsoid('queixo',(0,-.084,.768),(.052,.050,.033)))
 skin.append(ellipsoid('focinho',(0,-.100,.813),(.069,.040,.027)))
@@ -297,6 +335,24 @@ remesh.mode='VOXEL'; remesh.voxel_size=.0030; remesh.use_smooth_shade=False
 bpy.ops.object.modifier_apply(modifier=remesh.name)
 sm=body.modifiers.new('Transicoes organicas','SMOOTH'); sm.factor=.65; sm.iterations=4
 bpy.ops.object.modifier_apply(modifier=sm.name)
+# Nothing perfect: slow lumps over the whole skin (bumpy scalp, knobby joints, a lopsided
+# chest), wide enough to survive the decimation. The face keeps its features readable.
+rng=random.Random(346)
+waves=[]
+for _ in range(9):
+    k=Vector((rng.uniform(-1,1),rng.uniform(-1,1),rng.uniform(-1,1))).normalized()*(math.tau/rng.uniform(.035,.085))
+    waves.append((k,rng.uniform(0,math.tau)))
+EYES=[Vector((s*.062,-.111,.869)) for s in (-1,1)]
+bm=bmesh.new(); bm.from_mesh(body.data); bm.normal_update()
+for v in bm.verts:
+    p=v.co
+    lump=sum(math.sin(k.dot(p)+phase) for k,phase in waves)/3
+    amount=.0026+.0016*smoothstep(.74,.80,p.z)
+    face=smoothstep(-.05,-.10,p.y)*smoothstep(.75,.79,p.z)*(1-smoothstep(.90,.93,p.z))
+    eyes=min(smoothstep(.02,.045,(p-e).length) for e in EYES)
+    amount*=(1-.7*face)*eyes
+    v.co=p+v.normal*lump*amount
+bm.to_mesh(body.data); bm.free()
 dec=body.modifiers.new('Topologia de jogo','DECIMATE'); dec.ratio=.038
 bpy.ops.object.modifier_apply(modifier=dec.name)
 bm=bmesh.new(); bm.from_mesh(body.data)

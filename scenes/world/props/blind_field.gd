@@ -51,40 +51,51 @@ func build_at(at: Vector3, facing: float, sound := true) -> void:
 		OccludedAudio.play_at(get_parent(), BUILD_SOUND, blind.global_position + Vector3.UP * 0.5, &"World", -4.0, 3.0)
 
 
-## Um anel de galhos inclinados para dentro, com ramos de folha por cima; a frente (+Z) fica com
-## uma fresta para olhar e atirar.
+## Um anel de galhos tortos inclinados para dentro (casca das árvores), com ramos de pinheiro
+## por cima (cartões do foliage.gdshader, que balançam com o vento); a frente (+Z) fica com uma
+## fresta para olhar e atirar.
 func _build_branches(blind: Node3D) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(blind.global_position)
-	var bark := Animal.flat_material(Color(0.24, 0.18, 0.12))
-	var leaves := Animal.flat_material(Color(0.2, 0.26, 0.15))
+	var builder := TreeBuilder.Builder.new()
+	var bark_st := builder.tool_for(PropLook.bark())
+	var bough_st := builder.tool_for(PropLook.needles())
 	var count := 16
 	for i in count:
 		var angle := TAU * i / count + rng.randf_range(-0.08, 0.08)
 		# A fresta: deixa um vão estreito na frente.
 		if absf(wrapf(angle, -PI, PI)) < 0.3:
 			continue
-		var base := Vector3(sin(angle), 0.0, cos(angle)) * 1.15
-		var stick := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		var length := rng.randf_range(1.1, 1.45)
-		box.size = Vector3(0.05, length, 0.05)
-		stick.mesh = box
-		stick.material_override = bark
-		blind.add_child(stick)
-		stick.position = base * 0.82 + Vector3.UP * length * 0.45
-		# Com o giro em Y, o +Z local aponta para fora: girar em X para trás deita o topo para dentro.
-		stick.rotation = Vector3(0.0, angle, 0.0)
-		stick.rotate_object_local(Vector3.RIGHT, -rng.randf_range(0.35, 0.55))
-		if i % 2 == 0:
-			var bough := MeshInstance3D.new()
-			var plate := BoxMesh.new()
-			plate.size = Vector3(0.55, 0.06, 0.5)
-			bough.mesh = plate
-			bough.material_override = leaves
-			blind.add_child(bough)
-			bough.position = base * 0.75 + Vector3.UP * rng.randf_range(0.55, 0.9)
-			bough.rotation = Vector3(rng.randf_range(-0.6, -0.3), angle, rng.randf_range(-0.2, 0.2))
+		var out := Vector3(sin(angle), 0.0, cos(angle))
+		var base := out * rng.randf_range(1.05, 1.2) + Vector3.DOWN * 0.05
+		# Deita o topo para dentro: o galho sobe e volta para o centro.
+		var dir := (Vector3.UP - out * rng.randf_range(0.35, 0.6)).normalized()
+		var stick := TreeBuilder.crooked_line(rng, base, dir, rng.randf_range(1.1, 1.45), 3, 0.08)
+		for s in stick.size() - 1:
+			TreeBuilder.add_branch(bark_st, stick[s], stick[s + 1], 0.03 - s * 0.006, 0.024 - s * 0.006, 5)
+		# Ramos encostados por fora, deitados ao longo do anel: é o que esconde.
+		for b in 2:
+			var at: Vector3 = stick[b + 1].lerp(stick[b + 2], rng.randf()) + out * 0.08
+			var along := (Vector3(-out.z, 0.0, out.x) * (1.0 if rng.randf() < 0.5 else -1.0) + Vector3.DOWN * rng.randf_range(0.3, 0.8)).normalized()
+			_bough(bough_st, at - along * 0.35, along, rng.randf_range(0.75, 1.0), 0.6)
+	blind.add_child(_instance(builder.commit()))
+
+
+## Ramo de pinheiro: dois cartões cruzados ao longo de `dir`, como os galhos das árvores.
+func _bough(st: SurfaceTool, base: Vector3, dir: Vector3, length: float, width: float) -> void:
+	var tip := base + dir * length
+	var flat := dir.cross(Vector3.UP).normalized() * width * 0.5
+	var upright := dir.cross(flat).normalized() * width * 0.3
+	for side: Vector3 in [flat, upright]:
+		var corners := [base - side, base + side, tip + side, tip - side]
+		var normals := [Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP]
+		TreeBuilder.add_card(st, corners, [Vector2(0, 0), Vector2(0, 1), Vector2(1, 1), Vector2(1, 0)], [0.0, 0.0, 0.5, 0.5], normals)
+
+
+func _instance(mesh: ArrayMesh) -> MeshInstance3D:
+	var node := MeshInstance3D.new()
+	node.mesh = mesh
+	return node
 
 
 func save_data() -> Dictionary:
