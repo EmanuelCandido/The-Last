@@ -3,8 +3,10 @@ extends Control
 ## painel de desempenho (F3).
 ##
 ## Para não quebrar a imersão, as dicas de controle e os avisos somem sozinhos e a
-## mira só aparece mirando. Os textos ficam sobre uma mancha escura pontilhada (variação Smudge
-## do Theme), que lê sobre a neblina clara; a tecla da ação aparece desenhada (Keycap).
+## mira só aparece mirando. Os itens ficam no canto de baixo, direto sobre a cena: o ícone
+## pixelado (UiStyle.item_icon) e a quantidade. Avisos, prompt e dicas ficam sobre uma mancha
+## escura pontilhada (variação Smudge do Theme), que lê sobre a neblina clara; a tecla da ação
+## aparece desenhada (Keycap). Com o jogo pausado, o HUD some (o menu de pausa fica sozinho).
 ## Configurações: tamanho dos avisos e do prompt (Settings.text_scale) e dicas de controle ligadas
 ## ou não (Settings.show_hints).
 
@@ -26,8 +28,7 @@ var _hint_alpha := 1.0
 @onready var _prompt: Label = %Prompt
 @onready var _notice_box: Control = %NoticeBox
 @onready var _notice: Label = %Notice
-@onready var _items_box: Control = %ItemsBox
-@onready var _items: RichTextLabel = %Items
+@onready var _items_box: HBoxContainer = %ItemsBox
 @onready var _crosshair: Control = %Crosshair
 @onready var _vignette: ColorRect = %Vignette
 @onready var _vignette_material: ShaderMaterial = _vignette.material
@@ -39,6 +40,7 @@ func _ready() -> void:
 	_notice_box.modulate.a = 0.0
 	Events.prompt_changed.connect(_set_prompt)
 	Events.notification_shown.connect(_show_notice)
+	Events.game_paused.connect(func(paused: bool) -> void: visible = not paused)
 	Inventory.changed.connect(func(_item: StringName, _amount: int) -> void: _refresh_items())
 	_crosshair.draw.connect(_draw_crosshair)
 	_key_label.add_theme_color_override(&"font_color", UiStyle.ACCENT)
@@ -68,7 +70,7 @@ func _process(_delta: float) -> void:
 	# cenas do mistério (o travamento, a memória), no menu e com o goblin da IA, nada do HUD.
 	var watching := Game.cutscene or Game.menu_open or Game.welcome
 	var real := Game.awake or Game.in_flash() or watching
-	_items_box.visible = not real and _items.text != ""
+	_items_box.visible = not real and _items_box.get_child_count() > 0
 	_hint_box.visible = not real and Settings.show_hints and _hint_alpha > 0.0
 	_hint_box.modulate.a = _hint_alpha
 	_prompt_box.get_parent().visible = not watching
@@ -145,6 +147,7 @@ func _on_settings_changed(key: StringName) -> void:
 	match key:
 		&"text_scale_index":
 			_apply_text_scale()
+			_refresh_items()
 		&"keys":
 			_refresh_hint()
 		&"show_hints":
@@ -173,11 +176,23 @@ func _update_vignette() -> void:
 	_vignette_material.set_shader_parameter(&"aspect", size.x / maxf(size.y, 1.0))
 
 
-## "Flechas 6 · Madeira 2": o nome apagado e a quantidade clara.
+## A linha de itens: o ícone de cada um (a 2x) e a quantidade ao lado. Item sem ícone mostra o nome.
 func _refresh_items() -> void:
-	var parts := PackedStringArray()
+	for child in _items_box.get_children():
+		_items_box.remove_child(child)
+		child.queue_free()
+	var font_size := UiStyle.hud_font_size()
 	for item: StringName in Inventory.HUD_ORDER:
 		var amount := Inventory.count(item)
-		if amount > 0 or (item == &"arrow" and Inventory.has(&"bow")):
-			parts.append("[color=%s]%s[/color] %d" % [UiStyle.hex(UiStyle.INK_DIM), Inventory.NAMES[item], amount])
-	_items.text = "  ·  ".join(parts)
+		if amount <= 0 and not (item == &"arrow" and Inventory.has(&"bow")):
+			continue
+		var group := HBoxContainer.new()
+		group.add_theme_constant_override(&"separation", 8)
+		group.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var icon := UiStyle.item_icon(item)
+		if icon != null:
+			group.add_child(UiStyle.sprite(icon, 2))
+		else:
+			group.add_child(UiStyle.label(Inventory.NAMES.get(item, String(item)), &"Hint", font_size))
+		group.add_child(UiStyle.label(str(amount), &"", font_size))
+		_items_box.add_child(group)

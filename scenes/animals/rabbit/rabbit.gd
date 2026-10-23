@@ -5,19 +5,27 @@ extends Animal
 
 const SQUEAL := preload("res://assets/audio/animals/rabbit_squeal.wav")
 
+const MODEL := preload("res://assets/models/animals/rabbit.glb")
+
 var _body: Node3D
 var _head: Node3D
+var _tail: Node3D
+var _ears: Array[Node3D] = []
+var _hind: Array[Node3D] = []
+var _feet: Array[Node3D] = []
+var _front: Array[Node3D] = []
+var _rest_body := Vector3.ZERO
 var _phase := 0.0
 
 
 func _init() -> void:
-	walk_speed = 0.9
-	run_speed = 7.5
+	walk_speed = 0.6
+	run_speed = 5.0
 	turn_speed = 8.0
 	home_radius = 12.0
-	sight_range = 30.0
-	hearing_range = 22.0
-	smell_range = 18.0
+	sight_range = 16.0
+	hearing_range = 12.0
+	smell_range = 10.0
 	step_stride = 0.5
 	gallop_stride = 0.9
 	step_volume_db = -24.0
@@ -41,18 +49,22 @@ func _hurt_sound() -> AudioStream:
 
 
 func _build_body() -> void:
-	var fur := fur_material(Color(0.5, 0.44, 0.36))
-	var light := flat_material(Color(0.86, 0.84, 0.8))
-
-	_body = _joint(self, Vector3(0.0, 0.13, 0.0))
-	_box(_body, Vector3(0.2, 0.18, 0.3), Vector3.ZERO, fur)
-	_box(_body, Vector3(0.07, 0.07, 0.06), Vector3(0.0, 0.03, -0.17), light)
-	_head = _joint(_body, Vector3(0.0, 0.09, 0.15))
-	_box(_head, Vector3(0.13, 0.13, 0.14), Vector3(0.0, 0.0, 0.03), fur)
-	for side in [-1.0, 1.0]:
-		_box(_head, Vector3(0.035, 0.16, 0.02), Vector3(0.035 * side, 0.13, -0.02), fur, Vector3(-0.25, 0.0, -0.15 * side))
-		_box(_body, Vector3(0.06, 0.08, 0.16), Vector3(0.08 * side, -0.08, -0.06), fur)
-		_box(_body, Vector3(0.04, 0.1, 0.04), Vector3(0.05 * side, -0.08, 0.1), fur)
+	model = CreatureModel.attach(self, MODEL, {
+		"pelo": [AnimalLook.PELT, Color(0.66, 0.56, 0.44)],
+		"pelo_escuro": [AnimalLook.PELT, Color(0.46, 0.38, 0.3)],
+		"claro": [AnimalLook.PELT, Color(0.97, 0.94, 0.88)],
+		"interno": [AnimalLook.PELT, Color(0.78, 0.62, 0.58)],
+		"focinho": Color(0.55, 0.38, 0.36),
+		"olho": Color(0.03, 0.025, 0.02),
+	}, "rabbit")
+	_body = model.joint("corpo")
+	_head = model.joint("cabeca")
+	_tail = model.joint("cauda")
+	_ears = [model.joint("orelha_E"), model.joint("orelha_D")]
+	_hind = [model.joint("t_coxa_E"), model.joint("t_coxa_D")]
+	_feet = [model.joint("t_pata_E"), model.joint("t_pata_D")]
+	_front = [model.joint("d_coxa_E"), model.joint("d_coxa_D")]
+	_rest_body = _body.position
 
 
 func _build_hitbox(area: Area3D) -> void:
@@ -61,13 +73,29 @@ func _build_hitbox(area: Area3D) -> void:
 
 
 func _animate(delta: float) -> void:
+	var t := Time.get_ticks_msec() * 0.001
+	var hop := 0.0
+	var hopping := minf(1.0, speed / 0.5)
 	if speed > 0.1:
-		_phase += delta * (speed * 3.0 + 4.0)
-		_body.position.y = 0.13 + absf(sin(_phase)) * 0.15 * minf(1.0, speed)
-		_body.rotation.x = -cos(_phase) * 0.25 * minf(1.0, speed)
-	else:
-		_body.position.y = move_toward(_body.position.y, 0.13, delta)
-		_body.rotation.x = 0.0
-	# Congelado de orelha em pé quando desconfia; focinho mexendo e cabeça baixa comendo.
-	var nibble := 0.0 if state == State.SUSPICIOUS else sin(Time.get_ticks_msec() * 0.03) * 0.03
+		# Pulinhos: as patas de trás empurram juntas (o corpo sobe de frente para trás), as da
+		# frente pousam primeiro e as de trás passam por fora delas.
+		_phase = fposmod(_phase + delta * (speed / (0.35 if speed > 2.0 else 0.18)), 1.0)
+		hop = sin(PI * _phase)
+	var height := (0.15 if speed > 2.0 else 0.06) * hopping
+	_body.position = _rest_body + Vector3(0.0, hop * height, 0.0)
+	_body.rotation.x = lerpf(_body.rotation.x, (-cos(TAU * _phase) * 0.25) * hopping, 1.0 - exp(-20.0 * delta))
+	for i in 2:
+		var push := smoothstep(0.0, 0.35, _phase) * (1.0 - smoothstep(0.35, 0.8, _phase)) * hopping
+		_hind[i].rotation.x = (0.9 * push - 0.5 * smoothstep(0.7, 1.0, _phase) * hopping)
+		_feet[i].rotation.x = -0.9 * push
+		_front[i].rotation.x = lerpf(0.0, -0.6 + 1.0 * smoothstep(0.4, 0.9, _phase), hopping)
+	# Congelado de orelha em pé quando desconfia; correndo, orelhas deitadas para trás;
+	# comendo, cabeça baixa e o focinho mexendo sem parar.
+	var nibble := 0.0 if state == State.SUSPICIOUS else sin(t * 30.0) * 0.03
 	_head.rotation.x = (0.5 if state == State.GRAZE else -0.15) + nibble
+	var flat := clampf((speed - 2.0) / 2.0, 0.0, 1.0)
+	for i in 2:
+		var side := 1.0 if i == 0 else -1.0
+		var twitch := maxf(sin(t * 1.3 + i * 2.0 + position.z), 0.0) ** 14.0
+		_ears[i].rotation = Vector3(-0.9 * flat + 0.12 * float(state == State.SUSPICIOUS), 0.0, -side * (0.12 + twitch * 0.5) * (1.0 - flat))
+	_tail.rotation.x = -0.5 * flat

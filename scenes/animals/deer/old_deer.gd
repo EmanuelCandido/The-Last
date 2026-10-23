@@ -11,17 +11,17 @@ const LEAVE_HOUR := 19.0
 
 func _init() -> void:
 	super()
-	fur_color = Color(0.36, 0.26, 0.18)
+	fur_color = Color(0.5, 0.37, 0.26)
 	kind = &"old_deer"
 	herd = ""
 	max_health = 4.0
 	meat = 6
 	hide = 2
 	bones = 3
-	sight_range = 55.0
-	hearing_range = 42.0
-	smell_range = 45.0
-	run_speed = 11.0
+	sight_range = 30.0
+	hearing_range = 23.0
+	smell_range = 25.0
+	run_speed = 7.3
 	calm_distance = 60.0
 	home_radius = 30.0
 	track_size = Vector2(0.27, 0.33)
@@ -34,17 +34,13 @@ func _ready() -> void:
 	scale = Vector3.ONE * 1.3
 
 
-func _build_body() -> void:
-	super()
-	# A galhada: duas hastes grossas abertas, com cinco pontas cada.
-	var bone := flat_material(Color(0.7, 0.64, 0.52))
-	for side: float in [-1.0, 1.0]:
-		var beam := _joint(_head, Vector3(0.07 * side, 0.12, -0.02))
-		beam.rotation = Vector3(-0.35, 0.0, -0.6 * side)
-		_box(beam, Vector3(0.04, 0.5, 0.04), Vector3(0.0, 0.25, 0.0), bone)
-		for t in 5:
-			var tine := _box(beam, Vector3(0.025, 0.16, 0.025), Vector3(0.0, 0.1 + t * 0.09, 0.05), bone)
-			tine.rotation = Vector3(0.7 + t * 0.08, 0.0, 0.3 * side * (1.0 if t % 2 else -0.5))
+## O modelo dele tem a galhada (duas hastes de cinco pontas) e a juba no pescoço.
+func _model_scene() -> PackedScene:
+	return preload("res://assets/models/animals/old_deer.glb")
+
+
+func _look_key() -> String:
+	return "old_deer"
 
 
 func _physics_process(delta: float) -> void:

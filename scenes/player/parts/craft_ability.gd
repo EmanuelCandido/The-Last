@@ -1,7 +1,8 @@
 class_name CraftAbility
 extends Node
 ## Fabricar ("craft", R), §4.10: abre uma lista pequena no canto da tela, com as receitas
-## de Recipes.LIST. O tempo não para. Escolhe com a roda do mouse, as setas ou o D-pad;
+## de Recipes.LIST, uma por vez (a escolhida, com o custo ou o que falta embaixo). O tempo não
+## para. Escolhe com a roda do mouse, as setas ou o D-pad;
 ## E (ou o número da receita) fabrica, com a animação "craft"; R fecha. A lista some
 ## sozinha depois de Tuning.CRAFT_LIST_SECONDS sem mexer nela.
 ##
@@ -17,8 +18,10 @@ var selected := 0
 var _open := false
 var _idle := 0.0
 var _layer: CanvasLayer
-var _label: RichTextLabel
-var _footer: RichTextLabel
+var _name: Label
+var _cost: Label
+var _make_key: Label
+var _close_key: Label
 
 @onready var _player: Player = get_parent()
 
@@ -127,64 +130,57 @@ func _select(index: int) -> void:
 
 
 func _refresh() -> void:
-	if _label == null or not _open:
+	if _name == null or not _open:
 		return
-	var ink := UiStyle.hex(UiStyle.INK)
-	var dim := UiStyle.hex(UiStyle.INK_DIM)
-	var faint := UiStyle.hex(UiStyle.INK_FAINT)
-	var accent := UiStyle.hex(UiStyle.ACCENT)
-	var lines := PackedStringArray()
-	for i in Recipes.LIST.size():
-		var recipe := Recipes.LIST[i]
-		var missing := Recipes.missing(recipe)
-		var ready := missing == ""
-		var name_color := (accent if i == selected else ink) if ready else faint
-		var marker := "›" if i == selected else " "
-		var detail := Recipes.cost_text(recipe) if ready else missing
-		lines.append("[color=%s]%s %d  %s[/color]  [color=%s][i]%s[/i][/color]" % [
-			name_color, marker, i + 1, recipe.name, dim if ready else faint, detail])
-	_label.text = "\n".join(lines)
-	_footer.text = "[color=%s][lb]%s[rb][/color] fazer   [color=%s]roda/setas[/color] escolher   [color=%s][lb]%s[rb][/color] fechar" % [
-		accent, Settings.key_label(&"interact", true), accent, accent, Settings.key_label(&"craft", true)]
+	var recipe := Recipes.LIST[selected]
+	var missing := Recipes.missing(recipe)
+	var ready := missing == ""
+	_name.text = recipe.name
+	_name.add_theme_color_override(&"font_color", UiStyle.INK if ready else UiStyle.INK_FAINT)
+	_cost.text = Recipes.cost_text(recipe) if ready else missing
+	_cost.add_theme_color_override(&"font_color", UiStyle.INK_DIM if ready else UiStyle.BLOOD.lightened(0.2))
+	_make_key.text = "[%s] Fazer" % Settings.key_label(&"interact", true)
+	_close_key.text = "[%s] Fechar" % Settings.key_label(&"craft", true)
+	var font_size := UiStyle.hud_font_size()
+	for label: Label in [_name, _cost, _make_key, _close_key]:
+		label.add_theme_font_size_override(&"font_size", font_size)
 
 
-## A lista: um painel escuro no canto, título em ocre, as receitas e as teclas embaixo.
+## A lista, direto sobre a cena no canto de baixo, em cima da linha de itens do HUD: o marcador
+## laranja, a receita escolhida e o custo embaixo, as setas de escolher e as teclas à direita.
 func _build_list() -> void:
 	_layer = CanvasLayer.new()
 	_layer.layer = 2
 	_layer.visible = false
 	add_child(_layer)
-	var panel := PanelContainer.new()
-	panel.theme_type_variation = &"PanelDark"
-	panel.anchor_left = 1.0
-	panel.anchor_right = 1.0
-	panel.anchor_top = 1.0
-	panel.anchor_bottom = 1.0
-	panel.offset_left = -500.0
-	panel.offset_right = -14.0
-	panel.offset_top = -60.0
-	panel.offset_bottom = -52.0
-	panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_layer.add_child(panel)
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override(&"separation", 4)
-	panel.add_child(column)
-	var title := UiStyle.label("Fabricar", &"Heading", 16)
-	column.add_child(title)
-	column.add_child(UiStyle.separator())
-	_label = _rich_label()
-	column.add_child(_label)
-	column.add_child(UiStyle.separator())
-	_footer = _rich_label()
-	column.add_child(_footer)
-
-
-func _rich_label() -> RichTextLabel:
-	var label := RichTextLabel.new()
-	label.bbcode_enabled = true
-	label.scroll_active = false
-	label.fit_content = true
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return label
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override(&"h_separation", 18)
+	grid.add_theme_constant_override(&"v_separation", -6)
+	grid.anchor_left = 1.0
+	grid.anchor_right = 1.0
+	grid.anchor_top = 1.0
+	grid.anchor_bottom = 1.0
+	grid.offset_right = -32.0
+	grid.offset_bottom = -72.0
+	grid.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	grid.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_layer.add_child(grid)
+	grid.add_child(UiStyle.sprite(UiStyle.MARKER, 2))
+	_name = UiStyle.label("")
+	_name.custom_minimum_size.x = 200.0
+	grid.add_child(_name)
+	grid.add_child(UiStyle.sprite(UiStyle.UP_DOWN, 2))
+	_make_key = UiStyle.label("")
+	grid.add_child(_make_key)
+	var gap := Control.new()
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	grid.add_child(gap)
+	_cost = UiStyle.label("")
+	grid.add_child(_cost)
+	var gap_2 := Control.new()
+	gap_2.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	grid.add_child(gap_2)
+	_close_key = UiStyle.label("")
+	grid.add_child(_close_key)

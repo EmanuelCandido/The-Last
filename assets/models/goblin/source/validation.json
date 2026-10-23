@@ -2,8 +2,8 @@
   "meshes": [
     {
       "name": "Corpo_continuo",
-      "vertices": 6243,
-      "triangles": 12490,
+      "vertices": 9100,
+      "triangles": 18196,
       "components": 1,
       "open_edges": 0,
       "flipped_normals": 0,
@@ -13,20 +13,9 @@
     },
     {
       "name": "Rosto",
-      "vertices": 1112,
-      "triangles": 2156,
-      "components": 17,
-      "open_edges": 0,
-      "flipped_normals": 0,
-      "unweighted_vertices": 0,
-      "invalid_weights": 0,
-      "nonfinite_vertices": 0
-    },
-    {
-      "name": "Detalhes_membros",
-      "vertices": 1392,
-      "triangles": 2736,
-      "components": 20,
+      "vertices": 1268,
+      "triangles": 2520,
+      "components": 4,
       "open_edges": 0,
       "flipped_normals": 0,
       "unweighted_vertices": 0,
@@ -43,6 +32,17 @@
       "unweighted_vertices": 0,
       "invalid_weights": 0,
       "nonfinite_vertices": 0
+    },
+    {
+      "name": "Detalhes_membros",
+      "vertices": 768,
+      "triangles": 1536,
+      "components": 8,
+      "open_edges": 0,
+      "flipped_normals": 0,
+      "unweighted_vertices": 0,
+      "invalid_weights": 0,
+      "nonfinite_vertices": 0
     }
   ],
   "bones": 31,
@@ -50,7 +50,7 @@
     "andando",
     "parado"
   ],
-  "triangles": 21086,
+  "triangles": 25956,
   "hand_sockets": {
     "D": [
       -0.23899997770786285,

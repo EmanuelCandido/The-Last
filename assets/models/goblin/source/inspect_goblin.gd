@@ -76,7 +76,7 @@ func _run() -> void:
 		# O Player está desligado: o GoblinAnimator é alimentado e avançado à mão.
 		for player in players:
 			var animator: GoblinAnimator = player._animator
-			animator.velocity_local = Vector3(0.0, 0.0, 2.6) if pose == "walk" else Vector3.ZERO
+			animator.velocity_local = Vector3(0.0, 0.0, 2.0) if pose == "walk" else Vector3.ZERO
 			animator.aiming = pose == "aim"
 			animator.draw = 0.7 if pose == "aim" else 0.0
 			if player._bow != null:

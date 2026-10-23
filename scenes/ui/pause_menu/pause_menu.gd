@@ -1,8 +1,9 @@
 extends Control
 ## Menu de pausa: continuar, salvar, carregar, dicas, configurações, menu principal e sair. Só
-## aparece com o jogo pausado, sobre uma neblina em pontilhado (UiStyle.fog_backdrop).
+## aparece com o jogo pausado: o painel de rocha à esquerda (UiStyle.rock_panel) com a boca da
+## caverna, "PAUSADO", os riscos e o dia, e o jogo parado à direita, sem escurecer.
 ## Do mistério meta (§7): com o ciclo_346.sav no disco, "Carregar" abre a lista de saves; com a
-## carta no disco, aparece "Abrir pasta do jogo".
+## carta no disco, aparece "Abrir pasta do jogo". As Dicas abrem no painel largo.
 
 ## Mini tutorial mostrado em "Dicas" (BBCode). As teclas são marcadores ({interact}, {eat}...) que
 ## viram as teclas de agora (Settings.key_labels). As anotações da história (Story.notes) entram
@@ -79,50 +80,42 @@ const TIPS := """[b]CONTROLES[/b]
 • Às vezes chove. A chuva abafa seus passos e lava o seu cheiro: é um bom tempo para caçar. Mas molha, e molhado o goblin esfria, até de dia. Debaixo das árvores e na toca ela não pega.
 • Na chuva as manadas se abrigam debaixo das árvores mais fechadas e ficam paradas."""
 
-@onready var _panel: Control = %Panel
-@onready var _tips: Control = %Tips
-@onready var _resume_button: Button = %ResumeButton
-@onready var _save_button: Button = %SaveButton
-@onready var _load_button: Button = %LoadButton
-@onready var _tips_button: Button = %TipsButton
-@onready var _quit_button: Button = %QuitButton
-@onready var _back_button: Button = %BackButton
-@onready var _status_label: Label = %StatusLabel
-@onready var _state_label: Label = %StateLabel
-@onready var _tips_text: RichTextLabel = %TipsText
+## Segundos que um aviso ("Jogo salvo.") fica no lugar do dia.
+const STATUS_SECONDS := 3.0
 
+var _rock: Control
+var _panel: Control
+var _state_label: Label
+var _items: VBoxContainer
+var _resume_button: Button
+var _save_button: Button
+var _load_button: Button
 var _folder_button: Button
-var _menu_button: Button
 var _settings_button: Button
 var _settings: SettingsMenu
-var _slots: PanelContainer
+var _tips: Control
+var _tips_text: RichTextLabel
+var _back_button: Button
+var _slots: VBoxContainer
 var _slot_real: Button
 var _slot_old: Button
 var _slots_back: Button
+## Aviso que está no lugar do dia, e até quando (Time.get_ticks_msec; 0 = enquanto pausado).
+var _status := ""
+var _status_until := 0
 
 
 func _ready() -> void:
 	hide()
-	var fog := UiStyle.fog_backdrop(0.62, 0.0, 0.12)
-	add_child(fog)
-	move_child(fog, 0)
+	_build()
 	Events.game_paused.connect(_on_game_paused)
-	_resume_button.pressed.connect(Game.set_paused.bind(false))
-	_save_button.pressed.connect(_on_save_pressed)
-	_load_button.pressed.connect(_on_load_pressed)
-	_tips_button.pressed.connect(show_tips.bind(true))
-	_back_button.pressed.connect(show_tips.bind(false))
-	_quit_button.pressed.connect(Game.quit)
-	_folder_button = _menu_item("FolderButton", "Abrir pasta do jogo", MetaFiles.open_game_folder)
-	_tips_button.add_sibling(_folder_button)
-	_settings_button = _menu_item("SettingsButton", "Configurações", open_settings)
-	_folder_button.add_sibling(_settings_button)
-	_menu_button = _menu_item("MenuButton", "Menu principal", Game.back_to_menu)
-	_quit_button.add_sibling(_menu_button)
-	_quit_button.get_parent().move_child(_menu_button, _quit_button.get_index())
-	for button: Button in [_resume_button, _save_button, _load_button, _tips_button, _quit_button]:
-		_hover_focus(button)
-	_build_slots()
+
+
+func _process(_delta: float) -> void:
+	if _status_until > 0 and Time.get_ticks_msec() >= _status_until:
+		_status = ""
+		_status_until = 0
+		_state_label.text = _state_text()
 
 
 func _on_game_paused(paused: bool) -> void:
@@ -131,7 +124,8 @@ func _on_game_paused(paused: bool) -> void:
 		_settings.queue_free()
 		_settings = null
 	if paused:
-		_status_label.text = "Acordado, não dá para salvar." if Game.awake else ("Bem-vindo de volta." if Game.welcome else "")
+		_status = "Acordado, não dá para salvar." if Game.awake else ("Bem-vindo de volta." if Game.welcome else "")
+		_status_until = 0
 		_save_button.disabled = Game.awake or Game.welcome
 		_load_button.disabled = Game.welcome or (not SaveSystem.has_save() and not MetaFiles.has_old_save())
 		_folder_button.visible = MetaFiles.has_letter()
@@ -140,11 +134,19 @@ func _on_game_paused(paused: bool) -> void:
 		show_tips(false)
 
 
-## "Dia 4 · fim da tarde · Com fome".
+## "Dia 4 · tarde · Com fome", ou o aviso da hora ("Jogo salvo.").
 func _state_text() -> String:
+	if _status != "":
+		return _status
 	var parts := PackedStringArray(["Dia %d" % Clock.day, Clock.period_name()])
 	parts.append_array(Vitals.status_words())
 	return " · ".join(parts)
+
+
+func _show_status(text: String) -> void:
+	_status = text
+	_status_until = Time.get_ticks_msec() + int(STATUS_SECONDS * 1000.0)
+	_state_label.text = text
 
 
 ## As Dicas com as teclas de agora (Settings), os títulos em ocre e as anotações de Ari no fim.
@@ -162,8 +164,9 @@ func _tips_with_notes() -> String:
 ## Mostra a tela de Dicas (true) ou volta ao menu (false).
 func show_tips(tips_visible: bool) -> void:
 	_tips.visible = tips_visible
-	_slots.visible = false
+	_rock.visible = not tips_visible
 	_panel.visible = not tips_visible
+	_show_items(true)
 	if tips_visible:
 		_back_button.grab_focus()
 	else:
@@ -184,66 +187,126 @@ func open_settings() -> void:
 	add_child(_settings)
 
 
-## Mostra a lista de saves (true) ou volta ao menu (false).
+## Mostra a lista de saves (true) ou volta ao menu (false), no lugar dos itens.
 func show_slots(slots_visible: bool) -> void:
-	_slots.visible = slots_visible
-	_tips.visible = false
-	_panel.visible = not slots_visible
+	_show_items(not slots_visible)
 	if slots_visible:
 		var real := SaveSystem.describe_save()
-		_slot_real.text = "save.json  ·  %s" % real if real != "" else "save.json  ·  vazio"
+		_slot_real.text = real if real != "" else "Nenhum jogo salvo"
 		_slot_real.disabled = real == ""
 		_slot_old.visible = MetaFiles.has_old_save()
 		_slots_back.grab_focus()
 	else:
-		_resume_button.grab_focus()
+		_load_button.grab_focus()
 
 
-## A lista de "Carregar": o save de verdade e, depois do flash 2, o ciclo_346.sav.
+func _show_items(items_visible: bool) -> void:
+	_items.visible = items_visible
+	_slots.visible = not items_visible
+
+
+func _build() -> void:
+	_rock = UiStyle.rock_panel(&"pause")
+	add_child(_rock)
+	_panel = _layer("Panel")
+	var header := VBoxContainer.new()
+	header.add_theme_constant_override(&"separation", -6)
+	header.position = Vector2(79.0, 132.0)
+	_panel.add_child(header)
+	header.add_child(UiStyle.sprite(UiStyle.CAVE_ICON, 3))
+	header.add_child(UiStyle.menu_title("Pausado"))
+	var tally := UiStyle.tally_line(" ")
+	_state_label = tally.get_node("Text")
+	header.add_child(tally)
+	_items = _column()
+	_resume_button = _menu_item(_items, "Continuar", Game.set_paused.bind(false))
+	_save_button = _menu_item(_items, "Salvar", _on_save_pressed)
+	_load_button = _menu_item(_items, "Carregar", _on_load_pressed)
+	_menu_item(_items, "Dicas", show_tips.bind(true))
+	_folder_button = _menu_item(_items, "Abrir pasta do jogo", MetaFiles.open_game_folder)
+	_settings_button = _menu_item(_items, "Configurações", open_settings)
+	_menu_item(_items, "Menu principal", Game.back_to_menu)
+	_menu_item(_items, "Sair do jogo", Game.quit)
+	_build_slots()
+	UiStyle.footer(_panel, "[%s] Voltar ao jogo" % Settings.key_label(&"pause", true))
+	_build_tips()
+
+
+## A lista de "Carregar": o save de verdade ("Dia 4 · Ciclo 347") e, depois do flash 2, o
+## ciclo_346.sav.
 func _build_slots() -> void:
-	_slots = PanelContainer.new()
-	_slots.name = "Slots"
+	_slots = _column()
 	_slots.visible = false
-	_slots.custom_minimum_size = Vector2(460, 0)
-	_panel.add_sibling(_slots)
-	var items := VBoxContainer.new()
-	items.add_theme_constant_override(&"separation", 4)
-	_slots.add_child(items)
-	items.add_child(UiStyle.label("Carregar", &"Heading"))
-	items.add_child(UiStyle.separator())
-	_slot_real = _menu_item("SlotReal", "", _on_load_real)
-	_slot_real.add_theme_font_size_override(&"font_size", 16)
-	items.add_child(_slot_real)
-	_slot_old = _menu_item("SlotOld", "ciclo_346.sav  ·  Dia 12 · Ciclo 346", _on_load_old)
-	_slot_old.add_theme_font_size_override(&"font_size", 16)
-	items.add_child(_slot_old)
-	items.add_child(UiStyle.separator())
-	_slots_back = Button.new()
-	_slots_back.text = "Voltar"
-	_slots_back.custom_minimum_size.x = 140.0
-	_slots_back.size_flags_horizontal = Control.SIZE_SHRINK_END
-	_slots_back.pressed.connect(show_slots.bind(false))
-	items.add_child(_slots_back)
+	_slot_real = _menu_item(_slots, "", _on_load_real)
+	_slot_old = _menu_item(_slots, "ciclo_346.sav", _on_load_old)
+	_slots_back = _menu_item(_slots, "Voltar", show_slots.bind(false))
 
 
-func _menu_item(node_name: String, text: String, action: Callable) -> Button:
-	var button := UiStyle.menu_button(text, action)
-	button.name = node_name
+## As Dicas: o painel largo de rocha, o título, o texto rolando e o "Voltar".
+func _build_tips() -> void:
+	_tips = _layer("Tips")
+	_tips.visible = false
+	_tips.add_child(UiStyle.rock_panel(&"wide"))
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override(&"separation", 8)
+	box.position = Vector2(79.0, 52.0)
+	_tips.add_child(box)
+	box.add_child(UiStyle.menu_title("Dicas"))
+	box.add_child(UiStyle.tally_line())
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(800.0, 380.0)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	_tips_text = RichTextLabel.new()
+	_tips_text.bbcode_enabled = true
+	_tips_text.fit_content = true
+	_tips_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_tips_text)
+	# O "Voltar" alinhado com os itens dos menus (o marcador cabe à esquerda dele).
+	var back_row := MarginContainer.new()
+	back_row.add_theme_constant_override(&"margin_left", int(UiStyle.MENU_LEFT - box.position.x))
+	box.add_child(back_row)
+	_back_button = UiStyle.menu_button("Voltar", show_tips.bind(false))
+	_back_button.custom_minimum_size.x = 300.0
+	_back_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	back_row.add_child(_back_button)
+	UiStyle.footer(_tips, "[%s] Voltar ao jogo" % Settings.key_label(&"pause", true))
+
+
+## Uma camada da tela inteira que não pega o mouse.
+func _layer(node_name: String) -> Control:
+	var layer := Control.new()
+	layer.name = node_name
+	layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(layer)
+	return layer
+
+
+## A coluna dos itens. A linha da fonte é alta (a fonte de reserva do sistema entra na conta):
+## a separação negativa deixa um item de 32 a cada 41 px.
+func _column() -> VBoxContainer:
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override(&"separation", -12)
+	column.position = Vector2(UiStyle.MENU_LEFT, 318.0)
+	_panel.add_child(column)
+	return column
+
+
+func _menu_item(parent: Container, text: String, action: Callable, font_size := 32) -> Button:
+	var button := UiStyle.menu_button(text, action, font_size)
+	button.custom_minimum_size.x = 300.0
+	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	parent.add_child(button)
 	return button
-
-
-func _hover_focus(button: Button) -> void:
-	button.mouse_entered.connect(func() -> void:
-		if not button.disabled:
-			button.grab_focus())
 
 
 func _on_save_pressed() -> void:
 	if SaveSystem.save_game():
-		_status_label.text = "Jogo salvo."
+		_show_status("Jogo salvo.")
 		_load_button.disabled = false
 	else:
-		_status_label.text = "Falha ao salvar."
+		_show_status("Falha ao salvar.")
 
 
 func _on_load_pressed() -> void:
@@ -258,7 +321,7 @@ func _on_load_real() -> void:
 		Game.set_paused(false)
 	else:
 		show_slots(false)
-		_status_label.text = "Falha ao carregar."
+		_show_status("Falha ao carregar.")
 
 
 ## O save do ciclo passado não carrega nada: passa a memória dele e volta para cá.

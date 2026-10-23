@@ -25,21 +25,25 @@ var _charge_timer := 0.0
 var _charge_yaw := 0.0
 var _grunt_timer := 4.0
 var _warned_day := -1
+const MODEL := preload("res://assets/models/animals/boar.glb")
+
 var _body: Node3D
 var _head: Node3D
-var _legs: Array[Node3D] = []
-var _phase := 0.0
+var _tail: Node3D
+var _ears: Array[Node3D] = []
+var _gait: QuadrupedGait
+var _rest_body := Vector3.ZERO
 
 
 func _init() -> void:
-	walk_speed = 0.9
-	run_speed = 7.0
+	walk_speed = 0.6
+	run_speed = 4.7
 	turn_speed = 5.0
 	home_radius = 14.0
-	sight_range = 26.0
+	sight_range = 14.0
 	sight_fov_deg = 260.0
-	hearing_range = 30.0
-	smell_range = 50.0
+	hearing_range = 16.0
+	smell_range = 27.0
 	eye_height = 0.6
 	calm_distance = 45.0
 	max_health = 3.0
@@ -191,50 +195,56 @@ func _flat(at: Vector3) -> Vector2:
 # --- Corpo -----------------------------------------------------------------------
 
 func _build_body() -> void:
-	var bristle := fur_material(Color(0.2, 0.16, 0.13))
-	var dark := flat_material(Color(0.1, 0.08, 0.07))
-	var tusk := flat_material(Color(0.86, 0.82, 0.7))
-	var snout := flat_material(Color(0.32, 0.24, 0.22))
-
-	_body = _joint(self, Vector3(0.0, 0.52, 0.0))
-	_box(_body, Vector3(0.46, 0.5, 0.95), Vector3.ZERO, bristle)
-	_box(_body, Vector3(0.5, 0.56, 0.35), Vector3(0.0, 0.04, 0.3), bristle)
-	# A crina de cerdas no lombo.
-	_box(_body, Vector3(0.1, 0.1, 0.8), Vector3(0.0, 0.3, 0.05), dark)
-
-	_head = _joint(_body, Vector3(0.0, 0.0, 0.5))
-	_box(_head, Vector3(0.32, 0.32, 0.34), Vector3(0.0, -0.03, 0.12), bristle, Vector3(0.25, 0.0, 0.0))
-	_box(_head, Vector3(0.16, 0.14, 0.18), Vector3(0.0, -0.13, 0.32), snout)
-	_box(_head, Vector3(0.13, 0.11, 0.03), Vector3(0.0, -0.15, 0.42), dark)
-	for side: float in [-1.0, 1.0]:
-		_box(_head, Vector3(0.025, 0.09, 0.025), Vector3(0.08 * side, -0.1, 0.36), tusk, Vector3(-0.5, 0.0, 0.3 * side))
-		_box(_head, Vector3(0.06, 0.09, 0.03), Vector3(0.11 * side, 0.15, 0.0), bristle, Vector3(0.0, 0.0, -0.4 * side))
-
-	for leg_pos: Vector3 in [Vector3(0.14, -0.2, 0.35), Vector3(-0.14, -0.2, 0.35), Vector3(0.14, -0.2, -0.35), Vector3(-0.14, -0.2, -0.35)]:
-		var hip := _joint(_body, leg_pos)
-		_box(hip, Vector3(0.1, 0.22, 0.12), Vector3(0.0, -0.08, 0.0), bristle)
-		_box(hip, Vector3(0.06, 0.12, 0.06), Vector3(0.0, -0.24, 0.0), bristle)
-		_box(hip, Vector3(0.07, 0.04, 0.08), Vector3(0.0, -0.31, 0.02), dark)
-		_legs.append(hip)
+	model = CreatureModel.attach(self, MODEL, {
+		"pelo": [AnimalLook.BRISTLE, Color(1.35, 1.12, 0.92)],
+		"pelo_escuro": [AnimalLook.BRISTLE, Color(0.85, 0.72, 0.6)],
+		"crina": [AnimalLook.BRISTLE, Color(0.7, 0.6, 0.5)],
+		"focinho": Color(0.3, 0.22, 0.2),
+		"nariz": Color(0.06, 0.05, 0.05),
+		"olho": Color(0.04, 0.03, 0.02),
+		"presa": Color(0.84, 0.8, 0.68),
+		"casco": Color(0.09, 0.08, 0.07),
+	}, "boar")
+	_body = model.joint("corpo")
+	_head = model.joint("cabeca")
+	_tail = model.joint("cauda")
+	_ears = [model.joint("orelha_E"), model.joint("orelha_D")]
+	_rest_body = _body.position
+	_gait = QuadrupedGait.new()
+	_gait.setup(model)
+	_gait.stride_walk = 0.75
+	_gait.stride_run = 1.6
+	_gait.reach_walk = 0.25
+	_gait.reach_run = 0.6
+	_gait.fold_run = 1.1
+	_gait.run_speed = 1.8
 
 
 func _build_hitbox(area: Area3D) -> void:
-	_hit_shape(area, Vector3(0.5, 0.56, 1.05), Vector3(0.0, 0.52, 0.0))
-	_hit_shape(area, Vector3(0.34, 0.34, 0.4), Vector3(0.0, 0.5, 0.65))
+	_hit_shape(area, Vector3(0.46, 0.56, 1.0), Vector3(0.0, 0.54, -0.02))
+	_hit_shape(area, Vector3(0.3, 0.32, 0.42), Vector3(0.0, 0.5, 0.62))
 
 
 func _animate(delta: float) -> void:
-	var running := speed > 3.0
-	_phase += delta * (speed * (2.4 if running else 5.0))
-	var amp := 0.7 if running else clampf(speed / walk_speed, 0.0, 1.0) * 0.4
-	var offsets := [0.0, 0.3, 1.5, 1.8] if running else [0.0, PI, PI, 0.0]
-	for i in _legs.size():
-		_legs[i].rotation.x = sin(_phase + offsets[i]) * amp
-	_body.position.y = 0.52 + absf(sin(_phase)) * (0.05 if running else 0.015) * amp
-	# Fuçando: cabeça baixa, mexendo; investindo, cabeça baixa e firme, presas para a frente.
+	_gait.update(delta, speed)
+	var run := _gait.run * _gait.motion
+	var t := Time.get_ticks_msec() * 0.001
+	var beat := sin(TAU * _gait.phase)
+	# Corpo pesado: sacode de lado andando e martela para cima e para baixo correndo.
+	_body.position = _rest_body + Vector3(sin(TAU * _gait.phase) * 0.012 * (1.0 - run) * _gait.motion,
+		absf(beat) * 0.05 * run + absf(sin(TAU * _gait.phase * 2.0)) * 0.01 * (1.0 - run) * _gait.motion, 0.0)
+	_body.rotation = Vector3(beat * 0.05 * run, 0.0, sin(TAU * _gait.phase) * 0.03 * _gait.motion * (1.0 - run))
+	# Fuçando: cabeça baixa, focinho cavando aos trancos; investindo, cabeça baixa e firme.
 	var root := 0.0
 	if state == State.GRAZE:
-		root = 0.5 + sin(Time.get_ticks_msec() * 0.008) * 0.12
+		root = 0.45 + (sin(t * 8.0) * 0.5 + 0.5) ** 3.0 * 0.15
 	elif charge == Charge.RUN:
-		root = 0.35
-	_head.rotation.x = lerpf(_head.rotation.x, root, 1.0 - exp(-6.0 * delta))
+		root = 0.3
+	_head.rotation.x = lerpf(_head.rotation.x, root - beat * 0.05 * run, 1.0 - exp(-6.0 * delta))
+	_head.rotation.y = lerpf(_head.rotation.y, sin(t * 1.3) * 0.12 * float(state == State.GRAZE), 1.0 - exp(-3.0 * delta))
+	for i in _ears.size():
+		var side := 1.0 if i == 0 else -1.0
+		var flick := maxf(sin(t * 1.1 + i * 1.7 + position.x), 0.0) ** 10.0
+		_ears[i].rotation = Vector3(-0.2 * float(charge != Charge.NONE) - 0.35 * run, 0.0, -side * flick * 0.4)
+	# O rabo fino abana sem parar.
+	_tail.rotation = Vector3(-0.6 * run, sin(t * (9.0 if state == State.GRAZE else 4.0)) * 0.45, 0.0)

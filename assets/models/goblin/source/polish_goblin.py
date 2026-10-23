@@ -284,14 +284,36 @@ skin.append(blob('nuca',(0,.062,.842),(.098,.078,.096),nape_shape,segments=20,ri
 skin.append(ellipsoid('maxilar',(0,-.028,.790),(.097,.088,.054),segments=20,rings=12))
 skin.append(ellipsoid('queixo',(0,-.084,.768),(.052,.050,.033)))
 skin.append(ellipsoid('focinho',(0,-.100,.813),(.069,.040,.027)))
-skin.append(tube('ponte_nasal',[(0,-.095,.896),(0,-.132,.876),(0,-.170,.855),(0,-.200,.838),(0,-.208,.824)], [.012,.016,.020,.017,.010],sides=12))
-skin.append(ellipsoid('ponta_nariz',(0,-.192,.834),(.022,.026,.020)))
+# The nose grows out of the brow: a broad root that narrows down the bridge to a bulbous,
+# hooked tip with flared nostril wings (a thin root read as a sausage stuck on the face).
+skin.append(tube('ponte_nasal',[(0,-.095,.896),(0,-.132,.876),(0,-.170,.855),(0,-.200,.838),(0,-.208,.824)], [.023,.020,.020,.017,.011],sides=12))
+skin.append(ellipsoid('ponta_nariz',(0,-.192,.834),(.024,.027,.021)))
+# The body of the nose: a wedge that is tall and wide where it leaves the face (brow down to
+# the upper lip) and tapers to the tip, so in profile the nose is a triangle grown from the
+# face, not a tube stuck on it. Sections across the nose (XZ ellipses) along -Y.
+def wedge(name, stations, sides=14):
+    verts=[]; faces=[]
+    for y,zc,rx,rz in stations:
+        for i in range(sides):
+            t=2*math.pi*i/sides
+            verts.append((rx*math.cos(t),y,zc+rz*math.sin(t)))
+    for j in range(len(stations)-1):
+        for i in range(sides):
+            a=j*sides+i; b=j*sides+(i+1)%sides
+            faces.append((a,b,b+sides,a+sides))
+    faces += [tuple(reversed(range(sides))),tuple((len(stations)-1)*sides+i for i in range(sides))]
+    return mesh(name,verts,faces)
+skin.append(wedge('corpo_nariz',[(-.100,.8565,.028,.0415),(-.130,.8515,.025,.0325),(-.155,.8445,.021,.0215),(-.180,.8365,.019,.0145)]))
 skin.append(ellipsoid('labio_superior',(0,-.127,.807),(.058,.020,.011)))
 skin.append(ellipsoid('labio_inferior',(0,-.121,.787),(.064,.025,.016)))
 
 for s,side in [(-1,'D'),(1,'E')]:
     skin.append(ellipsoid('malar_'+side,(s*.084,-.060,.826),(.041,.045,.034)))
-    skin.append(tube('sobrancelha_'+side,[(s*.022,-.108,.889),(s*.052,-.115,.897),(s*.087,-.096,.905),(s*.112,-.060,.889)],[.016,.019,.021,.016],sides=10))
+    skin.append(ellipsoid('asa_nariz_'+side,(s*.018,-.186,.826),(.012,.015,.011)))
+    # Brow ridge sunk into the skull: two flat swells of bone under the skin over each eye,
+    # not a log laid across it (a tube read as a horn in profile).
+    skin.append(ellipsoid('sobrancelha_'+side,(s*.040,-.088,.892),(.026,.011,.010)))
+    skin.append(ellipsoid('sobrancelha_fora_'+side,(s*.077,-.071,.895),(.024,.011,.010)))
     skin.append(loft('anatomia_braco_'+side,[(s*x,y,z,rx,ry) for x,y,z,rx,ry in [
         (.135,.064,.691,.026,.030),(.151,.065,.668,.049,.051),(.165,.060,.637,.050,.050),
         (.180,.044,.590,.042,.041),(.192,.028,.545,.031,.032),(.198,.024,.521,.030,.032),
@@ -353,6 +375,7 @@ for v in bm.verts:
     amount*=(1-.7*face)*eyes
     v.co=p+v.normal*lump*amount
 bm.to_mesh(body.data); bm.free()
+
 dec=body.modifiers.new('Topologia de jogo','DECIMATE'); dec.ratio=.038
 bpy.ops.object.modifier_apply(modifier=dec.name)
 bm=bmesh.new(); bm.from_mesh(body.data)
@@ -370,8 +393,117 @@ bm.to_mesh(body.data); bm.free()
 for v in body.data.vertices:
     # Broad, stable soles; no toe or heel floating above the floor.
     if v.co.z < .015: v.co.z=0.0
+
+# Face features carved into the skin itself, not pieces laid on top of it: the mouth is a
+# groove between the lips, the nostrils are pits under the tip, the eyes sit in sockets whose
+# lids are the same skin, and each ear has a bowl. The game mesh is too coarse there, so only
+# those spots (and the finger and toe tips, for the nails) are subdivided before carving;
+# the rest of the body keeps the decimated topology. Then each feature is painted face by face.
+def flat_distance(p, line):
+    """Distance in the XZ plane (seen from the front) from p to a polyline."""
+    best=1.0
+    for a,b in zip(line,line[1:]):
+        ab=Vector((b.x-a.x,b.z-a.z)); ap=Vector((p.x-a.x,p.z-a.z))
+        t=max(0,min(1,ap.dot(ab)/max(ab.length_squared,1e-9)))
+        best=min(best,(ap-ab*t).length)
+    return best
+
+def inside_polygon(x, z, poly):
+    inside=False
+    for (ax,ay,az),(bx,by,bz) in zip(poly,poly[1:]+poly[:1]):
+        if (az>z)!=(bz>z) and x<(bx-ax)*(z-az)/(bz-az)+ax: inside=not inside
+    return inside
+
+def polygon_edge_distance(x, z, poly):
+    return flat_distance(Vector((x,0,z)),[Vector(p) for p in poly+poly[:1]])
+
+# Sour grimace: corners pulled down and back around the muzzle.
+MOUTH=[Vector(p) for p in [(-.071,-.110,.790),(-.047,-.133,.797),(-.021,-.142,.799),(0,-.144,.799),
+                           (.021,-.142,.799),(.047,-.133,.797),(.071,-.110,.790)]]
+MOUTH_HALF=.0040
+EYE_R=.019
+EAR_BOWL={s:[(s*.130,-.015,.858),(s*.140,-.005,.894),(s*.278,.034,.943),(s*.224,.012,.896),(s*.168,-.009,.868)] for s in (-1,1)}
+# Where the nails go: fingertips (front of the finger) and the top of each toe.
+FINGER_NAILS=[Vector((s*(.242+dx),-.057,tip+.004)) for s in (-1,1) for dx,tip in [(-.023,.278),(0,.271),(.023,.281)]]
+TOE_NAILS=[Vector((s*(.095+dx),-.113-length*.40,.045)) for s in (-1,1) for dx,length in [(-.027,.025),(0,.032),(.028,.021)]]
+probe=BVHTree.FromPolygons([v.co for v in body.data.vertices],[tuple(p.vertices) for p in body.data.polygons])
+def front_hit(x, z):
+    hit,normal,idx,dist=probe.ray_cast(Vector((x,-1,z)),Vector((0,1,0)),2)
+    return hit
+NOSTRILS=[]
+for s in (-1,1):
+    hit,normal,idx,dist=probe.ray_cast(Vector((s*.011,-.206,.70)),Vector((0,0,1)),.3)
+    NOSTRILS.append(hit if hit is not None else Vector((s*.011,-.206,.814)))
+EYE_CENTERS=[]
+for s in (-1,1):
+    surface=front_hit(s*.062,.869)
+    # The eyeball sits 3 mm behind the old surface: the lids stand in front of it.
+    EYE_CENTERS.append(Vector((s*.062,surface.y+.003+EYE_R,.869)))
+
+def eye_opening(p, c):
+    """0..1: inside the almond opening of the eye centred at c (heavy upper lid: low opening)."""
+    s=1 if c.x>0 else -1
+    dx=(p.x-c.x)*s; dz=p.z-c.z+.0025-.08*dx   # the outer corner droops a little
+    q=math.sqrt((dx/.0175)**2+(dz/.0095)**2)
+    return 1-smoothstep(.75,1.1,q)
+
+def near_feature(p, fine):
+    if p.y<-.07 and flat_distance(p,MOUTH)<.010: return True
+    if any((p-c).length<.012 for c in NOSTRILS): return True
+    if any((p-c).length<EYE_R*1.7 for c in EYE_CENTERS): return True
+    # The ear bowl is broad and shallow: one subdivision is enough.
+    if not fine and p.y<.05 and abs(p.x)>.12 and any(inside_polygon(p.x,p.z,poly) or polygon_edge_distance(p.x,p.z,poly)<.006 for poly in EAR_BOWL.values()): return True
+    return any((p-h).length<.012 for h in FINGER_NAILS+TOE_NAILS)
+
+bm=bmesh.new(); bm.from_mesh(body.data)
+for fine in (False,True):
+    edges=[e for e in bm.edges if near_feature((e.verts[0].co+e.verts[1].co)/2,fine)]
+    bmesh.ops.subdivide_edges(bm,edges=edges,cuts=1,use_grid_fill=True,smooth=.5)
+bm.normal_update()
+for v in bm.verts:
+    p=v.co.copy(); n=v.normal
+    if n.y<-.2 and p.y<-.08:
+        # Mouth: a groove deepest in the middle, shallower at the drooping corners.
+        d=flat_distance(p,MOUTH)
+        if d<MOUTH_HALF*1.6:
+            corner=smoothstep(.071,.040,abs(p.x))
+            v.co-=n*(.0028+.0030*corner)*(1-smoothstep(MOUTH_HALF*.4,MOUTH_HALF*1.6,d))
+    for c in NOSTRILS:
+        d=(p-c).length
+        if d<.0065 and n.z<.2:
+            v.co-=n*.006*(1-smoothstep(.002,.0065,d))
+    for c in EYE_CENTERS:
+        if n.y<.1 and abs(p.y-(c.y-EYE_R))<.025:
+            m=eye_opening(p,c)
+            if m>0:
+                dx=p.x-c.x; dz=p.z-c.z
+                inside=EYE_R*EYE_R-dx*dx-dz*dz
+                target=c.y-math.sqrt(inside)+.0025 if inside>0 else c.y
+                v.co.y=p.y+(max(p.y,target)-p.y)*m
+    for s,poly in EAR_BOWL.items():
+        if n.y<-.25 and p.y<.04 and inside_polygon(p.x,p.z,poly):
+            v.co-=n*.0065*smoothstep(0,.009,polygon_edge_distance(p.x,p.z,poly))
+bm.to_mesh(body.data); bm.free()
 # Smooth skin: flat facets showed every polygon edge as a line on the back and arms.
 for p in body.data.polygons: p.use_smooth=True
+
+# Paint the carved features on the skin's own faces: the inside of the mouth groove and the
+# nostrils, the ear bowls, and the nails at the finger and toe tips.
+for key in ['boca','orelha_interna','unha']:
+    body.data.materials.append(mats[key])
+SLOT={m.name.split('.')[-1]:i for i,m in enumerate(body.data.materials)}
+for poly in body.data.polygons:
+    c=poly.center; n=poly.normal
+    if n.y<0 and c.y<-.09 and flat_distance(c,MOUTH)<MOUTH_HALF*.75:
+        poly.material_index=SLOT['boca']
+    elif any((c-h).length<.0042 for h in NOSTRILS):
+        poly.material_index=SLOT['boca']
+    elif n.y<-.2 and c.y<.04 and any(inside_polygon(c.x,c.z,poly_) and polygon_edge_distance(c.x,c.z,poly_)>.0025 for poly_ in EAR_BOWL.values()):
+        poly.material_index=SLOT['orelha_interna']
+    elif n.y<-.3 and any((c-h).length<.0085 for h in FINGER_NAILS):
+        poly.material_index=SLOT['unha']
+    elif n.z>.3 and any((c-h).length<.011 for h in TOE_NAILS):
+        poly.material_index=SLOT['unha']
 skin_bvh=BVHTree.FromPolygons([v.co for v in body.data.vertices],[tuple(p.vertices) for p in body.data.polygons])
 
 def conform_y(ob, back=False, offset=.008, cuts=1):
@@ -390,29 +522,23 @@ def conform_y(ob, back=False, offset=.008, cuts=1):
 
 bind(body,weights=body_weights)
 
-# Embedded eye sockets and face details retain the existing material palette.
+# Eyeballs: round globes set in the carved sockets (the lids are the skin around them), with
+# a vertical slit pupil painted on the globe itself, looking a little outward.
+for c in EYE_CENTERS:
+    s=1 if c.x>0 else -1
+    globe=ellipsoid('Olho_'+('E' if s>0 else 'D'),tuple(c),(EYE_R,EYE_R,EYE_R),'olho',32,20)
+    globe.data.materials.append(mats['pupila'])
+    look=Vector((s*.16,-1,0)).normalized()
+    side_axis=Vector((0,0,1)).cross(look).normalized()
+    for poly in globe.data.polygons:
+        d=(poly.center-c).normalized()
+        if d.dot(look)>0:
+            u=d.dot(side_axis); w=d.z
+            if (u/.27)**2+(w/.62)**2<1: poly.material_index=1
+    bind(globe,'cabeca')
 for s,side in [(-1,'D'),(1,'E')]:
-    bind(ellipsoid('Orbita_'+side,(s*.062,-.099,.869),(.039,.016,.023),'pele_escura'), 'cabeca')
-    bind(ellipsoid('Olho_'+side,(s*.062,-.111,.869),(.024,.011,.013),'olho',16,8),'cabeca')
-    bind(ellipsoid('Pupila_'+side,(s*.062,-.121,.868),(.007,.003,.009),'pupila',12,8),'cabeca')
-    bind(tube('Palpebra_'+side,[(s*.036,-.110,.860),(s*.062,-.116,.854),(s*.087,-.102,.861)],[.0045,.005,.0045],'pele',8),'cabeca')
-    # Heavy upper lid over the top of the eye: a wary, half-lidded goblin stare.
-    bind(tube('Palpebra_superior_'+side,[(s*.037,-.108,.878),(s*.062,-.119,.881),(s*.087,-.104,.879)],[.0055,.0070,.0055],'pele',8),'cabeca')
-    bind(ellipsoid('Narina_'+side,(s*.019,-.203,.824),(.008,.004,.005),'boca',12,8),'cabeca')
-    bind(tube('Presa_'+side,[(s*.047,-.132,.789),(s*.049,-.146,.807),(s*.045,-.148,.828)],[.009,.006,.001],'dente',8),'cabeca')
-    outline=[(s*.126,-.015,.856),(s*.136,-.005,.895),(s*.285,.034,.946),(s*.228,.012,.896),(s*.168,-.009,.866)]
-    verts=outline+[(s*.174,-.023,.885)]
-    ear=conform_y(mesh('Cartilagem_'+side,verts,[(5,i,(i+1)%5) for i in range(5)],'orelha_interna'),offset=.0018,cuts=1)
-    activate(ear); thick=ear.modifiers.new('Espessura','SOLIDIFY'); thick.thickness=.003
-    bpy.ops.object.modifier_apply(modifier=thick.name); bind(ear,'orelha_'+side)
-    for i,dx in enumerate([-.023,0,.023]):
-        tip=[.282,.275,.285][i]
-        bind(ellipsoid('Unha_mao_'+side+str(i),(s*(.242+dx),-.057,tip),(.008,.003,.009),'unha',10,6),'mao_'+side)
-    for i,(dx,length) in enumerate([(-.027,.025),(0,.032),(.028,.021)]):
-        bind(ellipsoid('Unha_pe_'+side+str(i),(s*(.095+dx),-.113-length*.40,.043),(.011,.012,.004),'unha',10,6),'pe_'+side)
-
-# A wider mouth, corners pulled down into a sour goblin grimace.
-bind(tube('Linha_boca',[(-.070,-.112,.793),(-.044,-.134,.799),(0,-.143,.798),(.044,-.134,.799),(.070,-.112,.793)], [.0035,.0045,.0045,.0045,.0035],'boca',8),'cabeca')
+    # Tusks grow from the lower jaw inside the mouth groove and curve up past the upper lip.
+    bind(tube('Presa_'+side,[(s*.045,-.127,.795),(s*.049,-.145,.806),(s*.046,-.150,.826)],[.0085,.0062,.0012],'dente',8),'cabeca')
 
 def solidify(ob, thickness=.004):
     activate(ob)

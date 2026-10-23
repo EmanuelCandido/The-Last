@@ -34,9 +34,14 @@ func _ready() -> void:
 	add_child(_column)
 	for line in StoryBeats.CREDITS.split("\n"):
 		var label: Label
+		if line == "#A TOCA":
+			# O nome do jogo é o logo, como no menu principal.
+			var logo := UiStyle.sprite(UiStyle.LOGO, 3)
+			logo.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			_column.add_child(logo)
+			continue
 		if line.begins_with("#"):
-			var title := line.substr(1)
-			label = UiStyle.label(title, &"Title" if title == "A TOCA" else &"Heading")
+			label = UiStyle.label(line.substr(1), &"Heading")
 		else:
 			label = UiStyle.label(line)
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

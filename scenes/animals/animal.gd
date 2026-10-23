@@ -33,8 +33,8 @@ const HIT_LAYER := 8
 const PICKUP_SOUND := preload("res://assets/audio/real/pickup_5.ogg")
 
 @export_group("Movimento")
-@export var walk_speed := 1.2
-@export var run_speed := 7.0
+@export var walk_speed := 0.8
+@export var run_speed := 4.7
 @export var turn_speed := 4.0
 @export var home_radius := 22.0
 ## Distância (m) entre um passo e outro andando e correndo; 0 = sem som. Os passos usam os
@@ -50,10 +50,10 @@ const PICKUP_SOUND := preload("res://assets/audio/real/pickup_5.ogg")
 @export var track_side := 0.0
 
 @export_group("Sentidos")
-@export var sight_range := 45.0
+@export var sight_range := 25.0
 @export var sight_fov_deg := 300.0
-@export var hearing_range := 30.0
-@export var smell_range := 60.0
+@export var hearing_range := 16.0
+@export var smell_range := 33.0
 @export var eye_height := 1.4
 ## Distância do perigo em que volta a se acalmar.
 @export var calm_distance := 60.0
@@ -108,6 +108,8 @@ var _stomped := false
 var _hitbox: Area3D
 var _voice: OccludedAudio
 var _steps: OccludedAudio
+## O corpo com esqueleto (CreatureModel): os pivôs dos ossos levam a pele a cada quadro.
+var model: CreatureModel
 
 
 func setup(world_terrain: Terrain, home_position: Vector2, rng_seed: int) -> void:
@@ -155,6 +157,12 @@ func _physics_process(delta: float) -> void:
 	_bleed(delta)
 	_bleed_out(delta)
 	_animate(delta)
+
+
+## A pele segue os pivôs em todo quadro, inclusive morto (o tombo é um tween no corpo).
+func _process(_delta: float) -> void:
+	if model != null:
+		model.sync()
 
 
 ## Monta as partes do corpo como filhos deste nó.
@@ -336,7 +344,10 @@ func _sense(dt: float) -> void:
 		var flat := Vector3(to_player.x, 0.0, to_player.z).normalized()
 		var angle := rad_to_deg(forward.angle_to(flat))
 		if angle < sight_fov_deg * 0.5 and _line_of_sight(eye, target):
-			var motion := clampf(Vector2(player.velocity.x, player.velocity.z).length() / 3.0, 0.15, 1.0)
+			var player_speed := Vector2(player.velocity.x, player.velocity.z).length()
+			var motion := clampf(player_speed / Tuning.SIGHT_MOTION_SPEED, 0.15, 1.0)
+			if player_speed > 0.3 and not player.is_crouching():
+				motion = maxf(motion, Tuning.UPRIGHT_MOTION)
 			var sight := pow(1.0 - distance / sight_range, 1.5) * player.visibility() * motion
 			sight *= 1.0 if angle < 60.0 else 0.5
 			if state == State.GRAZE:

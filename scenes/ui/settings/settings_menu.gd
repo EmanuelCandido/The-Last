@@ -1,8 +1,10 @@
 class_name SettingsMenu
 extends Control
-## A tela de Configurações: abas Vídeo, Áudio, Controles e Jogo. Abre por cima do menu principal e
-## do menu de pausa (quem abre esconde o próprio painel e volta a mostrá-lo em `closed`). Cada
-## mudança vale na hora e é salva pelo Settings. Esc fecha (ou cancela a troca de tecla).
+## A tela de Configurações: abas Vídeo, Áudio, Controles e Jogo, no painel largo de rocha
+## (UiStyle.rock_panel), com o título e os riscos como nos outros menus. Abre por cima do menu
+## principal e do menu de pausa (quem abre esconde o próprio painel e volta a mostrá-lo em
+## `closed`). Cada mudança vale na hora e é salva pelo Settings. Esc fecha (ou cancela a troca de
+## tecla).
 
 signal closed
 
@@ -23,17 +25,14 @@ var _waiting_button: Button
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(UiStyle.fog_backdrop(0.55, 0.0, 0.12))
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(800.0, 560.0)
-	center.add_child(panel)
+	add_child(UiStyle.rock_panel(&"wide"))
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override(&"separation", 8)
-	panel.add_child(column)
-	column.add_child(UiStyle.label("Configurações", &"Heading"))
+	column.add_theme_constant_override(&"separation", 4)
+	column.position = Vector2(79.0, 52.0)
+	column.custom_minimum_size.x = 800.0
+	add_child(column)
+	column.add_child(UiStyle.menu_title("Configurações"))
+	column.add_child(UiStyle.tally_line())
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override(&"separation", 6)
 	column.add_child(tabs)
@@ -49,7 +48,7 @@ func _ready() -> void:
 		_tab_buttons[entry[0]] = button
 	column.add_child(UiStyle.separator())
 	_scroll = ScrollContainer.new()
-	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_scroll.custom_minimum_size.y = 330.0
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	column.add_child(_scroll)
 	_content = VBoxContainer.new()
@@ -71,6 +70,7 @@ func _ready() -> void:
 	back.text = "Voltar"
 	back.pressed.connect(close)
 	bottom.add_child(back)
+	UiStyle.footer(self, "[Esc] Voltar")
 	(_tab_buttons["video"] as Button).button_pressed = true
 	_show_tab("video")
 	(_tab_buttons["video"] as Button).grab_focus()

@@ -18,6 +18,7 @@ enum Mode { PROWL, STALK, HUNT }
 const GROWLS := [preload("res://assets/audio/animals/wolf_growl_1.wav"), preload("res://assets/audio/animals/wolf_growl_2.wav")]
 const BITE := preload("res://assets/audio/animals/wolf_bite.wav")
 const YELP := preload("res://assets/audio/animals/wolf_yelp.wav")
+const MODEL := preload("res://assets/models/animals/wolf.glb")
 ## Na espreita, para a esta distância do goblin.
 const STALK_DISTANCE := 9.0
 ## Some quando está indo embora e fica a esta distância do goblin.
@@ -37,10 +38,14 @@ var distant := false
 ## Segundos que ainda faltam do uivo (parado, cabeça para cima).
 var _howl := 0.0
 var _body: Node3D
+var _chest: Node3D
 var _neck: Node3D
+var _head: Node3D
 var _tail: Node3D
-var _legs: Array[Node3D] = []
-var _phase := 0.0
+var _tail_tip: Node3D
+var _ears: Array[Node3D] = []
+var _gait: QuadrupedGait
+var _rest_body := Vector3.ZERO
 var _bite_timer := 0.0
 var _growl_timer := 0.0
 var _drift_timer := 0.0
@@ -48,14 +53,14 @@ var _lunge := 0.0
 
 
 func _init() -> void:
-	walk_speed = 1.5
-	run_speed = 7.0
+	walk_speed = 1.0
+	run_speed = 4.7
 	turn_speed = 6.0
 	home_radius = 30.0
-	sight_range = 35.0
+	sight_range = 19.0
 	sight_fov_deg = 240.0
-	hearing_range = 40.0
-	smell_range = 90.0
+	hearing_range = 22.0
+	smell_range = 50.0
 	step_stride = 0.75
 	step_volume_db = -16.0
 	step_pitch = 1.1
@@ -105,7 +110,7 @@ func howl(seconds: float) -> void:
 
 ## A boca, de onde sai o uivo.
 func mouth_position() -> Vector3:
-	return global_transform * Vector3(0.0, 0.95, 0.6)
+	return _head.global_transform * Vector3(0.0, -0.04, 0.24) if _head != null else global_transform * Vector3(0.0, 0.78, 0.86)
 
 
 func _alarm_sound() -> AudioStream:
@@ -265,65 +270,63 @@ func _flat(at: Vector3) -> Vector2:
 # --- Corpo -----------------------------------------------------------------------
 
 func _build_body() -> void:
-	var fur := fur_material(Color(0.36, 0.34, 0.31))
-	var pale := fur_material(Color(0.58, 0.55, 0.5))
-	var dark := flat_material(Color(0.08, 0.07, 0.07))
 	# Olhos que brilham no escuro (a luz voltando da retina): é o que se vê à noite.
 	# Emissão acima do limite do glow do ambiente: o brilho aparece de longe no escuro.
-	var eyes := StandardMaterial3D.new()
-	eyes.albedo_color = Color(0.2, 0.18, 0.08)
-	eyes.emission_enabled = true
-	eyes.emission = Color(0.95, 0.82, 0.4)
-	eyes.emission_energy_multiplier = 3.5
-
-	_body = _joint(self, Vector3(0.0, 0.56, 0.0))
-	_box(_body, Vector3(0.3, 0.32, 0.85), Vector3.ZERO, fur)
-	_box(_body, Vector3(0.33, 0.37, 0.3), Vector3(0.0, 0.01, 0.3), fur)
-	_box(_body, Vector3(0.2, 0.14, 0.5), Vector3(0.0, -0.13, 0.12), pale)
-
-	_neck = _joint(_body, Vector3(0.0, 0.08, 0.42))
-	_box(_neck, Vector3(0.19, 0.21, 0.26), Vector3(0.0, 0.04, 0.1), fur, Vector3(-0.35, 0.0, 0.0))
-	var head := _joint(_neck, Vector3(0.0, 0.1, 0.24))
-	_box(head, Vector3(0.21, 0.18, 0.22), Vector3.ZERO, fur)
-	_box(head, Vector3(0.1, 0.09, 0.18), Vector3(0.0, -0.035, 0.18), pale)
-	_box(head, Vector3(0.05, 0.04, 0.04), Vector3(0.0, -0.01, 0.28), dark)
-	for side in [-1.0, 1.0]:
-		_box(head, Vector3(0.05, 0.11, 0.04), Vector3(0.065 * side, 0.13, -0.03), fur, Vector3(0.0, 0.0, -0.2 * side))
-		_box(head, Vector3(0.034, 0.026, 0.012), Vector3(0.055 * side, 0.035, 0.112), eyes)
-
-	_tail = _joint(_body, Vector3(0.0, 0.1, -0.42))
-	_box(_tail, Vector3(0.08, 0.08, 0.38), Vector3(0.0, -0.06, -0.17), fur, Vector3(0.5, 0.0, 0.0))
-
-	for leg_pos: Vector3 in [Vector3(0.1, -0.12, 0.32), Vector3(-0.1, -0.12, 0.32), Vector3(0.1, -0.12, -0.32), Vector3(-0.1, -0.12, -0.32)]:
-		var hip := _joint(_body, leg_pos)
-		_box(hip, Vector3(0.08, 0.26, 0.09), Vector3(0.0, -0.12, 0.0), fur)
-		_box(hip, Vector3(0.05, 0.22, 0.05), Vector3(0.0, -0.33, 0.0), fur)
-		_box(hip, Vector3(0.06, 0.04, 0.08), Vector3(0.0, -0.43, 0.02), dark)
-		_legs.append(hip)
+	model = CreatureModel.attach(self, MODEL, {
+		"pelo": [AnimalLook.PELT, Color(0.86, 0.82, 0.76)],
+		"pelo_escuro": [AnimalLook.PELT, Color(0.48, 0.46, 0.43)],
+		"claro": [AnimalLook.PELT, Color(1.12, 1.06, 0.96)],
+		"interno": [AnimalLook.PELT, Color(0.5, 0.42, 0.4)],
+		"nariz": Color(0.05, 0.045, 0.045),
+		"garra": Color(0.1, 0.09, 0.08),
+		"olho_brilho": AnimalLook.glowing_eye(Color(0.95, 0.82, 0.4), 3.5),
+	}, "wolf")
+	_body = model.joint("corpo")
+	_chest = model.joint("peito")
+	_neck = model.joint("pescoco")
+	_head = model.joint("cabeca")
+	_tail = model.joint("cauda")
+	_tail_tip = model.joint("cauda_ponta")
+	_ears = [model.joint("orelha_E"), model.joint("orelha_D")]
+	_rest_body = _body.position
+	_gait = QuadrupedGait.new()
+	_gait.setup(model)
+	_gait.stride_walk = 0.85
+	_gait.stride_run = 1.9
+	_gait.reach_run = 0.75
+	_gait.run_speed = 2.0
 
 
 func _build_hitbox(area: Area3D) -> void:
-	_hit_shape(area, Vector3(0.34, 0.4, 0.95), Vector3(0.0, 0.56, 0.0))
-	_hit_shape(area, Vector3(0.24, 0.24, 0.32), Vector3(0.0, 0.72, 0.62))
+	_hit_shape(area, Vector3(0.34, 0.42, 0.95), Vector3(0.0, 0.58, 0.0))
+	_hit_shape(area, Vector3(0.24, 0.26, 0.36), Vector3(0.0, 0.76, 0.66))
 
 
 func _animate(delta: float) -> void:
-	var running := speed > 3.0
-	_phase += delta * (speed * (2.2 if running else 4.0))
-	var amp := 0.7 if running else clampf(speed / walk_speed, 0.0, 1.0) * 0.4
-	var offsets := [0.0, 0.3, 1.5, 1.8] if running else [0.0, PI, PI, 0.0]
-	for i in _legs.size():
-		_legs[i].rotation.x = sin(_phase + offsets[i]) * amp
+	_gait.update(delta, speed)
+	var run := _gait.run * _gait.motion
+	var t := Time.get_ticks_msec() * 0.001
+	var beat := sin(TAU * _gait.phase)
 	_lunge = move_toward(_lunge, 0.0, delta * 3.0)
-	_body.position = Vector3(0.0, 0.56 + absf(sin(_phase)) * (0.06 if running else 0.015) * amp, 0.25 * _lunge)
-	_body.rotation.x = sin(_phase * 2.0) * 0.06 * amp if running else 0.0
+	# Corrida de caçador: a coluna dobra e estica a cada passada (o lobo "encolhe e estica").
+	_body.position = _rest_body + Vector3(0.0, absf(beat) * 0.05 * run + absf(sin(TAU * _gait.phase * 2.0)) * 0.008 * (1.0 - run) * _gait.motion, 0.25 * _lunge)
+	_body.rotation.x = beat * 0.08 * run
+	_chest.rotation.x = -beat * 0.12 * run
 	# Espreitando, cabeça baixa e rabo baixo; caçando, cabeça esticada à frente.
 	var low := 0.0
 	if state == State.SUSPICIOUS:
-		low = 0.35 if mode == Mode.STALK else 0.15
+		low = 0.4 if mode == Mode.STALK else 0.2
 	elif _howl > 0.0:
 		# Uivando: focinho para o céu.
-		low = -0.9
-	_neck.rotation.x = lerpf(_neck.rotation.x, low - 0.35 * _lunge, 1.0 - exp(-6.0 * delta))
-	_tail.rotation.x = lerpf(_tail.rotation.x, 0.35 if state == State.SUSPICIOUS else 0.0, 1.0 - exp(-4.0 * delta))
-	_tail.rotation.y = sin(Time.get_ticks_msec() * 0.004) * (0.25 if state != State.SUSPICIOUS else 0.05)
+		low = -1.0
+	_neck.rotation.x = lerpf(_neck.rotation.x, low - 0.35 * _lunge + beat * 0.06 * run, 1.0 - exp(-6.0 * delta))
+	_head.rotation.x = lerpf(_head.rotation.x, (-0.4 if _howl > 0.0 else 0.0) + 0.15 * run, 1.0 - exp(-6.0 * delta))
+	var sniff := sin(t * 0.6 + position.x) * 0.2 * float(state == State.WALK or state == State.IDLE)
+	_head.rotation.y = lerpf(_head.rotation.y, sniff, 1.0 - exp(-2.0 * delta))
+	for i in _ears.size():
+		var side := 1.0 if i == 0 else -1.0
+		var back := 0.5 * float(mode == Mode.STALK and state == State.SUSPICIOUS) + 0.4 * run
+		_ears[i].rotation = Vector3(back, 0.0, -side * (0.1 + maxf(sin(t * 0.8 + i * 2.3), 0.0) ** 10.0 * 0.4))
+	_tail.rotation.x = lerpf(_tail.rotation.x, 0.5 if state == State.SUSPICIOUS else -0.35 * run, 1.0 - exp(-4.0 * delta))
+	_tail.rotation.y = sin(t * 4.0) * (0.22 if state != State.SUSPICIOUS else 0.04)
+	_tail_tip.rotation = Vector3(0.2 * run, sin(t * 4.0 - 0.8) * 0.18 * (1.0 if state != State.SUSPICIOUS else 0.2), 0.0)

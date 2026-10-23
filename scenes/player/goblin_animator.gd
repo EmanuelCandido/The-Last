@@ -37,6 +37,8 @@ const BONES := [
 
 ## Estado do corpo, preenchido pelo Player a cada frame.
 var velocity_local := Vector3.ZERO
+## Velocidade vertical do corpo (m/s, + subindo): o pulo muda de pose na subida, no alto e na queda.
+var vertical_speed := 0.0
 var on_floor := true
 var crouching := false
 var aiming := false
@@ -104,6 +106,8 @@ var _rest_leg := Vector2.ZERO
 
 var _time := 0.0
 var _phase := 0.0
+## Marcha (0 = andar, 1 = disparar), suavizada: muda o desenho do passo, não só o ritmo.
+var _gait := 0.0
 var _weights := {"move": 0.0, "run": 0.0, "crouch": 0.0, "aim": 0.0, "air": 0.0, "sniff": 0.0, "breath": 0.0, "torch": 0.0}
 var _planted := [true, true]
 var _land := 0.0
@@ -158,6 +162,12 @@ var _lean := 0.0
 ## segue a do corpo (o peito atrasa ao arrancar e continua indo ao frear).
 var _torso_y := 0.36
 var _torso_vy := 0.0
+## Pulo: preparo (agacha antes de sair do chão), impulso (pernas esticando logo depois de
+## sair, 1 → 0) e a perna que vai à frente no salto correndo (+1 esquerda, -1 direita).
+var _jump_prep := 0.0
+var _prep_weight := 0.0
+var _takeoff := 0.0
+var _jump_lead := 1.0
 var _vel_lag := Vector2.ZERO
 var _vel_lag_speed := Vector2.ZERO
 ## Quanto a coluna está comprimida agora (+) ou esticada (-); as orelhas acompanham.
@@ -216,6 +226,18 @@ func is_busy() -> bool:
 	return _action != &""
 
 
+## O pulo foi pedido: o corpo agacha por `seconds` antes do Player soltar o impulso.
+func begin_jump(seconds: float) -> void:
+	_jump_prep = seconds
+
+
+## Saiu do chão: as pernas terminam de esticar e, correndo, a perna de trás vira a da frente.
+func jump_launched() -> void:
+	_jump_prep = 0.0
+	_takeoff = 1.0
+	_jump_lead = 1.0 if sin(_phase) >= 0.0 else -1.0
+
+
 func notify_landing(impact_speed: float) -> void:
 	_land = maxf(_land, clampf(impact_speed / 7.0, 0.15, 1.0))
 	# O tronco vinha caindo junto: os pés param e ele continua, comprimindo a coluna.
@@ -230,6 +252,9 @@ func update(delta: float) -> void:
 	_update_look(delta)
 	_update_bow_state(delta)
 	_land = move_toward(_land, 0.0, delta * 2.5)
+	_jump_prep = maxf(_jump_prep - delta, 0.0)
+	_prep_weight = move_toward(_prep_weight, 1.0 if _jump_prep > 0.0 else 0.0, delta * (14.0 if _jump_prep > 0.0 else 9.0))
+	_takeoff = move_toward(_takeoff, 0.0, delta * 4.0)
 	# Os joelhos levam um instante para dobrar: o corpo afunda suave, não num degrau.
 	_land_eased = lerpf(_land_eased, _land, 1.0 - exp(-25.0 * delta))
 
@@ -299,70 +324,105 @@ func _locomotion(delta: float) -> Dictionary:
 	var run: float = _weights.run
 	var crouch: float = _weights.crouch
 
-	# Passada: parte do ciclo com o pé no chão, cadência e tamanho do passo.
-	var stance := lerpf(0.62, 0.38, run)
-	var stride_max := lerpf(0.40, 0.52, run) * lerpf(1.0, 0.65, crouch)
-	var period := clampf(stride_max / maxf(speed * stance, 0.01), lerpf(0.46, 0.32, run), 1.1)
+	# Marcha pela velocidade (0 = andar, 1 = disparar). A perna tem 28 cm: acima de ~1,5 m/s
+	# só dá para acompanhar o chão trotando, com um instante no ar entre os passos.
+	_gait = lerpf(_gait, smoothstep(0.8, 4.6, speed), 1.0 - exp(-6.0 * delta))
+	var g := _gait
+	# Parte do ciclo com o pé no chão, quanto o pé anda apoiado (o alcance da perna) e cadência.
+	# Correndo, a cadência tem teto (passos rápidos demais parecem filme acelerado): a
+	# velocidade a mais vira tempo no ar, não mais passos.
+	var stance := lerpf(0.6, 0.26, g)
+	var reach := lerpf(0.32, 0.4, g) * lerpf(1.0, 1.1, crouch)
+	var period := clampf(reach / maxf(speed * stance, 0.01), lerpf(0.46, 0.33, g), 1.1)
 	if move > 0.01:
 		_phase = fposmod(_phase + delta / period, 1.0)
-	var stride := minf(speed * stance * period, stride_max)
-	var lift := lerpf(0.05, 0.11, run) * lerpf(1.0, 0.6, crouch)
+	# O pé apoiado vai para trás na velocidade do chão (não patina); só passa do alcance da
+	# perna quando a cadência já está no máximo.
+	var travel := minf(speed * stance * period, reach * 1.2)
+	# Onde o pé pousa: andando, à frente do quadril; correndo, quase embaixo dele (a perna de
+	# trás é a que estica, empurrando o chão).
+	var land := travel * lerpf(0.5, 0.3, g)
+	var lift := lerpf(1.0, 0.55, crouch)
+	var heel := lerpf(0.025, 0.045, g)
+	var toe_off := lerpf(0.45, 0.75, g)
+	var touch := lerpf(-0.22, 0.08, g)
 	var backwards := -1.0 if velocity_local.z < -0.1 else 1.0
 	for side in 2:
 		var key := "l" if side == 0 else "r"
 		# O pé direito sai um pouco atrasado: o ritmo fica manco, de bicho, não de metrônomo.
-		var u := fposmod(_phase + side * 0.52, 1.0)
+		var u := fposmod(_phase + side * 0.51, 1.0)
 		var z: float
 		var y := _ankle_height
 		var toe: float
 		if u < stance:
+			# Apoio: pousa (calcanhar andando, meia-sola correndo), assenta e, no fim, o calcanhar
+			# sobe e o tornozelo sobe junto, rolando sobre os dedos.
 			var s := u / stance
-			z = stride * (0.5 - s)
-			toe = smoothstep(0.65, 1.0, s) * 0.45
+			z = land - travel * s
+			var roll := smoothstep(0.55, 1.0, s)
+			y += roll * roll * heel
+			toe = lerpf(touch, 0.0, smoothstep(0.0, 0.2, s)) + roll * toe_off
 			if not _planted[side]:
 				_planted[side] = true
 				if move > 0.3 and on_floor:
 					foot_planted.emit(side)
 		else:
+			# No ar: o calcanhar sobe atrás primeiro (correndo, quase até o traseiro), o joelho
+			# puxa o pé para a frente por baixo do quadril, a perna estica à frente e o pé volta
+			# um pouco antes de pousar, acompanhando o chão.
 			var s := (u - stance) / (1.0 - stance)
 			if _planted[side]:
 				# O pé saiu do chão: este passo terá a sua altura e abertura.
-				_step_lift[side] = randf_range(0.7, 1.25) * (0.8 if side == 1 else 1.0)
+				_step_lift[side] = randf_range(0.75, 1.2) * (0.85 if side == 1 else 1.0)
 				_step_yaw[side] = randf_range(-0.12, 0.12)
-			z = stride * (-0.5 + smoothstep(0.0, 1.0, s))
-			y += lift * _step_lift[side] * sin(PI * s)
-			toe = lerpf(0.45, -0.2, s)
+			var h: float = lift * _step_lift[side]
+			var back := land - travel
+			var top := lerpf(0.045, 0.16, g) * h
+			z = _curve(s, [[0.0, back], [0.3, back + travel * 0.2], [0.6, back + travel * 0.75], [0.85, land + travel * 0.05], [1.0, land]])
+			y += _curve(s, [[0.0, heel], [0.12, lerpf(heel, top, 0.6)], [0.3, top], [0.6, lerpf(0.035, 0.11, g) * h], [0.87, lerpf(0.012, 0.045, g) * h], [1.0, 0.0]])
+			toe = _curve(s, [[0.0, toe_off], [0.3, lerpf(0.55, 1.0, g)], [0.6, lerpf(0.0, 0.35, g)], [0.85, lerpf(-0.25, 0.0, g)], [1.0, touch]])
 			_planted[side] = false
 		pose["foot_%s_z" % key] = lerpf(pose["foot_%s_z" % key], z * backwards, move)
 		pose["foot_%s_y" % key] = lerpf(_ankle_height, y, move)
 		pose["foot_%s_toe" % key] = toe * move
-		pose["foot_%s_yaw" % key] += _step_yaw[side] * move
+		# Correndo, os pés apontam mais para a frente e pousam mais perto da linha do corpo.
+		pose["foot_%s_yaw" % key] = pose["foot_%s_yaw" % key] * lerpf(1.0, 0.5, g * move) + _step_yaw[side] * move
+		pose["leg_%s_out" % key] -= 0.03 * g * move
 
-	# Quadril sobe no meio do apoio, desce na troca de pé e balança para o lado do apoio.
-	var bob := cos(TAU * 2.0 * (_phase - stance * 0.5))
-	pose.pelvis_y += (-lerpf(0.008, 0.035, run) + bob * lerpf(0.010, 0.026, run)) * move
-	pose.pelvis_roll = sin(TAU * (_phase - stance * 0.5)) * lerpf(0.05, 0.025, run) * move
-	pose.pelvis_yaw = sin(TAU * _phase) * lerpf(0.10, 0.17, run) * move
-	pose.torso_yaw += -pose.pelvis_yaw * 0.85
-	# Correndo, o goblin se joga para a frente e estica o pescoço para ver adiante.
-	pose.torso_pitch += lerpf(0.04, 0.3, run) * move
-	pose.head_pitch -= lerpf(0.02, 0.24, run) * move
-	pose.head_pitch += bob * 0.025 * move
+	# Quadril: andando, sobe no meio do apoio (a perna passa reta embaixo dele) e desce na
+	# troca de pé; correndo é o contrário, afunda no apoio (o joelho amortece) e sobe no ar.
+	var mid := cos(TAU * 2.0 * (_phase - stance * 0.5))
+	var flight := 1.0 - smoothstep(0.38, 0.52, stance)
+	pose.pelvis_y += (-lerpf(0.03, 0.06, g) + mid * lerpf(0.012, -0.03, flight)) * move
+	# O peso passa para o pé de apoio: o quadril escorrega para ele e cai do outro lado.
+	var sway := cos(TAU * (_phase - stance * 0.5))
+	pose.pelvis_x += sway * lerpf(0.012, 0.004, g) * move
+	pose.pelvis_roll = sin(TAU * (_phase - stance * 0.5)) * lerpf(0.05, 0.025, g) * move
+	# A bacia gira com a perna que vai à frente e os ombros giram ao contrário.
+	pose.pelvis_yaw = clampf((pose.foot_r_z - pose.foot_l_z) / maxf(travel, 0.05), -1.0, 1.0) * lerpf(0.1, 0.14, g) * move
+	pose.torso_yaw += -pose.pelvis_yaw * 1.7
+	# Correndo, o goblin se joga para a frente e estica o pescoço para ver adiante; a cabeça
+	# segura o olhar contra o sobe-e-desce.
+	pose.torso_pitch += lerpf(0.04, 0.26, g) * move
+	pose.head_pitch -= lerpf(0.02, 0.22, g) * move
+	pose.head_pitch += mid * 0.02 * move
 	pose.spine_bend += sin(TAU * (_phase - stance * 0.5)) * 0.035 * move
 	pose.spine_arch += 0.06 * run * move
 
-	# Braços acompanham a perna do outro lado, cada um com a sua amplitude; correndo,
-	# cotovelos dobrados e braços abertos, meio desengonçados.
-	var half := maxf(stride * 0.5, 0.001)
-	var swing := lerpf(0.32, 0.85, run) * move
-	var arm_l := clampf(pose.foot_r_z / half, -1.0, 1.0) * swing
-	var arm_r := clampf(pose.foot_l_z / half, -1.0, 1.0) * swing * 0.8
-	pose.arm_l_fwd = lerpf(pose.arm_l_fwd, 0.08, move) + arm_l
-	pose.arm_r_fwd = lerpf(pose.arm_r_fwd, 0.0, move) + arm_r
+	# Braços: pêndulos em oposição às pernas, um pouco atrasados. Vão mais à frente do que
+	# para trás; correndo, cotovelos dobrados (mais na frente que atrás) e a mão da frente
+	# cruza para o meio do corpo.
+	var swing := lerpf(0.3, 0.55, g) * move
+	var arm_l := cos(TAU * (_phase + 0.51 - 0.05))
+	var arm_r := cos(TAU * (_phase - 0.05))
+	arm_l = arm_l if arm_l > 0.0 else arm_l * 0.75
+	arm_r = arm_r if arm_r > 0.0 else arm_r * 0.75
+	pose.arm_l_fwd = lerpf(pose.arm_l_fwd, lerpf(0.06, 0.2, g), move) + arm_l * swing
+	pose.arm_r_fwd = lerpf(pose.arm_r_fwd, lerpf(0.0, 0.15, g), move) + arm_r * swing * 0.85
 	for key in ["l", "r"]:
-		pose["elbow_" + key] += (lerpf(0.0, 1.05, run) + maxf(pose["arm_%s_fwd" % key], 0.0) * 0.4) * move
-		pose["arm_%s_out" % key] += (0.03 + 0.14 * run) * move
-	pose.arm_l_out += absf(arm_l) * 0.12 * run
+		var forward: float = maxf(arm_l if key == "l" else arm_r, 0.0)
+		pose["elbow_" + key] += (lerpf(-0.1, 0.75, g) + forward * lerpf(0.25, 0.45, g)) * move
+		pose["arm_%s_out" % key] += (0.03 + 0.08 * g - forward * 0.06 * g) * move
 	pose.arm_r_yaw += _wave(12, 3.0) * 0.12 * run * move
 
 	# Respiração: devagar descansado, ofegante depois de correr. O ritmo é integrado
@@ -428,19 +488,84 @@ func _locomotion(delta: float) -> Dictionary:
 	pose.ear_l -= 0.25 * crouch
 	pose.ear_r -= 0.2 * crouch
 
-	# No ar: encolhe as pernas e abre os braços para equilibrar.
-	var air: float = _weights.air
-	for key in ["l", "r"]:
-		pose["foot_%s_y" % key] += 0.10 * air
-		pose["foot_%s_z" % key] = lerpf(pose["foot_%s_z" % key], 0.05 if key == "l" else -0.03, air)
-		pose["arm_%s_out" % key] += 0.35 * air
-		pose["arm_%s_fwd" % key] += 0.25 * air
+	_jump_pose(pose, run)
 
 	# Aterrissagem: o corpo afunda e volta.
 	pose.pelvis_y -= _land_eased * 0.09
 	pose.torso_pitch += _land_eased * 0.25
 	pose.head_pitch -= _land_eased * 0.1
+	# Os braços vêm à frente para segurar o peso.
+	pose.arm_l_fwd += _land_eased * 0.35
+	pose.arm_r_fwd += _land_eased * 0.3
+	pose.arm_l_out += _land_eased * 0.15
+	pose.arm_r_out += _land_eased * 0.15
 	return pose
+
+
+## O pulo em fases, como um bicho de verdade:
+## - preparo: afunda nos joelhos, joga o peito à frente e os braços para trás;
+## - impulso: as pernas terminam de esticar com a ponta dos pés, os braços vêm para a frente;
+## - subida e alto: os joelhos sobem (encolhe), mais no alto do arco;
+## - queda: as pernas descem à frente procurando o chão, os braços abrem para equilibrar e a
+##   cabeça olha para onde vai pisar.
+## Correndo, vira um salto: uma perna à frente e a outra dobrada para trás, braços cruzados.
+func _jump_pose(pose: Dictionary, run: float) -> void:
+	var prep: float = _prep_weight * (1.0 - _weights.air)
+	if prep > 0.001:
+		pose.pelvis_y -= 0.075 * prep
+		pose.pelvis_pitch += 0.12 * prep
+		pose.torso_pitch += 0.34 * prep
+		pose.spine_arch += 0.08 * prep
+		pose.head_pitch -= 0.28 * prep
+		for key in ["l", "r"]:
+			pose["arm_%s_fwd" % key] -= 0.55 * prep
+			pose["elbow_%s" % key] += 0.15 * prep
+			pose["foot_%s_z" % key] -= 0.01 * prep
+		pose.ear_l -= 0.15 * prep
+		pose.ear_r -= 0.15 * prep
+	var air: float = _weights.air
+	if air < 0.001:
+		return
+	# Subindo (1) .. no alto (0) .. caindo (-1): no pulo a pé, a subida dura ~0,3 s.
+	var rise := clampf(vertical_speed / 2.6, -1.0, 1.0)
+	var up := maxf(rise, 0.0)
+	var down := maxf(-rise, 0.0)
+	var apex := 1.0 - absf(rise)
+	var push := _takeoff * air
+	var leap := run * air
+	for key in ["l", "r"]:
+		var lead := (1.0 if key == "l" else -1.0) * _jump_lead
+		# Impulso: perna esticada e ponta do pé estendida, um pouco para trás.
+		pose["foot_%s_toe" % key] += 0.7 * push
+		pose["foot_%s_z" % key] -= 0.035 * push
+		# Encolhe: o pé sobe (o joelho dobra) e vem para baixo do corpo; mais no alto. No salto
+		# correndo a perna da frente encolhe menos (vai esticada à frente).
+		var tuck := (0.09 * up + 0.13 * apex + 0.04 * down) * air * (1.0 - push) * (1.0 - (0.6 * leap if lead > 0.0 else 0.0))
+		pose["foot_%s_y" % key] += tuck
+		pose["foot_%s_z" % key] += 0.03 * apex * air * (1.0 - leap)
+		# Caindo: as pernas descem à frente para receber o chão, sola plana.
+		pose["foot_%s_z" % key] += 0.05 * down * air * (1.0 - leap)
+		pose["foot_%s_toe" % key] += 0.25 * up * air * (1.0 - push)
+		# Salto correndo: a perna da frente vai à frente, a de trás fica para trás com o joelho
+		# dobrado; o braço do lado da perna de trás vem à frente (braços cruzados com as pernas).
+		pose["foot_%s_z" % key] += (0.12 if lead > 0.0 else -0.2) * leap
+		pose["foot_%s_y" % key] += (0.0 if lead > 0.0 else 0.09) * leap
+		pose["foot_%s_toe" % key] += (0.0 if lead > 0.0 else 0.5) * leap
+		pose["arm_%s_fwd" % key] += (-0.45 if lead > 0.0 else 0.45) * leap
+		# Braços: sobem à frente no impulso e voltam meio dobrados; abrem na queda.
+		pose["arm_%s_fwd" % key] += (0.5 * push + 0.12 * up + 0.05 * apex + 0.1 * down) * air * (1.0 - leap)
+		pose["arm_%s_out" % key] += (0.15 * apex + 0.5 * down) * air
+		pose["elbow_%s" % key] += (0.35 * apex + 0.2 * up) * air
+		pose["hand_%s" % key] -= 0.15 * down * air
+	pose.torso_pitch += (0.1 * push + 0.1 * apex - 0.08 * down) * air * (1.0 - leap)
+	# Correndo, o corpo vai inclinado para a frente pela bacia (o tronco sozinho dobraria o
+	# quadril para trás e jogaria os pés à frente).
+	pose.pelvis_pitch += 0.12 * leap
+	pose.torso_pitch += 0.05 * leap
+	pose.spine_arch += 0.06 * apex * air
+	pose.head_pitch += (-0.12 * push + 0.18 * down) * air
+	pose.neck_fwd += 0.05 * down * air
+	pose.pelvis_y -= 0.02 * apex * air
 
 
 ## Mira com o arco: braço esquerdo estendido segurando o arco, o direito puxa a corda até o rosto.
@@ -575,34 +700,55 @@ func _action_pose(action: StringName, t: float, base: Dictionary) -> Dictionary:
 			p.elbow_r = _curve(t, [[0.0, 0.15], [0.5, 0.7], [2.0, 0.7], [2.4, 0.15]])
 			p.elbow_l = _curve(t, [[0.0, 0.15], [0.5, 0.5], [2.0, 0.5], [2.4, 0.15]])
 		&"wake":
-			# Deitado de costas -> senta -> esfrega os olhos -> agacha -> levanta e olha em volta.
-			var lying := 1.0 - smoothstep(2.4, 3.2, t)
-			p.pelvis_pitch = _curve(t, [[0.0, -1.5], [2.4, -1.5], [3.3, -0.25], [4.3, -0.2], [4.9, 0.45], [5.6, 0.0]])
-			p.pelvis_y = _curve(t, [[0.0, 0.09], [2.4, 0.09], [3.3, 0.1], [4.3, 0.1], [4.9, 0.2], [5.6, base.pelvis_y]])
-			var feet := _curve(t, [[0.0, 0.27], [2.4, 0.27], [3.3, 0.25], [4.3, 0.24], [4.9, 0.03], [5.6, 0.0]])
-			p.foot_l_z = feet
-			p.foot_r_z = feet * 0.9
+			# Deitado de costas, mas vivo (respira, vira a cabeça, a mão e as orelhas mexem) ->
+			# puxa os joelhos -> rola um pouco para o lado e senta empurrando o chão com os
+			# braços -> sentado, esfrega os olhos -> joga o peso para a frente com as mãos no
+			# chão -> agacha sobre os pés -> levanta espreguiçando e assenta. O `_curve` passa
+			# pelas chaves sem parar, então o corpo nunca congela entre uma e outra.
+			# Até 2,6 s o corpo fica no lugar: levantar do sarcófago começa dali.
+			var flat := 1.0 - smoothstep(2.9, 3.6, t)
+			var breath := sin(t * 1.7)
+			p.pelvis_pitch = _curve(t, [[0.0, -1.5], [3.0, -1.48], [3.35, -0.75], [3.7, -0.32], [4.5, -0.28], [4.8, 0.05], [5.05, 0.42], [5.4, 0.08], [5.8, base.pelvis_pitch]])
+			p.pelvis_y = _curve(t, [[0.0, 0.09], [3.0, 0.09], [3.7, 0.1], [4.5, 0.1], [4.8, 0.13], [5.05, 0.19], [5.4, base.pelvis_y + 0.008], [5.8, base.pelvis_y]])
+			# O quadril vai para a frente, por cima dos pés, ao sair do chão.
+			p.pelvis_z = _curve(t, [[0.0, -0.08], [3.0, -0.08], [3.7, -0.1], [4.5, -0.1], [4.8, -0.05], [5.05, 0.0], [5.8, base.pelvis_z]])
+			p.torso_roll = _curve(t, [[0.0, 0.0], [3.0, 0.0], [3.2, -0.14], [3.6, -0.04], [5.8, base.torso_roll]])
+			p.torso_yaw = _curve(t, [[0.0, 0.0], [3.0, 0.0], [3.2, 0.16], [3.7, 0.02], [5.8, base.torso_yaw]])
+			# Pernas: um joelho mexe dormindo; depois os dois sobem (pé esquerdo primeiro) e, de
+			# pé, o direito dá um passinho para firmar.
+			p.foot_l_z = _curve(t, [[0.0, 0.19], [2.6, 0.19], [3.0, 0.06], [4.6, 0.06], [5.05, 0.05], [5.8, base.foot_l_z]])
+			p.foot_r_z = _curve(t, [[0.0, 0.18], [1.6, 0.18], [1.9, 0.15], [2.3, 0.18], [2.75, 0.18], [3.15, 0.08], [4.6, 0.08], [5.05, 0.06], [5.3, 0.02], [5.8, base.foot_r_z]])
 			p.foot_l_y = _ankle_height
-			p.foot_r_y = _ankle_height + 0.01
-			p.foot_flat = 1.0 - lying
-			p.torso_pitch = _curve(t, [[0.0, 0.0], [2.4, 0.0], [3.3, 0.35], [4.3, 0.3], [4.9, 0.55], [5.6, base.torso_pitch]]) + sin(t * 1.6) * 0.04 * lying
-			# Sentar enrola a coluna (barriga contrai); esfregando os olhos fica corcunda;
-			# ao ficar de pé, espreguiça: costas e pescoço esticam para trás e assentam.
-			p.spine_arch = _curve(t, [[0.0, 0.0], [2.4, 0.0], [2.9, 0.42], [3.3, 0.3], [3.6, 0.38], [4.2, 0.38], [4.3, 0.3], [4.9, 0.35], [5.25, -0.14], [5.6, base.spine_arch]])
-			p.neck_fwd = _curve(t, [[0.0, 0.0], [2.4, 0.0], [3.0, 0.2], [4.2, 0.22], [4.9, 0.15], [5.25, -0.05], [5.6, base.neck_fwd]])
-			p.head_pitch = _curve(t, [[0.0, -0.15], [2.4, -0.15], [2.9, 0.2], [3.4, 0.35], [4.3, 0.3], [5.0, 0.0], [5.25, -0.2], [5.6, base.head_pitch]])
-			p.head_yaw = _curve(t, [[0.0, 0.35], [2.0, 0.35], [2.6, 0.0]])
-			p.arm_l_fwd = _curve(t, [[0.0, 0.05], [2.4, 0.05], [2.8, -0.6], [3.3, -0.3], [4.3, 0.2], [4.9, 0.9], [5.6, 0.0]])
-			# Mão direita sobe até os olhos (cotovelo dobra na horizontal) e esfrega.
-			p.arm_r_fwd = _curve(t, [[0.0, 0.05], [2.4, 0.05], [2.8, -0.6], [3.3, -0.2], [3.6, 1.65], [4.2, 1.65], [4.5, 0.4], [4.9, 0.9], [5.6, 0.0]])
-			var rubbing := smoothstep(3.55, 3.7, t) * (1.0 - smoothstep(4.1, 4.25, t))
-			var to_face := smoothstep(3.3, 3.6, t) * (1.0 - smoothstep(4.2, 4.5, t))
-			p.elbow_r = _curve(t, [[0.0, 0.2], [3.3, 0.3], [3.6, 2.4], [4.2, 2.4], [4.5, 0.4], [5.6, 0.15]])
+			p.foot_r_y = _ankle_height + _curve(t, [[0.0, 0.01], [3.0, 0.01], [3.2, 0.0], [5.1, 0.0], [5.22, 0.03], [5.35, 0.0]])
+			p.foot_flat = _curve(t, [[0.0, 0.0], [2.6, 0.0], [3.05, 1.0]])
+			p.leg_l_out = _curve(t, [[0.0, base.leg_l_out], [3.0, base.leg_l_out], [3.5, 0.16], [4.6, 0.16], [5.1, 0.1], [5.8, base.leg_l_out]])
+			p.leg_r_out = _curve(t, [[0.0, base.leg_r_out], [3.0, base.leg_r_out], [3.5, 0.15], [4.6, 0.15], [5.1, 0.09], [5.8, base.leg_r_out]])
+			# Tronco: enrola para sentar (passa um pouco e volta), fica corcunda esfregando os
+			# olhos, dobra sobre os joelhos para sair do chão e, de pé, espreguiça para trás.
+			p.torso_pitch = _curve(t, [[0.0, 0.0], [3.0, 0.0], [3.35, 0.32], [3.7, 0.5], [3.95, 0.38], [4.5, 0.4], [4.8, 0.85], [5.05, 0.6], [5.4, 0.05], [5.8, base.torso_pitch]]) + breath * 0.04 * flat
+			p.spine_arch = _curve(t, [[0.0, 0.0], [3.0, 0.05], [3.35, 0.45], [3.7, 0.32], [4.5, 0.36], [4.8, 0.3], [5.05, 0.25], [5.35, -0.16], [5.8, base.spine_arch]]) - breath * 0.03 * flat
+			p.neck_fwd = _curve(t, [[0.0, 0.0], [3.0, 0.05], [3.35, 0.22], [4.5, 0.22], [5.05, 0.12], [5.35, -0.06], [5.8, base.neck_fwd]])
+			p.head_pitch = _curve(t, [[0.0, -0.15], [1.1, -0.05], [2.0, -0.18], [3.0, 0.2], [3.4, 0.3], [3.9, 0.4], [4.4, 0.35], [4.8, -0.15], [5.1, 0.0], [5.35, -0.28], [5.8, base.head_pitch]])
+			p.head_yaw = _curve(t, [[0.0, 0.35], [0.9, 0.35], [1.5, -0.1], [2.3, 0.15], [3.0, 0.0], [4.4, 0.0], [5.0, -0.1], [5.45, 0.3], [5.8, base.head_yaw]])
+			p.head_roll = _curve(t, [[0.0, 0.2], [1.5, -0.1], [2.6, 0.1], [3.4, 0.05], [5.8, base.head_roll]])
+			# Braço esquerdo: empurra o chão atrás para sentar, apoia no joelho, vai ao chão à
+			# frente para levantar e abre na espreguiçada.
+			p.arm_l_fwd = _curve(t, [[0.0, 0.05], [2.6, 0.05], [3.0, -0.45], [3.3, -0.75], [3.7, -0.55], [3.95, 0.35], [4.5, 0.4], [4.8, 0.95], [5.05, 0.7], [5.35, 0.3], [5.8, base.arm_l_fwd]])
+			p.elbow_l = _curve(t, [[0.0, 0.2], [2.6, 0.25], [3.0, 1.1], [3.3, 0.35], [3.7, 0.15], [3.95, 0.6], [4.5, 0.6], [4.8, 0.15], [5.05, 0.3], [5.35, 0.7], [5.8, base.elbow_l]])
+			p.arm_l_out = _curve(t, [[0.0, 0.15], [4.9, 0.12], [5.35, 0.45], [5.8, base.arm_l_out]])
+			p.hand_l = _curve(t, [[0.0, base.hand_l], [3.0, 0.2], [3.3, -0.6], [3.7, -0.4], [3.95, 0.4], [4.5, 0.4], [4.8, -0.5], [5.05, -0.3], [5.5, base.hand_l]])
+			# Braço direito: a mão estremece dormindo, empurra o chão, sobe aos olhos e esfrega
+			# (cotovelo dobrado na horizontal), vai ao chão à frente e abre na espreguiçada.
+			p.arm_r_fwd = _curve(t, [[0.0, 0.05], [1.1, 0.05], [1.4, 0.3], [1.9, 0.08], [2.75, 0.05], [3.1, -0.5], [3.35, -0.7], [3.65, -0.35], [3.9, 1.65], [4.35, 1.65], [4.55, 0.6], [4.8, 0.9], [5.05, 0.65], [5.35, 0.3], [5.8, base.arm_r_fwd]])
+			p.elbow_r = _curve(t, [[0.0, 0.2], [2.75, 0.25], [3.1, 1.0], [3.35, 0.35], [3.65, 0.4], [3.9, 2.4], [4.35, 2.4], [4.55, 0.6], [4.8, 0.15], [5.05, 0.3], [5.35, 0.7], [5.8, base.elbow_r]])
+			p.arm_r_out = _curve(t, [[0.0, 0.1], [4.9, 0.1], [5.35, 0.4], [5.8, base.arm_r_out]])
+			p.hand_r = _curve(t, [[0.0, base.hand_r], [3.1, 0.2], [3.35, -0.6], [3.65, -0.3], [3.9, 0.3], [4.35, 0.3], [4.8, -0.5], [5.05, -0.3], [5.5, base.hand_r]])
+			var to_face := smoothstep(3.6, 3.9, t) * (1.0 - smoothstep(4.35, 4.6, t))
+			var rubbing := smoothstep(3.85, 3.95, t) * (1.0 - smoothstep(4.25, 4.35, t))
 			p.arm_r_twist = 1.5 * to_face
 			p.arm_r_yaw = (0.35 + sin(t * 18.0) * 0.12 * rubbing) * to_face
-			p.elbow_l = _curve(t, [[0.0, 0.2], [2.8, 0.1], [4.3, 0.3], [4.9, 0.6], [5.6, 0.15]])
-			p.ear_l = _curve(t, [[0.0, 0.5], [2.6, 0.5], [3.6, 0.1], [5.6, 0.0]])
-			p.ear_r = p.ear_l
+			p.ear_l = _curve(t, [[0.0, 0.5], [0.8, 0.3], [1.3, 0.55], [2.6, 0.45], [3.4, 0.15], [4.4, 0.2], [5.0, 0.05], [5.35, -0.15], [5.8, base.ear_l]])
+			p.ear_r = _curve(t, [[0.0, 0.45], [1.0, 0.55], [1.6, 0.3], [2.6, 0.45], [3.4, 0.1], [4.4, 0.25], [5.0, 0.1], [5.35, -0.1], [5.8, base.ear_r]])
 		&"eat":
 			# A outra mão segura o pedaço perto do peito; a direita leva à boca duas vezes,
 			# a cabeça desce ao encontro e mastiga, com as costas curvadas sobre a comida.
@@ -1156,16 +1302,44 @@ func _mix(a: Dictionary, b: Dictionary, weight: float) -> Dictionary:
 	return out
 
 
-## Valor suave numa lista de chaves [[tempo, valor], ...].
+## Valor suave numa lista de chaves [[tempo, valor], ...]: cúbica monotônica (Fritsch-Carlson).
+## O movimento passa pelas chaves do meio sem parar (velocidade contínua), só desacelera
+## onde muda de sentido ou fica parado, e nunca passa do valor das chaves vizinhas.
 static func _curve(t: float, keys: Array) -> float:
 	if t <= keys[0][0]:
 		return keys[0][1]
-	for i in keys.size() - 1:
+	var last := keys.size() - 1
+	for i in last:
 		var a: Array = keys[i]
 		var b: Array = keys[i + 1]
-		if t <= b[0]:
-			return lerpf(a[1], b[1], smoothstep(a[0], b[0], t))
-	return keys[-1][1]
+		if t > b[0]:
+			continue
+		var h: float = b[0] - a[0]
+		if h <= 0.0:
+			return b[1]
+		var m0 := _curve_tangent(keys, i)
+		var m1 := _curve_tangent(keys, i + 1)
+		var s: float = (t - a[0]) / h
+		var s2 := s * s
+		var s3 := s2 * s
+		return (2.0 * s3 - 3.0 * s2 + 1.0) * a[1] + (s3 - 2.0 * s2 + s) * h * m0 \
+			+ (-2.0 * s3 + 3.0 * s2) * b[1] + (s3 - s2) * h * m1
+	return keys[last][1]
+
+
+## Inclinação da curva na chave `i`: zero nas pontas e onde o valor muda de sentido.
+static func _curve_tangent(keys: Array, i: int) -> float:
+	if i <= 0 or i >= keys.size() - 1:
+		return 0.0
+	var h0: float = keys[i][0] - keys[i - 1][0]
+	var h1: float = keys[i + 1][0] - keys[i][0]
+	if h0 <= 0.0 or h1 <= 0.0:
+		return 0.0
+	var d0: float = (keys[i][1] - keys[i - 1][1]) / h0
+	var d1: float = (keys[i + 1][1] - keys[i][1]) / h1
+	if d0 * d1 <= 0.0:
+		return 0.0
+	return 3.0 * (h0 + h1) / ((2.0 * h1 + h0) / d0 + (h1 + 2.0 * h0) / d1)
 
 
 # --- Estado ----------------------------------------------------------------------

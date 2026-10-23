@@ -12,22 +12,25 @@ func _init() -> void:
 	herd = ""
 	meat = 2
 	meat_item = &"white_meat"
-	sight_range = 22.0
-	hearing_range = 14.0
-	smell_range = 18.0
-	run_speed = 5.5
+	sight_range = 12.0
+	hearing_range = 8.0
+	smell_range = 10.0
+	run_speed = 3.7
 	calm_distance = 30.0
 
 
-func _build_body() -> void:
-	super()
-	# Pelo liso e pálido (a textura de pelo é marrom e escureceria o branco), com um brilho
-	# fraco: na neblina ele aparece antes dos outros, e parece errado.
-	for node in find_children("*", "MeshInstance3D", true, false):
-		var part := node as MeshInstance3D
-		var material := part.material_override as StandardMaterial3D
-		if material != null and material.albedo_color == fur_color:
-			material.albedo_texture = null
-			material.emission_enabled = true
-			material.emission = Color(0.85, 0.88, 0.9)
-			material.emission_energy_multiplier = 0.25
+## Pelo pálido por inteiro (sem as manchas do cervo), com um brilho fraco: na neblina ele
+## aparece antes dos outros, e parece errado. Olhos claros demais.
+func _palette() -> Dictionary:
+	var pale := [AnimalLook.PELT, Color(1.08, 1.1, 1.1), 0.18]
+	var palette := super()
+	for region in ["pelo", "pelo_escuro", "claro"]:
+		palette[region] = pale
+	palette["interno"] = [AnimalLook.PELT, Color(0.95, 0.85, 0.85), 0.12]
+	palette["olho"] = Color(0.55, 0.6, 0.62)
+	palette["casco"] = Color(0.5, 0.48, 0.45)
+	return palette
+
+
+func _look_key() -> String:
+	return "white_deer"

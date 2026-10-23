@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=40 format=3]
+[gd_resource type="Theme" load_steps=41 format=3]
 
 [ext_resource type="FontFile" path="res://assets/ui/font/toca.fnt" id="1_font"]
 [ext_resource type="FontFile" path="res://assets/ui/font/toca_bold.fnt" id="2_bold"]
@@ -41,6 +41,11 @@ base_font = ExtResource("2_bold")
 [sub_resource type="FontVariation" id="FontVariation_italic"]
 fallbacks = Array[Font]([SubResource("SystemFont_fallback")])
 base_font = ExtResource("3_italic")
+
+[sub_resource type="FontVariation" id="FontVariation_spaced"]
+fallbacks = Array[Font]([SubResource("SystemFont_fallback")])
+base_font = ExtResource("2_bold")
+spacing_glyph = 9
 
 [sub_resource type="StyleBoxTexture" id="Panel"]
 content_margin_left = 22.0
@@ -297,6 +302,13 @@ LineEdit/colors/selection_color = Color(0.5, 0.44, 0.3, 0.6)
 LineEdit/styles/focus = SubResource("Focus")
 LineEdit/styles/normal = SubResource("Button")
 LineEdit/styles/read_only = SubResource("ButtonDisabled")
+MenuTitle/base_type = &"Label"
+MenuTitle/colors/font_color = Color(0.86, 0.84, 0.78, 1)
+MenuTitle/colors/font_shadow_color = Color(0, 0, 0, 0.85)
+MenuTitle/constants/shadow_offset_x = 3
+MenuTitle/constants/shadow_offset_y = 3
+MenuTitle/font_sizes/font_size = 48
+MenuTitle/fonts/font = SubResource("FontVariation_spaced")
 MenuItem/base_type = &"Button"
 MenuItem/colors/font_color = Color(0.7, 0.7, 0.66, 1)
 MenuItem/colors/font_focus_color = Color(0.92, 0.89, 0.8, 1)

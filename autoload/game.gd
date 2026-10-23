@@ -497,8 +497,10 @@ func open_menu() -> void:
 	_menu_camera.fov = 60.0
 	current_level.add_child(_menu_camera)
 	var ground := func(x: float, z: float) -> float: return current_level.ground_height(x, z) if current_level.has_method("ground_height") else 0.0
-	var eye := Vector3(5.5, float(ground.call(5.5, 50.0)) + 1.8, 50.0)
-	var mouth := Vector3(-0.5, float(ground.call(0.0, 64.0)) + 2.4, 66.0)
+	# A boca da caverna fica à direita do painel do menu, com o fogo aparecendo lá dentro.
+	var floor_y := float(ground.call(0.0, 64.0))
+	var eye := Vector3(4.5, maxf(float(ground.call(4.5, 46.0)) + 1.6, floor_y + 2.0), 46.0)
+	var mouth := Vector3(3.2, floor_y + 1.1, 68.0)
 	_menu_camera.look_at_from_position(eye, mouth)
 	_menu_camera.make_current()
 	_menu = MainMenu.new()

@@ -101,12 +101,20 @@ const COLD_DAMAGE := 0.6
 ## De noite os bichos enxergam o goblin com esta fração da visibilidade de dia.
 const NIGHT_VISIBILITY := 0.55
 ## Os bichos: a atenção não passa de (estímulo por segundo) × isto. Fugir (0,8) pede um estímulo
-## de 0,4/s, o que ver o goblin andando de pé dá a ~25 m de um cervo alerta; desconfiar (0,35), um
+## de 0,4/s, o que ver o goblin andando de pé dá a ~18 m de um cervo alerta; desconfiar (0,35), um
 ## de 0,18/s. Sinal mais fraco que isso, por mais que dure, não assusta.
 const ANIMAL_AWARENESS_CEILING := 2.0
+## Movimento que os bichos veem (0..1) é a velocidade do goblin ÷ isto; andando de pé nunca
+## fica abaixo de UPRIGHT_MOTION (braços e pernas balançando chamam atenção mesmo devagar).
+const SIGHT_MOTION_SPEED := 3.0
+const UPRIGHT_MOTION := 0.85
+## Barulho dos passos (0..1): andando de pé é isto, e sobe até 1 no disparo.
+const WALK_NOISE := 0.45
 ## Quanto o passo de um bicho correndo sai mais alto que andando (dB).
 const ANIMAL_RUN_STEP_DB := 5.0
 
+## Pulo: segundos que o goblin agacha antes de sair do chão (o impulso vem no fim).
+const JUMP_PREP := 0.1
 ## Queda: acima desta velocidade (m/s), dano = (v - FALL_DAMAGE_SPEED) * FALL_DAMAGE_PER_MS.
 const FALL_DAMAGE_SPEED := 8.0
 const FALL_DAMAGE_PER_MS := 12.0
@@ -489,7 +497,7 @@ const CANOPY_SHELTER := 0.5
 const HERD_SIZE_MIN := 3
 const HERD_SIZE_MAX := 4
 const HERD_SPREAD := 9.0
-const HERD_ROAM_SPEED := 0.35
+const HERD_ROAM_SPEED := 0.23
 const HERD_WAYPOINT_HOURS := Vector2(1.0, 2.5)
 ## A agenda da manada: sai de casa, volta para casa e deita para dormir (horas do dia).
 const HERD_DAY_START := 6.0
@@ -550,8 +558,8 @@ const OLD_DEER_CHANCE := 0.3
 ## Javali: quantos, a distância em que investe em vez de fugir (m), a velocidade da investida (m/s),
 ## o dano e quantas investidas antes de fugir.
 const BOAR_COUNT := 3
-const BOAR_CHARGE_RANGE := 12.0
-const BOAR_CHARGE_SPEED := 8.5
+const BOAR_CHARGE_RANGE := 7.0
+const BOAR_CHARGE_SPEED := 5.7
 const BOAR_DAMAGE := 22.0
 const BOAR_CHARGES := 2
 
@@ -621,7 +629,7 @@ const WOODPECKER_DRUM_GAP := Vector2(14.0, 40.0)
 const OWL_HOOT_GAP := Vector2(14.0, 45.0)
 ## O goblin a menos disto (m, no plano) espanta o pássaro, que voa para outra árvore e fica
 ## calado BIRD_SHY_SECONDS. Agachado e devagar, chega BIRD_CROUCH_FACTOR mais perto.
-const BIRD_FLUSH_RADIUS := 7.0
+const BIRD_FLUSH_RADIUS := 4.0
 const BIRD_CROUCH_FACTOR := 0.5
 const BIRD_SHY_SECONDS := Vector2(12.0, 35.0)
 ## De tempos em tempos o pássaro troca de árvore sozinho (s).

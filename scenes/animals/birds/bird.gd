@@ -21,6 +21,9 @@ const WOODPECKER := preload("res://assets/audio/animals/woodpecker.wav")
 const OWLS: Array[AudioStream] = [preload("res://assets/audio/animals/owl_1.wav"), preload("res://assets/audio/animals/owl_2.wav")]
 const ALARM := preload("res://assets/audio/animals/bird_alarm.wav")
 const FLAP := preload("res://assets/audio/animals/wing_flap.wav")
+const SONGBIRD_MODEL := preload("res://assets/models/animals/songbird.glb")
+const WOODPECKER_MODEL := preload("res://assets/models/animals/woodpecker.glb")
+const OWL_MODEL := preload("res://assets/models/animals/owl.glb")
 ## Velocidade do voo (m/s) por espécie.
 const FLIGHT_SPEED: Array[float] = [9.0, 8.0, 6.5]
 
@@ -44,6 +47,7 @@ var _flight := 0.0
 var _flight_time := 1.0
 var _wings: Array[Node3D] = []
 var _head: Node3D
+var _model: CreatureModel
 
 
 func setup(kind: Species, rng: RandomNumberGenerator) -> void:
@@ -61,9 +65,8 @@ func perch_at(at: Vector3, yaw: float, tree_id: int) -> void:
 	position = at
 	rotation = Vector3(0.0, yaw, 0.0)
 	tree = tree_id
-	# Pousado, as asas ficam fechadas no corpo (o corpo de caixa já as cobre).
-	for wing in _wings:
-		wing.visible = false
+	# Pousado, as asas ficam fechadas no corpo.
+	_show_wings(false)
 
 
 ## Espanta: pio de alarme (canoro), bater de asas e voo para outra árvore longe de `from`.
@@ -78,6 +81,8 @@ func flush(from: Vector3) -> void:
 
 
 func _process(delta: float) -> void:
+	if _model != null:
+		_model.sync()
 	if life == null or Game.player == null or Game.resting:
 		return
 	# O voo sempre termina (longe do ouvido ele não ficaria parado no ar).
@@ -95,7 +100,7 @@ func _process(delta: float) -> void:
 		return
 	var player := Game.player
 	var reach := Tuning.BIRD_FLUSH_RADIUS
-	var slow := Vector2(player.velocity.x, player.velocity.z).length() < 1.5
+	var slow := Vector2(player.velocity.x, player.velocity.z).length() < 1.7
 	if player.is_crouching() and slow:
 		reach *= Tuning.BIRD_CROUCH_FACTOR
 	var flat := Vector2(global_position.x - player.global_position.x, global_position.z - player.global_position.z)
@@ -159,8 +164,7 @@ func _fly_away(from: Vector3, min_distance: float, max_distance: float) -> void:
 	_to_yaw = spot[1]
 	_to_tree = spot[2]
 	tree = -1
-	for wing in _wings:
-		wing.visible = true
+	_show_wings(true)
 	_flight = 0.0
 	_flight_time = maxf(_from.distance_to(_to) / FLIGHT_SPEED[species], 0.8)
 	rotation = Vector3(0.0, atan2(_to.x - _from.x, _to.z - _from.z), 0.0)
@@ -184,55 +188,27 @@ func _fold(angle: float) -> void:
 		_wings[i].rotation.z = angle * (1.0 if i == 0 else -1.0)
 
 
-## Corpo de caixas, no estilo dos outros bichos. A frente é +Z.
+## Corpo com esqueleto (assets/models/animals/<espécie>.glb), na pose de pouso: o canoro meio
+## deitado, o pica-pau de pé no tronco e a coruja empertigada. A frente é +Z.
 func _build_body() -> void:
-	var colors: Array
-	var size: Vector3
-	match species:
-		Species.WOODPECKER:
-			colors = [Color(0.08, 0.08, 0.08), Color(0.75, 0.73, 0.68), Color(0.55, 0.08, 0.07)]
-			size = Vector3(0.06, 0.06, 0.13)
-		Species.OWL:
-			colors = [Color(0.36, 0.28, 0.2), Color(0.52, 0.44, 0.33), Color(0.2, 0.16, 0.12)]
-			size = Vector3(0.14, 0.13, 0.17)
-		_:
-			colors = [Color(0.34, 0.29, 0.22), Color(0.52, 0.46, 0.36), Color(0.2, 0.18, 0.15)]
-			size = Vector3(0.055, 0.05, 0.09)
-	var body := Animal.flat_material(colors[0])
-	var belly := Animal.flat_material(colors[1])
-	var accent := Animal.flat_material(colors[2])
-	var torso := Node3D.new()
-	add_child(torso)
-	# O pica-pau fica de pé no tronco; a coruja, empertigada; o canoro, meio deitado.
-	torso.rotation.x = -1.2 if species == Species.WOODPECKER else (-1.0 if species == Species.OWL else -0.35)
-	_box(torso, size, Vector3.ZERO, body)
-	_box(torso, size * Vector3(0.8, 0.5, 0.7), Vector3(0.0, -size.y * 0.3, size.z * 0.05), belly)
-	_box(torso, Vector3(size.x * 0.7, size.y * 0.2, size.z * 0.7), Vector3(0.0, 0.0, -size.z * 0.75), accent)
-	_head = Node3D.new()
-	_head.position = Vector3(0.0, size.y * 0.55, size.z * 0.45) if species != Species.OWL else Vector3(0.0, size.z * 0.55, size.y * 0.1)
-	add_child(_head)
-	var head_size := size.x * (1.0 if species == Species.OWL else 0.85)
-	_box(_head, Vector3.ONE * head_size, Vector3.ZERO, body)
-	_box(_head, Vector3(head_size * 0.25, head_size * 0.22, head_size * (0.8 if species == Species.WOODPECKER else 0.35)),
-		Vector3(0.0, -head_size * 0.1, head_size * 0.6), accent)
-	if species == Species.WOODPECKER:
-		_box(_head, Vector3(head_size * 0.9, head_size * 0.3, head_size * 0.6), Vector3(0.0, head_size * 0.45, -head_size * 0.1), accent)
-	elif species == Species.OWL:
-		for side: float in [-1.0, 1.0]:
-			_box(_head, Vector3.ONE * head_size * 0.22, Vector3(head_size * 0.25 * side, head_size * 0.1, head_size * 0.5), Animal.flat_material(Color(0.62, 0.52, 0.2)))
-	for side: float in [-1.0, 1.0]:
-		var wing := Node3D.new()
-		wing.position = Vector3(size.x * 0.45 * side, size.y * 0.2, 0.0)
-		add_child(wing)
-		_box(wing, Vector3(size.z * 1.6, 0.01, size.z * 0.6), Vector3(size.z * 0.8 * side, 0.0, 0.0), body)
-		_wings.append(wing)
+	var models: Array[PackedScene] = [SONGBIRD_MODEL, WOODPECKER_MODEL, OWL_MODEL]
+	var palettes := [
+		{"pena": [AnimalLook.PLUMAGE, Color(0.78, 0.64, 0.48)], "pena_clara": [AnimalLook.PLUMAGE, Color(1.15, 1.05, 0.88)],
+			"bico": Color(0.25, 0.2, 0.15), "olho": Color(0.02, 0.02, 0.02)},
+		{"pena": [AnimalLook.PLUMAGE, Color(0.22, 0.22, 0.22)], "pena_clara": [AnimalLook.PLUMAGE, Color(1.25, 1.22, 1.15)],
+			"detalhe": Color(0.7, 0.09, 0.07), "bico": Color(0.16, 0.15, 0.14), "olho": Color(0.02, 0.02, 0.02)},
+		{"pena": [AnimalLook.PLUMAGE, Color(0.92, 0.74, 0.54)], "pena_clara": [AnimalLook.PLUMAGE, Color(1.2, 1.08, 0.9)],
+			"bico": Color(0.3, 0.28, 0.24), "olho": Color(0.02, 0.02, 0.02),
+			"olho_brilho": AnimalLook.glowing_eye(Color(0.95, 0.72, 0.2), 0.6)},
+	]
+	_model = CreatureModel.attach(self, models[species], palettes[species], ["songbird", "woodpecker", "owl"][species])
+	_head = _model.joint("cabeca")
+	_wings = [_model.joint("asa_E"), _model.joint("asa_D")]
+	for node in find_children("*", "MeshInstance3D", true, false):
+		(node as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
-func _box(parent: Node3D, box_size: Vector3, center: Vector3, material: Material) -> void:
-	var mesh := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = box_size
-	mesh.mesh = box
-	mesh.material_override = material
-	mesh.position = center
-	parent.add_child(mesh)
+## Asas abertas só em voo; pousado, o pivô delas encolhe a quase nada.
+func _show_wings(shown: bool) -> void:
+	for wing in _wings:
+		wing.scale = Vector3.ONE if shown else Vector3.ONE * 0.001

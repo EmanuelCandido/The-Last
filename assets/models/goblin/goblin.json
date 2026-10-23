@@ -158,7 +158,7 @@
     "fonte": "source/goblin.blend",
     "gerador": "source/polish_goblin.py",
     "exportador": "source/export_goblin.py",
-    "triangulos": 21086,
+    "triangulos": 25956,
     "corpo_continuo": true,
     "observacao": "Nao reexportar diretamente o blueprint do kit: o polimento esta na fonte Blender."
   }

@@ -39,15 +39,17 @@ const EDGE_PROBE := 0.32
 const DEFAULT_INTERACTION := {"action": &"pickup", "duration": 1.1, "at": 0.5}
 
 @export_group("Movimento")
-@export var walk_speed := 2.6
-@export var sprint_speed := 5.0
-@export var crouch_speed := 1.2
+## Andar ligeiro: com a perna de 28 cm, o passo fica no limite antes de virar trote.
+@export var walk_speed := 2.0
+@export var sprint_speed := 4.6
+@export var crouch_speed := 1.5
 @export var aim_speed := 1.4
 ## Quão rápido a velocidade chega no alvo (maior = mais responsivo).
 @export var acceleration := 9.0
 ## Fração da aceleração disponível no ar.
 @export_range(0.0, 1.0) var air_control := 0.3
-@export var jump_velocity := 4.6
+## Impulso do pulo (m/s): 2,9 dá uns 43 cm de altura, pouco mais que o quadril do goblin.
+@export var jump_velocity := 2.9
 @export var turn_speed := 10.0
 ## Abaixo desta altura o jogador volta para o ponto de nascimento.
 @export var fall_limit := -60.0
@@ -100,6 +102,8 @@ var _punching := false
 var _was_aiming := false
 var _was_on_floor := true
 var _fall_speed := 0.0
+## Segundos de preparo que faltam até o pulo sair do chão (0 = sem pulo pedido).
+var _jump_prep := 0.0
 var _last_yaw := 0.0
 ## Para onde o corpo vira. O giro é feito em _process (a cada frame desenhado), não na
 ## física: a 60 Hz de física e 120 de tela o corpo girava em degraus e a inclinação da
@@ -204,9 +208,19 @@ func _physics_process(delta: float) -> void:
 	aiming = free and not sniffing and Inventory.has(&"bow") and Input.is_action_pressed("aim")
 
 	if is_on_floor():
-		if free and Input.is_action_just_pressed("jump") and not _crouching:
-			velocity.y = jump_velocity
+		# O pulo não sai na hora: o corpo agacha (Tuning.JUMP_PREP) e só então empurra o chão.
+		if free and Input.is_action_just_pressed("jump") and not _crouching and _jump_prep <= 0.0:
+			_jump_prep = Tuning.JUMP_PREP
+			if _animator != null:
+				_animator.begin_jump(Tuning.JUMP_PREP)
+		elif _jump_prep > 0.0:
+			_jump_prep -= delta
+			if _jump_prep <= 0.0:
+				velocity.y = jump_velocity
+				if _animator != null:
+					_animator.jump_launched()
 	else:
+		_jump_prep = 0.0
 		velocity += get_gravity() * delta
 		_fall_speed = maxf(_fall_speed, -velocity.y)
 
@@ -256,6 +270,7 @@ func _process(delta: float) -> void:
 	if _animator != null:
 		_animator.velocity_local = _visual.global_basis.inverse() * Vector3(velocity.x, 0.0, velocity.z)
 		_animator.on_floor = is_on_floor()
+		_animator.vertical_speed = velocity.y
 		_animator.crouching = _crouching
 		_animator.aiming = aiming
 		_animator.starving = Vitals.is_starving()
@@ -395,7 +410,7 @@ func noise_level() -> float:
 	var speed := Vector2(velocity.x, velocity.z).length()
 	var noise := 0.0
 	if speed >= 0.3:
-		noise = 0.1 if _crouching else clampf(speed / sprint_speed, 0.3, 1.0)
+		noise = 0.1 if _crouching else clampf(remap(speed, walk_speed, sprint_speed, Tuning.WALK_NOISE, 1.0), 0.3, 1.0)
 	elif not breath_held and _animator != null:
 		noise = _animator.exertion() * Tuning.PANTING_NOISE
 	return noise * _product(noise_factors)

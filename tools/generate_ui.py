@@ -6,15 +6,18 @@ pedra escura, linhas gastas, pontilhado (dither) no lugar de degradê e filtro n
 - A fonte "Toca" é desenhada aqui à mão, pixel a pixel: maiúsculas de 9 px, minúsculas de 6 px,
   descendentes de 3 px. Os acentos são compostos sobre a letra. Sai em BMFont (texto) em três
   pesos: normal, negrito (a letra engrossada 1 px) e itálico (as linhas de cima puxadas 1 px).
-- As texturas são 9-patch para o Theme (assets/ui/ui_theme.tres): painel, botões, plaquinha de
+- As texturas são 9-patch para o Theme (assets/ui/ui_theme.tres): painel, botões, faixa de
   seleção, mancha de fundo do HUD, tecla, slider, caixa de marcar e barra de rolagem.
+- Peças dos menus (UiStyle): os painéis de rocha (rock_*.png, a 3x), o logo "A TOCA", os riscos, a
+  boca da caverna, a tecla-lápide do rodapé, o marcador laranja de foco, as setas da lista de
+  fabricar e o atlas de ícones dos itens do HUD (item_icons.png, na ordem de ICONS).
 
 Uso (na raiz do projeto): python tools/generate_ui.py
 """
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 
 OUT = Path(__file__).resolve().parent.parent / "assets" / "ui"
 
@@ -1155,6 +1158,8 @@ EDGE = np.array([6, 7, 7])
 LINE = np.array([86, 86, 78])
 ACCENT = np.array([196, 172, 118])
 BONE = np.array([214, 209, 194])
+# Laranja do marcador de foco (o único ponto quente da interface).
+MARK = np.array([224, 148, 64])
 
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0 + 1.0 / 32.0
 
@@ -1212,15 +1217,14 @@ def framed(size, margin, seed, fill_alpha, line, base=STONE, rivets=True, worn=0
 
 
 def plate(width, height, fade, seed):
-    """Plaquinha de seleção: faixa escura com uma barra ocre à esquerda, que some em pontilhado."""
+    """Faixa de seleção: um brilho quente e baixo atrás do item em foco, que some em pontilhado
+    para a direita (e um pouco nas pontas de cima e de baixo). O marcador ocre fica fora dela."""
     x = np.arange(width)
-    ramp_a = np.clip((width - x) / fade, 0.0, 1.0)
-    alpha = dither(np.tile(ramp_a * 0.8, (height, 1)))
-    rgb = stone_fill(height, width, seed, np.array([30, 29, 26]), 4.0)
-    rgb[:, :2] = ACCENT
-    alpha[:, :2] = 1.0
-    rgb[:, 2] = ACCENT * 0.5
-    alpha[:, 2] = 1.0
+    ramp_x = np.clip((width - x) / fade, 0.0, 1.0) * np.clip((x + 1) / 6.0, 0.0, 1.0)
+    y = np.arange(height)
+    ramp_y = np.clip(np.minimum(y + 1, height - y) / 3.0, 0.0, 1.0)
+    alpha = dither(np.outer(ramp_y, ramp_x) * 0.85)
+    rgb = stone_fill(height, width, seed, np.array([44, 39, 32]), 3.0)
     return rgba(rgb, alpha)
 
 
@@ -1245,6 +1249,380 @@ def sprite(art, palette):
                 out[y, x, :3] = palette[c]
                 out[y, x, 3] = 255
     return out
+
+
+def with_shadow(pixels, strength=0.65):
+    """Sombra de 1 texel para baixo e para a direita: o desenho lê sobre a neblina clara."""
+    h, w = pixels.shape[:2]
+    out = np.zeros((h + 1, w + 1, 4), dtype=np.uint8)
+    solid = pixels[..., 3] > 0
+    out[1:, 1:, :3] = EDGE
+    out[1:, 1:, 3] = np.where(solid, int(255 * strength), 0)
+    top = out[:h, :w]
+    top[solid] = pixels[solid]
+    return out
+
+
+def mask_sprite(mask, color, seed, grain=7.0):
+    """Máscara (bool) pintada numa cor com grão, sem antialias."""
+    rgb = stone_fill(*mask.shape, seed, color, grain)
+    return rgba(rgb, mask.astype(float))
+
+
+def draw_mask(width, height, draw):
+    """Máscara desenhada com o ImageDraw do Pillow (sem antialias) na resolução do texel."""
+    img = Image.new("L", (width, height), 0)
+    draw(ImageDraw.Draw(img))
+    return np.array(img) > 127
+
+
+def neighbors(mask):
+    """Quantos dos 4 vizinhos de cada texel estão na máscara."""
+    pad = np.pad(mask, 1)
+    return pad[:-2, 1:-1].astype(int) + pad[2:, 1:-1] + pad[1:-1, :-2] + pad[1:-1, 2:]
+
+
+def rock_panel(width, height, profile, seed):
+    """Painel de rocha dos menus (desenhado a 3x): pedra quase preta, colada à esquerda da tela,
+    cuja borda direita é uma silhueta irregular em degraus que se desfaz em pontilhado.
+    `profile` = [(altura 0..1, x da borda em texels)], com relevo por cima."""
+    rng = np.random.default_rng(seed)
+    rows = np.arange(height)
+    ys, xs = zip(*profile)
+    edge = np.interp(rows / (height - 1), ys, xs)
+    for scale, amp in ((34, 8.0), (11, 3.5), (4, 1.5)):
+        knots = rng.normal(0.0, 1.0, height // scale + 2)
+        edge = edge + np.interp(rows / scale, np.arange(knots.size), knots) * amp
+    # A borda anda em blocos de 3 linhas (degraus de rocha pixelada), não em rampa, e às vezes
+    # um bloco salta para fora ou para dentro (lascas e saliências).
+    jumps = rng.normal(0.0, 1.0, height // 6 + 1) * (rng.random(height // 6 + 1) < 0.35) * 4.0
+    edge = np.repeat(edge[::3], 3)[:height] + np.repeat(jumps, 6)[:height]
+    dist = edge[:, None] - np.arange(width)[None, :]
+    grain = rng.random((height, width))
+    # Fora da borda, pontos escuros que rareiam por ~7 texels; dentro, perto dela, uns furos.
+    fringe = dither(np.clip(1.0 + dist / 7.0, 0.0, 1.0) ** 1.7 * 0.8) * (grain > 0.3)
+    alpha = np.where(dist > 0, 1.0, fringe)
+    holes = (dist > 0) & (dist < 5) & (grain < 0.045 * (5 - dist))
+    alpha = np.where(holes, 0.0, alpha)
+    rgb = stone_fill(height, width, seed, np.array([11, 11, 11]), 1.6)
+    rgb += ((grain > 0.985) * 8.0)[..., None]
+    # Um fio de rocha mais clara rente à borda (a pedra pega a luz da neblina).
+    rim = (dist > 0) & (dist < 2.5)
+    rgb[rim] += 7.0
+    return rgba(rgb, alpha)
+
+
+def roughen(mask, seed, chips=0.14, bumps=0.035):
+    """Lascas e calombos na borda de uma máscara: letras entalhadas, não fundidas."""
+    rng = np.random.default_rng(seed)
+    near = neighbors(mask)
+    border = mask & (near < 4)
+    mask = mask & ~(border & (rng.random(mask.shape) < chips))
+    outside = ~mask & (neighbors(mask) > 0)
+    return mask | (outside & (rng.random(mask.shape) < bumps))
+
+
+def logo():
+    """O logo "A TOCA" (desenhado a 3x): letras grossas cor de osso, como entalhadas, o T mais alto
+    e o O trocado por um arco de caverna."""
+    base, top = 37, 16
+
+    def letters(d):
+        for x0 in (1, 111):  # os dois "A"
+            d.polygon([(x0, base), (x0 + 7, top), (x0 + 15, top), (x0 + 22, base)], fill=255)
+            d.polygon([(x0 + 7, base + 1), (x0 + 11, 32), (x0 + 15, base + 1)], fill=0)
+            d.polygon([(x0 + 8, 28), (x0 + 11, 20), (x0 + 14, 28)], fill=0)
+        d.polygon([(28, 5), (59, 2), (60, 10), (28, 11)], fill=255)  # T, a barra torta
+        d.rectangle([40, 3, 47, 39], fill=255)
+        d.pieslice([57, 13, 89, 61], 180, 360, fill=255)  # a boca da caverna
+        d.ellipse([65, 22, 81, 40], fill=0)
+        d.rectangle([65, 31, 81, base + 1], fill=0)
+        d.rectangle([93, top, 107, base], fill=255)  # C
+        d.rectangle([99, 22, 108, 31], fill=0)
+
+    mask = roughen(draw_mask(136, 42, letters), 346)
+    rng = np.random.default_rng(347)
+    # Escorridos de tinta embaixo de algumas letras.
+    for x in rng.choice(np.flatnonzero(mask[base]), 5, replace=False):
+        mask[base + 1:base + 1 + rng.integers(1, 3), x] = True
+    pixels = mask_sprite(mask, BONE, 348, 6.0)
+    # Mais escuro embaixo e uns pontos fundos (o entalhe).
+    shade = np.clip((np.arange(42) - top) / (base - top), 0, 1)[:, None] * 0.12
+    dark = mask & (rng.random(mask.shape) < 0.05)
+    rgb = pixels[..., :3].astype(float) * (1.0 - shade[..., None])
+    rgb[dark] *= 0.78
+    pixels[..., :3] = np.clip(rgb, 0, 255).astype(np.uint8)
+    return with_shadow(pixels, 0.7)
+
+
+def tally():
+    """Três riscos cruzados por um traço, como os da parede da caverna (desenhado a 2x)."""
+    mask = np.zeros((12, 27), dtype=bool)
+    for i, x in enumerate((4, 13, 22)):
+        for y in range(12):
+            mask[y, x + (1 if (i == 1 and y < 4) or (i == 2 and y > 8) else 0)] = True
+    mask[6, :15] = True
+    mask[5, 15:] = True
+    return with_shadow(mask_sprite(mask, BONE, 51, 5.0))
+
+
+def cave_icon():
+    """A boca da caverna: um morro cor de osso com o arco escuro embaixo (desenhado a 3x)."""
+    def shape(d):
+        d.pieslice([0, 0, 23, 38], 180, 360, fill=255)
+        d.pieslice([7, 8, 16, 30], 180, 360, fill=0)
+
+    mask = roughen(draw_mask(24, 20, shape), 52, 0.1, 0.0)
+    return with_shadow(mask_sprite(mask, BONE, 53, 5.0))
+
+
+def key_icon():
+    """A tecla do rodapé dos menus: uma lápide em arco, só o contorno, com um "I" (desenhada a 2x)."""
+    def shape(d):
+        d.arc([3, 0, 19, 14], 180, 360, fill=255)
+        d.line([(3, 7), (0, 19)], fill=255)
+        d.line([(19, 7), (22, 19)], fill=255)
+        d.line([(0, 19), (22, 19)], fill=255)
+        d.line([(11, 7), (11, 14)], fill=255)
+        d.line([(9, 7), (13, 7)], fill=255)
+        d.line([(9, 14), (13, 14)], fill=255)
+
+    return with_shadow(mask_sprite(draw_mask(23, 20, shape), BONE, 54, 4.0))
+
+
+# Ícones do HUD (12×12, desenhados a 2x), na ordem do atlas item_icons.png. UiStyle.ICONS
+# precisa ter a mesma ordem. "a" = osso, "b" = osso apagado.
+ICONS = {
+    "arrow": """
+        ........aaaa
+        .........aaa
+        ........a.aa
+        .......a...a
+        ......a.....
+        .....a......
+        ....a.......
+        .b.a........
+        .ba.........
+        .aab........
+        a..b........
+        ............
+    """,
+    "feathered_arrow": """
+        .........aaa
+        ..........aa
+        .........a.a
+        ........a...
+        .......a....
+        ......a.....
+        .a...a......
+        .aa.a.......
+        ..aa........
+        .aaaa.......
+        a..aa.......
+        ...a........
+    """,
+    "bone_arrow": """
+        ........aaaa
+        .......aaaaa
+        ........aaaa
+        .......a.aaa
+        ......a...a.
+        .....a......
+        ....a.......
+        ...a........
+        .ba.........
+        .aab........
+        a..b........
+        ............
+    """,
+    "stone": """
+        ............
+        ............
+        ....aaaa....
+        ..aabbbbaa..
+        .abbbbbbbba.
+        .abbbbbbbbba
+        abbbbbbbbbba
+        abbbbbbbbbba
+        .aaaaaaaaaa.
+        ............
+        ............
+        ............
+    """,
+    "wood": """
+        .........aa.
+        ........a..a
+        .......a..a.
+        ......a..a..
+        ..b..a..a...
+        ...ba..a....
+        ...a..a.....
+        ..a..a......
+        .a..a.......
+        a..a........
+        .aa.........
+        ............
+    """,
+    "meat": """
+        ............
+        ....aaaa....
+        ..aa....aa..
+        .a..aa....a.
+        a..a..a....a
+        a..a..a....a
+        a...aa....a.
+        .a.......a..
+        ..aaaaaaa...
+        ............
+        ............
+        ............
+    """,
+    "cooked_meat": """
+        ............
+        ....aaaa....
+        ..aabbbbaa..
+        .abbaabbbba.
+        abba..abbbba
+        abba..abbbba
+        abbbaabbbba.
+        .abbbbbbba..
+        ..aaaaaaa...
+        ............
+        ............
+        ............
+    """,
+    "smoked_meat": """
+        .....a......
+        .....a......
+        ....aaa.....
+        ...ab.ba....
+        ..a.b..ba...
+        ..ab..b.a...
+        ..a..b..a...
+        ..ab...ba...
+        ...a.b.a....
+        ....aaa.....
+        ............
+        ............
+    """,
+    "rotten_meat": """
+        ..b....b....
+        ....b.....b.
+        ....aa.a....
+        ..aa....aa..
+        .a..aa....a.
+        a..a..a.....
+        a..a..a....a
+        ....aa....a.
+        .a.......a..
+        ..aa.aaaa...
+        ............
+        ............
+    """,
+    "berries": """
+        ......b.....
+        .....b......
+        ...aaa.aaa..
+        ..a...a...a.
+        ..a...a...a.
+        ...aaaaaaa..
+        .....a...a..
+        ....a.....a.
+        ....a.....a.
+        .....aaaaa..
+        ............
+        ............
+    """,
+    "mushroom": """
+        ............
+        ...aaaaaa...
+        .aa.b..b.aa.
+        a..........a
+        aaaaaaaaaaaa
+        ....a..a....
+        ....a..a....
+        ....a..a....
+        ...aaaaaa...
+        ............
+        ............
+        ............
+    """,
+    "white_meat": """
+        ............
+        ....aaaa....
+        ..aaaaaaaa..
+        .aaabbaaaaa.
+        aaab..baaaaa
+        aaab..baaaaa
+        aaaabbaaaaa.
+        .aaaaaaaaa..
+        ..aaaaaaa...
+        ............
+        ............
+        ............
+    """,
+    "hide": """
+        ............
+        .aa......aa.
+        ..aaaaaaaa..
+        ..a......a..
+        ..a.b..b.a..
+        ..a......a..
+        ..a..bb..a..
+        ..a......a..
+        .aa......aa.
+        ..aaaaaaaa..
+        ............
+        ............
+    """,
+    "bone": """
+        ............
+        ............
+        .aa......aa.
+        a..a....a..a
+        a...aaaa...a
+        .a........a.
+        a...aaaa...a
+        a..a....a..a
+        .aa......aa.
+        ............
+        ............
+        ............
+    """,
+    "feather": """
+        ...........a
+        .........aaa
+        .......aa.ba
+        ......a..ba.
+        ....aa..ba..
+        ...a...ba...
+        ..a...ba....
+        ..a..ba.....
+        .a.aba......
+        .aaa........
+        .b..........
+        b...........
+    """,
+    "snare": """
+        ............
+        ...aaaa.....
+        ..a....a....
+        .a......a...
+        .a......a...
+        .a......a...
+        ..a....a....
+        ...aa.a.....
+        .....a......
+        .....a......
+        .....aaaaaa.
+        ............
+    """,
+}
+
+
+def item_icons():
+    palette = {"a": BONE, "b": BONE * 0.62}
+    return np.concatenate([with_shadow(sprite(art, palette)) for art in ICONS.values()], axis=1)
 
 
 def textures():
@@ -1371,6 +1749,53 @@ def textures():
     tab[6:8, :, :3] = ACCENT
     tab[6:8, :, 3] = 255
     save("tab_on", tab)
+    # Marcador do item em foco: um colchete partido e uma meia-lua, em laranja.
+    save("marker", with_shadow(sprite("""
+        .aa.......
+        aab.......
+        aa....ab..
+        aa....aaa.
+        aa....aaab
+        aa....aaaa
+        a.....aaaa
+        ......aaaa
+        ......aaaa
+        a.....aaaa
+        aa....aaaa
+        aa....aaab
+        aa....aaa.
+        aa....ab..
+        aab.......
+        .aa.......
+    """, {"a": MARK, "b": MARK * 0.62})))
+    # Setas de escolher da lista de fabricar.
+    save("up_down", with_shadow(sprite("""
+        ..a..
+        .aaa.
+        aaaaa
+        .....
+        .....
+        .....
+        .....
+        .....
+        aaaaa
+        .aaa.
+        ..a..
+    """, {"a": LINE * 1.75})))
+    # Painéis de rocha (a 3x, 240 linhas = 720 px): menu principal, pausa e o largo das
+    # Configurações e das Dicas. A borda em texels, de cima para baixo.
+    save("rock_menu", rock_panel(190, 240, [(0.0, 158), (0.3, 163), (0.45, 153), (0.55, 139),
+                                            (0.68, 128), (0.78, 126), (0.88, 134), (1.0, 143)], 61))
+    save("rock_pause", rock_panel(200, 240, [(0.0, 84), (0.1, 87), (0.22, 120), (0.33, 135),
+                                             (0.45, 139), (0.55, 132), (0.66, 139), (0.76, 143),
+                                             (0.87, 158), (1.0, 176)], 62))
+    save("rock_wide", rock_panel(340, 240, [(0.0, 308), (0.25, 318), (0.5, 304), (0.75, 312),
+                                            (1.0, 322)], 63))
+    save("logo", logo())
+    save("tally", tally())
+    save("cave_icon", cave_icon())
+    save("key_icon", key_icon())
+    save("item_icons", item_icons())
 
 
 def main():

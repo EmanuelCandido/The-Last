@@ -81,7 +81,8 @@ scenes/
   animals/           Animal (sentidos, fuga, ferimento, caça, sono), Herd (manada com casa e agenda), Deer, WhiteDeer,
                      OldDeer (o Velho), Rabbit, Boar (javali), CrowFlock e Crow, Wolf e WolfPack, Watchers (os olhos do
                      Zelador: corvos sentinela e espiões, cervo branco); birds/: BirdLife e Bird (pássaros
-                     pousados nas árvores)
+                     pousados nas árvores); CreatureModel (modelo com esqueleto preso a pivôs), AnimalLook
+                     (pelo pixelado por região) e QuadrupedGait (passo e galope das pernas de três juntas)
   shelter/           o Abrigo 9 (mundo real, 2 km abaixo): Shelter (salas por código), ShelterLook (materiais e peças),
                      CareCapsule, VitalsMonitor, WindowBlinds, FlickerLight, Caretaker (corpo do Zelador), Keeper (a IA
                      dele), Visit (lucidez e objetivos da visita), ShelterSwitch (fusível, alicate, cabo, cartão), Ari
@@ -90,15 +91,16 @@ scenes/
   ui/                HUD (ação, avisos, itens, mira), menu de pausa (com Dicas e a lista de Carregar), ScreenFade,
                      BlurredVision (visão borrada), VitalsHud (ECG e oxigênio no canto), FakeFreeze (o falso travamento),
                      MainMenu, Credits, KeeperConsole (o console do Zelador no terminal), SettingsMenu (a tela de
-                     Configurações) e UiStyle (theme/: paleta, fundo de neblina, botões de menu)
+                     Configurações) e UiStyle (theme/: paleta, painel de rocha, logo, botões de menu)
 components/          Footsteps (passos por chão), OccludedAudio (som 3D abafado atrás de rocha), Senses (visão, audição e
                      térmico de quem vigia)
 assets/
   textures/ shaders/ gerados por tools/ (exceto shaders)
-  ui/                o Theme único (ui_theme.tres), a fonte pixelada Toca (font/, BMFont) e as texturas 9-patch da
-                     interface, gerados por tools/generate_ui.py (exceto o .tres)
+  ui/                o Theme único (ui_theme.tres), a fonte pixelada Toca (font/, BMFont), as texturas 9-patch,
+                     os painéis de rocha, o logo e os ícones, gerados por tools/generate_ui.py (exceto o .tres)
   audio/             sintéticos gerados por tools/; audio/real/ = gravações reais CC0 (ver CREDITS.md)
   models/goblin/     goblin.glb + source/ (goblin.blend, polish_goblin.py, export_goblin.py)
+  models/animals/    deer, old_deer, rabbit, boar, wolf, crow, songbird, woodpecker e owl (.glb) + source/build_animals.py
 tools/               geradores Python de texturas e sons (numpy + Pillow)
 ```
 
@@ -123,10 +125,30 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   gasta, osso e ocre de vela, tudo pontilhado e com filtro nearest (`default_texture_filter` do canvas). A fonte
   Toca é pixelada com base 16 (tamanhos bons: 16, 32, 48, 64), com negrito e itálico gerados e uma fonte do sistema
   de reserva para letras que faltam.
-  - Variações: `Title` (64), `Heading` (32, ocre), `Hint` (apagado), `MenuItem` (botão de menu, 32, com a plaquinha
-    ocre no foco), `TabButton`, `PanelDark`, `Smudge` (mancha atrás dos textos do HUD) e `Keycap` (a tecla do prompt).
-  - `UiStyle` tem a paleta (`INK`, `INK_DIM`, `ACCENT`, `MOSS`... e `hex()` para BBCode), `fog_backdrop()` (neblina
-    escura em Bayer, `ui_fog.gdshader`, atrás dos menus e dos créditos), `menu_button()` e `separator()`.
+  - Variações: `Title` (64), `MenuTitle` (48, negrito e espaçado: "PAUSADO"), `Heading` (32, ocre), `Hint`
+    (apagado), `MenuItem` (botão de menu, 32, com a faixa quente no foco), `TabButton`, `PanelDark`, `Smudge`
+    (mancha atrás do prompt, dos avisos e das dicas) e `Keycap` (a tecla do prompt).
+  - A fonte de reserva do sistema entra na altura da linha (Toca a 32 = 44 px de linha): a coluna de itens da
+    pausa usa separação -12 para dar um item a cada 41 px.
+  - Peças desenhadas (`tools/generate_ui.py`, sempre em escala inteira): os painéis de rocha `rock_menu`,
+    `rock_pause` e `rock_wide` (a 3x, 240 linhas = 720 px; a borda direita é uma silhueta em degraus que se
+    desfaz em pontilhado), o `logo` "A TOCA" (O trocado pelo arco da caverna, a 3x), os riscos `tally`, a
+    `cave_icon`, a tecla-lápide `key_icon` do rodapé, o `marker` laranja do foco, as setas `up_down` e o atlas
+    `item_icons` (12×12 + sombra, na ordem de `ICONS` no gerador e de `UiStyle.ICONS`).
+  - `UiStyle` tem a paleta (`INK`, `INK_DIM`, `ACCENT`, `MOSS`, `MARK`... e `hex()` para BBCode) e as peças:
+    `rock_panel(kind)`, `sprite(textura, escala)`, `menu_title()`, `tally_line(texto)` (riscos e o texto apagado
+    ao lado), `footer(pai, texto)` (lápide e "[Esc] Voltar ao jogo" no canto de baixo), `menu_button()` (com
+    `add_marker`: o marcador laranja à esquerda, só no foco), `item_icon(item)`, `hud_font_size()` (32, 48 ou 64
+    pelo tamanho de texto das Configurações), `fog_backdrop()` (neblina em Bayer, `ui_fog.gdshader`, nos créditos)
+    e `separator()`.
+  - Menus: painel de rocha à esquerda, o mundo à direita sem escurecer, a coluna em `UiStyle.MENU_LEFT`. O
+    `MainMenu` tem o logo, os riscos (com o save ao lado) e "[Enter] Confirmar"; o `PauseMenu` (montado em código)
+    tem a boca da caverna, "PAUSADO", os riscos com o dia (ou o aviso, como "Jogo salvo.") e "[Esc] Voltar ao
+    jogo"; a lista de Carregar aparece no lugar dos itens. As Dicas e o `SettingsMenu` usam o painel largo.
+    Com o jogo pausado, o HUD some. Os créditos mostram o logo.
+  - HUD: os itens são ícone e quantidade no canto de baixo, direto sobre a cena; a lista de fabricar
+    (`CraftAbility`) fica em cima deles, uma receita por vez: marcador, nome, custo (ou o que falta) embaixo,
+    setas ▲▼ e "[E] Fazer"/"[R] Fechar" à direita.
   - `SettingsMenu` abre por cima do `MainMenu` e do `PauseMenu` (quem abre esconde o próprio painel e volta no
     sinal `closed`); Esc fecha ou cancela a troca de tecla. O HUD separa o "[E]" do prompt numa tecla desenhada.
   - Fora do tema de propósito: a caixa do `FakeFreeze` (tema próprio com a fonte do Windows) e o `KeeperConsole`
@@ -213,7 +235,10 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 - **Animação do goblin (`GoblinAnimator`):** 100% procedural, direto no esqueleto; as animações do glb ficam paradas.
   - Cada frame monta uma *pose* (dicionário: altura do quadril, alvo de cada pé, ângulos de tronco, cabeça, braços e orelhas) e só no fim converte em rotações de osso (`_rotate`: eixos do modelo em repouso, carregados pelo pai).
   - Pernas com IK de duas juntas: o pé segue uma trajetória (apoio no chão + arco no ar), então não escorrega e o joelho dobra. O sinal `foot_planted` toca o passo na hora em que o pé encosta.
-  - Camadas: andar/correr, respirar e olhar em volta parado, curva, agachar, no ar, aterrissar, mira e orelhas com mola.
+  - Marcha (`_gait`, 0 = andar, 1 = disparar, pela velocidade): a perna tem 28 cm, então a cadência sai do alcance dela (`reach`) e o pé apoiado vai para trás na velocidade do chão. Andando, o pé pousa à frente com o calcanhar, o quadril sobe no meio do apoio e o calcanhar sobe atrás logo depois; correndo, há tempo no ar, o pé pousa quase embaixo do quadril, o calcanhar chuta até o traseiro, o joelho puxa o pé por baixo e o quadril afunda no apoio. Acima de ~1,5 m/s o passo já vira trote, por isso a caminhada (`Player.walk_speed`) é 2 m/s (passo ligeiro, no limite), agachado 1,5 m/s e o disparo 4,6 m/s. Correndo, a cadência tem teto (período mínimo 0,33 s): a velocidade a mais vira tempo no ar, não passos mais rápidos. O barulho dos passos vai de `Tuning.WALK_NOISE` andando a 1 no disparo; os bichos veem o movimento como velocidade ÷ `SIGHT_MOTION_SPEED`, nunca abaixo de `UPRIGHT_MOTION` andando de pé.
+  - `_curve` é uma cúbica monotônica: passa pelas chaves do meio sem parar e não passa do valor das vizinhas. Chaves de ação podem ser densas sem o corpo "travar" em cada uma.
+  - Camadas: andar/correr, respirar e olhar em volta parado, curva, agachar, pulo, aterrissar, mira e orelhas com mola.
+  - Pulo (`_jump_pose`): o `Player` não sai do chão na hora; chama `begin_jump` e o corpo agacha por `Tuning.JUMP_PREP` (peito à frente, braços para trás), e só então vem o impulso (`jump_velocity` 2,9 m/s, uns 45 cm de altura, pouco mais que o quadril) e `jump_launched`. No ar a pose segue `vertical_speed`: pernas esticando com a ponta do pé no impulso, joelhos encolhidos no alto, pernas à frente procurando o chão e braços abertos na queda. Correndo vira salto: uma perna à frente e a outra dobrada para trás (`_jump_lead`), braços cruzados com as pernas. No pouso os braços vêm à frente.
   - **Nada perfeito:** a pose neutra (`_neutral`) já é a postura do goblin, curvada e assimétrica (ombro caído, cabeça torta, pés abertos para fora, braços pendurados). Por cima entram oscilações lentas (`_wave`) em cada parte, passadas com altura e abertura sorteadas, ritmo manco (pé direito atrasado), apoio que troca de perna parado e fôlego (ofega e apoia as mãos nos joelhos depois de correr).
   - Manias parado (`_idle_overlay`): coçar a orelha, farejar, olhar para trás, examinar as garras. Não travam o jogador; qualquer movimento corta.
   - Arco: base de arqueiro (quadril e peito de lado, ombro do arco para o alvo, cabeça de volta olhando pela flecha, pés afastados), braço treme se segurar a corda puxada por mais de 1 s e coice ao soltar.
@@ -245,9 +270,21 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - visão em cone com linha de visada e movimento pesando mais que forma parada; pastando enxergam mal;
   - audição do `noise_level()` do jogador e de `noise_made`;
   - olfato quando o vento sopra do jogador para o bicho;
-  - `awareness` leva a desconfiado e depois a fuga; a manada foge junta. A atenção não passa de estímulo × `Tuning.ANIMAL_AWARENESS_CEILING`: sinal fraco (longe, de lado, cheiro ralo) só deixa desconfiado, por mais que dure. Um cervo alerta foge do goblin andando de pé a ~25 m;
+  - `awareness` leva a desconfiado e depois a fuga; a manada foge junta. A atenção não passa de estímulo × `Tuning.ANIMAL_AWARENESS_CEILING`: sinal fraco (longe, de lado, cheiro ralo) só deixa desconfiado, por mais que dure. Um cervo alerta foge do goblin andando de pé a ~18 m (alcances de visão, audição e faro em cada espécie: cervo 25/19/19 m, Velho 30/23/25, coelho 16/12/10, javali 14/16/27, lobo 19/22/50, cervo branco 12/8/10);
   - passos com os mesmos sons de chão do goblin (`Footsteps.SOUNDS` pelo `surface_at`), andando (`step_stride`) e correndo (`gallop_stride`, `Tuning.ANIMAL_RUN_STEP_DB` mais alto);
-  - ferido, sangra e fica lento; morto, vira `interactable`.
+  - ferido, sangra e fica lento; morto, vira `interactable`;
+  - **corpo (`CreatureModel`):** o modelo da espécie (`assets/models/animals/*.glb`) com esqueleto. Cada osso vira um
+    pivô (Node3D com o nome do osso, na junta, sem giro) e o código do bicho anima os pivôs; `Animal._process` chama
+    `model.sync()`, que dá a cada osso o mesmo movimento do pivô desde o repouso (até `CreatureModel.SYNC_RANGE`).
+    Flechas presas, o tombo da morte (tween no `corpo`) e as pegadas seguem iguais. Ossos: `corpo`, `peito`,
+    `pescoco`, `cabeca`, `orelha_E/D`, `cauda` e as pernas `d_`/`t_` (`coxa` → `canela` → `pata`, `_E`/`_D`); aves:
+    `corpo`, `cabeca`, `asa_E/D` (o corvo também `pernas` e `cauda`). Asas e pernas escondidas = pivô com escala ~0;
+  - **pelo (`AnimalLook`):** cada região do modelo (`bicho.pelo`, `bicho.claro`, `bicho.casco`...) recebe da paleta
+    da espécie [textura, tinta] (`pelt.png`, `bristle.png`, `plumage.png` no `animal_skin.gdshader`, projetado na
+    pose de repouso como a pele do goblin) ou uma cor lisa. Malha e materiais são feitos uma vez por espécie;
+  - **passo (`QuadrupedGait`):** cervo, javali e lobo andam em quatro tempos e galopam com tempo no ar; o ciclo anda
+    com a distância (`stride_walk`/`stride_run`), e no ar o carpo e o jarrete dobram. `fold()` deita, `lift_front()`
+    bate a pata.
 
   O jogador expõe `noise_level()` e `visibility()` (agachado, parado e coberto por capim ou mata).
 - **Física, camadas:** 1 `world` (terreno, caverna, pedras, troncos caídos), 2 `trees`, 3 `player`, 4 `animals` (Area3D de acerto). Raios de som só testam a camada 1. Visão dos bichos: 1 e 2. Flechas: 1, 2 e 4.
@@ -326,7 +363,16 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
     ```
   - Não reexporte o `goblin_blueprint.json` com `export_game`: isso descarta o polimento e o rig articulado.
   - Nada perfeito também na malha: o crânio é um `blob` deformado por `skull_shape` (testa baixa, alto da cabeça estreito subindo para trás, têmporas fundas, calombos, lado esquerdo mais cheio), e depois da união a pele inteira ganha calombos lentos (ondas com semente 346), mais fracos no rosto e em volta dos olhos.
-- **Bichos, arco e flechas:** montados em código.
+  - Nada colado por cima da pele: boca, narinas, órbitas, concha da orelha e unhas são entalhadas na própria malha do corpo. Depois do decimate, só essas regiões (e as pontas dos dedos) são subdivididas (`near_feature`), entalhadas (sulco da boca entre os lábios, furos das narinas, órbita que afunda atrás do globo, de modo que as pálpebras são a pele em volta) e pintadas face a face (`boca`, `orelha_interna`, `unha`). Os olhos são globos (`EYE_R`) com a pupila em fenda pintada no próprio globo, e as presas nascem de dentro do sulco. O nariz é uma cunha (`corpo_nariz`) que nasce larga do rosto e afina até a ponta; as sobrancelhas são saliências afundadas no crânio.
+- **Bichos:** `assets/models/animals/source/build_animals.py` (Blender, por linha de comando) monta cada espécie como o
+  goblin: corpo de lofts, tubos e bolhas fundido por remesh de voxel, suavizado, com calombos e reduzido; detalhes à
+  parte (cascos, olhos, focinho, orelhas, galhada, presas, crina, garras, bico, rêmiges); regiões por função da
+  posição; pesos pela distância ao osso em "raios de carne". As medidas ficam no espaço do Godot. Regerar:
+  ```powershell
+  & $blender --background --python assets\models\animals\source\build_animals.py -- [especie ...] [--preview=pasta]
+  ```
+  `--preview` grava renders de conferência (lado, frente, trás). Depois rode o `--import` do Godot.
+- **Arco e flechas:** montados em código.
 - **Props montados por código** (arbusto e cogumelos da coleta, tocaia, defumador, troféus): nada de caixa com cor chapada. Galhos com `TreeBuilder.add_branch`/`crooked_line` e a casca das árvores, folhagem em cartões no `foliage.gdshader` (`bush_card.png`, `berry_card.png`, `pine_branch.png`) e osso/cogumelo com textura pixelada triplanar, tudo pelos materiais de `PropLook`.
 - **Assets de terceiros:** só CC0 ou licença compatível, registrados em `assets/CREDITS.md`.
 

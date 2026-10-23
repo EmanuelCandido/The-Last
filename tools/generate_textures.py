@@ -214,6 +214,67 @@ def fur(size=64):
     return img
 
 
+def pelt(size=64):
+    """Pelo curto dos bichos, quase neutro (o shader tinge por região): fios curtos caídos
+    para baixo, mechas mais escuras e pontas claras. Tileável."""
+    rng = np.random.default_rng(141)
+    v = spectral_noise(size, size, 1.6, 142) * 0.6 + spectral_noise(size, size, 0.8, 143) * 0.4
+    stops = [(0.0, (0.5, 0.47, 0.43)), (0.5, (0.7, 0.67, 0.62)), (1.0, (0.86, 0.83, 0.78))]
+    img = ramp(v, stops)
+    for _ in range(1400):
+        x, y = rng.uniform(0, size, 2)
+        a = rng.normal(np.pi / 2, 0.28)
+        t = np.clip(v[int(y), int(x)] + rng.normal(0, 0.3), 0, 1)
+        stroke(img, x, y, np.cos(a), np.sin(a), rng.integers(2, 5), ramp_color(t, stops))
+    # Mechas: faixas mais escuras na direção do pelo.
+    clumps = spectral_noise(size, size, 1.2, 144, stretch_y=0.25)
+    img *= (0.8 + 0.25 * clumps)[..., None]
+    img[rng.random((size, size)) < 0.05] *= 0.75
+    return img
+
+
+def bristle(size=64):
+    """Cerdas do javali: fios longos, grossos e duros, escuros com pontas claras."""
+    rng = np.random.default_rng(151)
+    v = spectral_noise(size, size, 1.4, 152)
+    img = ramp(v, [(0.0, (0.28, 0.26, 0.24)), (1.0, (0.5, 0.47, 0.43))])
+    for _ in range(700):
+        x, y = rng.uniform(0, size, 2)
+        a = rng.normal(np.pi / 2, 0.22)
+        length = rng.integers(5, 11)
+        dark = rng.uniform(0.15, 0.35)
+        stroke(img, x, y, np.cos(a), np.sin(a), length, np.array([dark, dark * 0.92, dark * 0.85]))
+        if rng.random() < 0.4:
+            stroke(img, x + np.cos(a) * length, y + np.sin(a) * length, np.cos(a), np.sin(a), 1, np.array([0.58, 0.54, 0.47]))
+    return img
+
+
+def plumage(size=64):
+    """Penas: escamas sobrepostas (cada pena com a raque e a borda mais clara), quase neutras."""
+    rng = np.random.default_rng(161)
+    img = np.full((size, size, 3), 0.5)
+    shade = spectral_noise(size, size, 1.3, 162)
+    yy, xx = np.mgrid[0:size, 0:size] + 0.5
+    rows = 8
+    for row in range(rows + 1):
+        for col in range(rows):
+            cx = (col + 0.5 * (row % 2) + rng.uniform(-0.15, 0.15)) * size / rows
+            cy = (row + rng.uniform(-0.1, 0.1)) * size / rows
+            for ox in (-size, 0, size):
+                for oy in (-size, 0, size):
+                    dx = (xx - cx - ox) / (size / rows * 0.62)
+                    dy = (yy - cy - oy) / (size / rows * 0.9)
+                    inside = (dx * dx + dy * dy < 1.0) & (dy > -0.6)
+                    edge = inside & (dx * dx + dy * dy > 0.62)
+                    tone = 0.45 + 0.25 * rng.random()
+                    img[inside] = tone
+                    img[edge] = tone + 0.14
+                    img[inside & (np.abs(dx) < 0.09)] = tone - 0.12
+    img *= (0.85 + 0.3 * shade)[..., None]
+    img *= np.array([1.0, 0.98, 0.95])
+    return img
+
+
 def grass_card(size=64):
     """Tufo de capim seco com fundo transparente (cartão de grama)."""
     rng = np.random.default_rng(61)
@@ -572,6 +633,9 @@ def main():
     save("rock.png", rock())
     save("bark.png", bark())
     save("fur.png", fur())
+    save("pelt.png", pelt())
+    save("bristle.png", bristle())
+    save("plumage.png", plumage())
     save("grass_card.png", *grass_card())
     save("pine_branch.png", *pine_branch())
     save("leaves_card.png", *leaves_card())

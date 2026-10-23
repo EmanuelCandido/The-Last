@@ -15,6 +15,7 @@ const FLAP_SOUND := preload("res://assets/audio/animals/wing_flap.wav")
 const CAWS := [preload("res://assets/audio/animals/crow_1.wav"), preload("res://assets/audio/animals/crow_2.wav")]
 ## A voz do Zelador saindo do bico (Ato III).
 const KEEPER_VOICE := preload("res://assets/audio/sfx/keeper_voice_1.wav")
+const MODEL := preload("res://assets/models/animals/crow.glb")
 ## Segundos descendo até o pouso e de onde vem (m acima e para o lado).
 const LANDING_TIME := 2.2
 const LANDING_FROM := Vector3(6.0, 12.0, 0.0)
@@ -45,32 +46,23 @@ var _watch_seconds := 0.0
 var _from := Vector3.ZERO
 var _caw_timer := 0.0
 var _voice: AudioStreamPlayer3D
+var _model: CreatureModel
 
 
 func _ready() -> void:
-	var feathers := Animal.flat_material(Color(0.05, 0.05, 0.06))
-	var beak := Animal.flat_material(Color(0.18, 0.17, 0.16))
-	_part(self, Vector3(0.12, 0.1, 0.38), Vector3.ZERO, feathers)
-	_head = Node3D.new()
-	_head.position = Vector3(0.0, 0.03, 0.2)
-	add_child(_head)
-	_part(_head, Vector3(0.09, 0.09, 0.1), Vector3(0.0, 0.0, 0.02), feathers)
-	_part(_head, Vector3(0.03, 0.03, 0.09), Vector3(0.0, -0.01, 0.1), beak)
-	_part(self, Vector3(0.14, 0.02, 0.15), Vector3(0.0, 0.0, -0.25), feathers)
-	for side in [-1.0, 1.0]:
-		var wing := Node3D.new()
-		wing.position = Vector3(0.05 * side, 0.03, 0.0)
-		add_child(wing)
-		_part(wing, Vector3(0.5, 0.015, 0.2), Vector3(0.25 * side, 0.0, 0.0), feathers)
-		wings.append(wing)
-	# As pernas só aparecem pousado (em voo ficam recolhidas).
-	_legs = Node3D.new()
-	_legs.visible = false
-	# O corpo pousado inclina: as pernas desfazem a inclinação e ficam em pé.
-	_legs.rotation.x = -PERCH_PITCH
-	add_child(_legs)
-	for side in [-1.0, 1.0]:
-		_part(_legs, Vector3(0.012, 0.11, 0.012), Vector3(0.03 * side, -0.09, 0.06), beak)
+	# Corpo com esqueleto (CreatureModel): penas pretas com reflexo azulado, bico e pernas
+	# cinza-escuro. As asas e as pernas são pivôs; pernas encolhidas (escala quase zero) em voo.
+	_model = CreatureModel.attach(self, MODEL, {
+		"pena": [AnimalLook.PLUMAGE, Color(0.2, 0.2, 0.24)],
+		"bico": Color(0.1, 0.095, 0.09),
+		"olho": Color(0.02, 0.02, 0.02),
+	}, "crow")
+	_head = _model.joint("cabeca")
+	wings = [_model.joint("asa_D"), _model.joint("asa_E")]
+	_legs = _model.joint("pernas")
+	_show_legs(false)
+	for node in find_children("*", "MeshInstance3D", true, false):
+		(node as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# Área de acerto um pouco maior que o corpo com as asas abertas: alvo alto e rápido.
 	var hitbox := Area3D.new()
 	hitbox.name = "Hitbox"
@@ -88,6 +80,16 @@ func _ready() -> void:
 	_voice.unit_size = 6.0
 	_voice.max_distance = 80.0
 	add_child(_voice)
+
+
+func _process(_delta: float) -> void:
+	if _model != null:
+		_model.sync()
+
+
+## Pousado, as pernas aparecem; em voo ficam recolhidas (o pivô delas encolhe a quase nada).
+func _show_legs(shown: bool) -> void:
+	_legs.scale = Vector3.ONE if shown else Vector3.ONE * 0.001
 
 
 func _physics_process(delta: float) -> void:
@@ -109,7 +111,7 @@ func _physics_process(delta: float) -> void:
 			# Em pé: o peito sobe e as pernas descem (o corpo de caixa deitado parecia um tijolo).
 			rotation.x = lerp_angle(rotation.x, PERCH_PITCH, 1.0 - exp(-8.0 * delta))
 			position.y = lerpf(position.y, _perch.y - 0.07 + PERCH_HEIGHT, 1.0 - exp(-8.0 * delta))
-			_legs.visible = true
+			_show_legs(true)
 			_look_at_watch(delta)
 			_caw_timer -= delta
 			if speech != "" and _caw_timer <= 0.0:
@@ -129,7 +131,7 @@ func _physics_process(delta: float) -> void:
 		Mode.LEAVING:
 			_timer += delta
 			rotation.x = lerp_angle(rotation.x, 0.0, 1.0 - exp(-6.0 * delta))
-			_legs.visible = false
+			_show_legs(false)
 			var away := Vector3(sin(rotation.y), 0.0, cos(rotation.y))
 			position += (away * 7.0 + Vector3.UP * 4.0) * delta
 			_flap(sin(_timer * 14.0) * 0.8)
