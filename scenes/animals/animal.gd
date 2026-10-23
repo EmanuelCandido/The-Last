@@ -10,7 +10,8 @@ extends Node3D
 ##   altos do mundo (Events.noise_made: árvore caindo, flecha batendo);
 ## - olfato: se o vento sopra do goblin para o bicho, ele sente o cheiro de longe.
 ## Os estímulos somam `awareness`: acima de SUSPICIOUS o bicho para e encara; acima de
-## FLEE ele foge (e avisa a manada). Ferido, foge sangrando e mais devagar; morto,
+## FLEE ele foge (e avisa a manada). A atenção não passa de estímulo × Tuning.ANIMAL_AWARENESS_CEILING:
+## um sinal fraco (longe, de lado, um cheiro ralo) deixa desconfiado, mas não faz fugir. Ferido, foge sangrando e mais devagar; morto,
 ## vira caça para coletar com E.
 ##
 ## Não usa física para andar: segue a altura do Terrain. O modelo olha para +Z.
@@ -26,16 +27,19 @@ const STARTLE_SECONDS := 3.0
 const STARTLE_OVERRIDE := 1.0
 const HIT_LAYER := 8
 const PICKUP_SOUND := preload("res://assets/audio/real/pickup_5.ogg")
-## Passo em terra, mais agudo: batida de casco correndo.
-const HOOF_SOUND := preload("res://assets/audio/real/hoof_dirt.ogg")
 
 @export_group("Movimento")
 @export var walk_speed := 1.2
 @export var run_speed := 7.0
 @export var turn_speed := 4.0
 @export var home_radius := 22.0
-## Distância (m) entre batidas de casco correndo; 0 = sem som.
+## Distância (m) entre um passo e outro andando e correndo; 0 = sem som. Os passos usam os
+## mesmos sons de chão do goblin (Footsteps.SOUNDS): no mesmo chão, o mesmo som.
+@export var step_stride := 0.0
 @export var gallop_stride := 0.0
+## Volume de um passo andando (dB); correndo, Tuning.ANIMAL_RUN_STEP_DB mais alto. E o tom.
+@export var step_volume_db := -12.0
+@export var step_pitch := 1.0
 ## Tamanho da pegada (largura, comprimento em m); zero = não deixa pegadas.
 @export var track_size := Vector2.ZERO
 ## Quanto cada pegada sai para o lado do caminho (m), alternando: a fila de cascos.
@@ -91,7 +95,7 @@ var _track_distance := 0.0
 var _track_left := false
 var _hitbox: Area3D
 var _voice: OccludedAudio
-var _hooves: OccludedAudio
+var _steps: OccludedAudio
 
 
 func setup(world_terrain: Terrain, home_position: Vector2, rng_seed: int) -> void:
@@ -118,8 +122,7 @@ func _ready() -> void:
 	add_child(_hitbox)
 	_build_hitbox(_hitbox)
 	_voice = _make_sound()
-	_hooves = _make_sound()
-	_hooves.stream = HOOF_SOUND
+	_steps = _make_sound()
 	Events.noise_made.connect(_on_noise)
 
 
@@ -208,7 +211,7 @@ func alarm(threat: Vector2) -> void:
 func freeze(seconds: float) -> void:
 	_frozen = seconds
 	_voice.stop()
-	_hooves.stop()
+	_steps.stop()
 
 
 func is_frozen() -> bool:
@@ -284,20 +287,22 @@ func _sense(dt: float) -> void:
 
 	var from_player := Vector2(global_position.x - player.global_position.x, global_position.z - player.global_position.z)
 	# Coberto de lama, o goblin cheira menos (Player.scent_level).
-	var scent_range := (smell_range * Wind.intensity + 10.0) * player.scent_level()
+	var scent_range := (smell_range * Wind.intensity + 6.0) * player.scent_level()
 	if from_player.length() < scent_range:
 		var downwind := from_player.normalized().dot(Wind.direction)
 		if downwind > 0.6:
-			stimulus += (downwind - 0.6) / 0.4 * (1.0 - from_player.length() / scent_range) * 1.5
+			stimulus += (downwind - 0.6) / 0.4 * (1.0 - from_player.length() / scent_range)
 
-	if stimulus > 0.05:
+	if stimulus > 0.05 and (_startle <= 0.0 or seen > STARTLE_OVERRIDE):
 		# Assustado com um barulho, só olha para o goblin se o vir com clareza (cheiro e
 		# passos não dizem de onde vem o perigo).
-		if _startle <= 0.0 or seen > STARTLE_OVERRIDE:
-			_threat = Vector2(player.global_position.x, player.global_position.z)
-		awareness = minf(awareness + stimulus * dt, 1.5)
+		_threat = Vector2(player.global_position.x, player.global_position.z)
+	# A atenção sobe até o teto do estímulo de agora e, acima dele, volta a cair devagar.
+	var ceiling := stimulus * Tuning.ANIMAL_AWARENESS_CEILING if stimulus > 0.05 else 0.0
+	if awareness < ceiling:
+		awareness = minf(awareness + stimulus * dt, minf(ceiling, 1.5))
 	else:
-		awareness = maxf(awareness - dt * (0.08 if state == State.FLEE else 0.12), 0.0)
+		awareness = maxf(awareness - dt * (0.08 if state == State.FLEE else 0.12), ceiling)
 
 
 func _line_of_sight(from: Vector3, to: Vector3) -> bool:
@@ -414,13 +419,27 @@ func _move(delta: float, here: Vector2) -> void:
 	position = Vector3(next.x, terrain.get_height(next.x, next.y), next.y)
 	rotation.y = _yaw
 	_leave_tracks(speed * delta)
+	_play_steps(speed * delta)
 
-	if gallop_stride > 0.0 and speed > walk_speed * 2.0:
-		_stride += speed * delta
-		if _stride >= gallop_stride:
-			_stride = 0.0
-			_hooves.pitch_scale = _rng.randf_range(1.2, 1.5)
-			_hooves.play()
+
+## Um passo a cada `step_stride` andados (`gallop_stride` correndo), com o som do chão embaixo:
+## os mesmos do goblin (Footsteps.SOUNDS e o volume de cada chão).
+func _play_steps(moved: float) -> void:
+	var running := speed > walk_speed * 2.0
+	var stride := gallop_stride if running and gallop_stride > 0.0 else step_stride
+	if stride <= 0.0 or moved <= 0.0:
+		return
+	_stride += moved
+	if _stride < stride:
+		return
+	_stride = 0.0
+	var level := Game.current_level
+	var surface: StringName = level.surface_at(global_position) if level != null and level.has_method("surface_at") else &"grass"
+	var options: Array = Footsteps.SOUNDS.get(surface, Footsteps.SOUNDS[&"grass"])
+	_steps.stream = options.pick_random()
+	_steps.pitch_scale = step_pitch * _rng.randf_range(0.9, 1.1)
+	_steps.set_base_volume(step_volume_db + float(Footsteps.SURFACE_DB.get(surface, 0.0)) + _rng.randf_range(-2.0, 0.0) + (Tuning.ANIMAL_RUN_STEP_DB if running else 0.0))
+	_steps.play()
 
 
 ## A cada Tuning.TRACK_SPACING andados, uma pegada (alternando os lados da fila).

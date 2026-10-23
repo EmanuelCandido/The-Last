@@ -19,9 +19,12 @@ func _init() -> void:
 	walk_speed = 1.1
 	run_speed = 10.0
 	home_radius = 20.0
-	sight_range = 55.0
+	sight_range = 45.0
 	hearing_range = 35.0
-	smell_range = 70.0
+	smell_range = 35.0
+	step_stride = 0.8
+	step_volume_db = -11.0
+	step_pitch = 0.9
 	eye_height = 1.45
 	calm_distance = 70.0
 	max_health = 2.0

@@ -95,6 +95,12 @@ const COLD_DAMAGE := 0.6
 
 ## De noite os bichos enxergam o goblin com esta fração da visibilidade de dia.
 const NIGHT_VISIBILITY := 0.55
+## Os bichos: a atenção não passa de (estímulo por segundo) × isto. Fugir (0,8) pede um estímulo
+## de 0,4/s, o que ver o goblin andando de pé dá a ~25 m de um cervo alerta; desconfiar (0,35), um
+## de 0,18/s. Sinal mais fraco que isso, por mais que dure, não assusta.
+const ANIMAL_AWARENESS_CEILING := 2.0
+## Quanto o passo de um bicho correndo sai mais alto que andando (dB).
+const ANIMAL_RUN_STEP_DB := 5.0
 
 ## Queda: acima desta velocidade (m/s), dano = (v - FALL_DAMAGE_SPEED) * FALL_DAMAGE_PER_MS.
 const FALL_DAMAGE_SPEED := 8.0

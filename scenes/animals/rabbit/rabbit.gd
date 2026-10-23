@@ -17,7 +17,11 @@ func _init() -> void:
 	home_radius = 12.0
 	sight_range = 30.0
 	hearing_range = 22.0
-	smell_range = 30.0
+	smell_range = 18.0
+	step_stride = 0.5
+	gallop_stride = 0.9
+	step_volume_db = -24.0
+	step_pitch = 1.4
 	kind = &"rabbit"
 	eye_height = 0.3
 	calm_distance = 35.0

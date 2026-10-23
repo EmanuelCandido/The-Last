@@ -195,7 +195,8 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - visão em cone com linha de visada e movimento pesando mais que forma parada; pastando enxergam mal;
   - audição do `noise_level()` do jogador e de `noise_made`;
   - olfato quando o vento sopra do jogador para o bicho;
-  - `awareness` leva a desconfiado e depois a fuga; a manada foge junta;
+  - `awareness` leva a desconfiado e depois a fuga; a manada foge junta. A atenção não passa de estímulo × `Tuning.ANIMAL_AWARENESS_CEILING`: sinal fraco (longe, de lado, cheiro ralo) só deixa desconfiado, por mais que dure. Um cervo alerta foge do goblin andando de pé a ~25 m;
+  - passos com os mesmos sons de chão do goblin (`Footsteps.SOUNDS` pelo `surface_at`), andando (`step_stride`) e correndo (`gallop_stride`, `Tuning.ANIMAL_RUN_STEP_DB` mais alto);
   - ferido, sangra e fica lento; morto, vira `interactable`.
 
   O jogador expõe `noise_level()` e `visibility()` (agachado, parado e coberto por capim ou mata).

@@ -48,6 +48,9 @@ func _init() -> void:
 	sight_fov_deg = 240.0
 	hearing_range = 40.0
 	smell_range = 90.0
+	step_stride = 0.75
+	step_volume_db = -16.0
+	step_pitch = 1.1
 	eye_height = 0.65
 	calm_distance = 80.0
 	max_health = 2.0
@@ -202,12 +205,7 @@ func _move(delta: float, here: Vector2) -> void:
 	position = Vector3(next.x, terrain.get_height(next.x, next.y), next.y)
 	rotation.y = _yaw
 	_leave_tracks(speed * delta)
-	if gallop_stride > 0.0 and speed > walk_speed * 2.0:
-		_stride += speed * delta
-		if _stride >= gallop_stride:
-			_stride = 0.0
-			_hooves.pitch_scale = _rng.randf_range(1.6, 1.9)
-			_hooves.play()
+	_play_steps(speed * delta)
 
 
 func _is_walkable(p: Vector2) -> bool:
