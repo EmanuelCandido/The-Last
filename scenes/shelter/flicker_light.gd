@@ -4,7 +4,7 @@ extends OmniLight3D
 ## de emergência ("blink") ou falhando como lâmpada velha ("flicker"). O brilho da luminária
 ## acompanha a luz, e a lâmpada que falha zumbe (light_buzz) quando acende.
 
-const BUZZ := preload("res://assets/audio/ambience/light_buzz.wav")
+const BUZZ := preload("res://assets/audio/real/fluorescent_buzz_loop.wav")
 
 ## "steady", "blink" ou "flicker".
 @export var mode := &"steady"

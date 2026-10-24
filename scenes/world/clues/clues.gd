@@ -10,7 +10,7 @@ extends Node
 ## dentro da rocha, embaixo do goblin, onde não há nada.
 
 const BEEP := preload("res://assets/audio/sfx/monitor_beep.wav")
-const FAN := preload("res://assets/audio/sfx/fan_hum.wav")
+const FAN := preload("res://assets/audio/real/extractor_fan.ogg")
 const KEEPER_VOICE := preload("res://assets/audio/sfx/keeper_voice_2.wav")
 ## Segundos entre o salto da Vigilância e a voz (deixa o goblin acordar, se foi isso).
 const ROCK_VOICE_DELAY := 4.0

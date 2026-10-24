@@ -7,7 +7,7 @@ extends Node3D
 
 signal burned_out
 
-const FIRE_LOOP := preload("res://assets/audio/ambience/fire_loop.wav")
+const FIRE_LOOP := preload("res://assets/audio/real/campfire_loop.wav")
 ## Pau apagado fica no chão este tanto antes de sumir (s).
 const ASH_SECONDS := 40.0
 

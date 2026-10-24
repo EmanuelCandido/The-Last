@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scenes/world/props/falling_leaves.gd" id="1_script"]
 [ext_resource type="Texture2D" path="res://assets/textures/leaf.png" id="2_leaf"]
-[ext_resource type="AudioStream" path="res://assets/audio/ambience/leaves_loop.wav" id="3_rustle"]
+[ext_resource type="AudioStream" path="res://assets/audio/real/leaves_wind_loop.wav" id="3_rustle"]
 [ext_resource type="Script" path="res://components/occluded_audio.gd" id="4_occluded"]
 
 [sub_resource type="Curve" id="Curve_scale"]

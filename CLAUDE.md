@@ -25,6 +25,7 @@ $godot = "C:\Users\emano\Downloads\Godot_v4.7.1-stable_win64.exe\Godot_v4.7.1-st
 python tools/generate_textures.py                                       # regera assets/textures/*.png
 python tools/generate_sounds.py                                         # regera assets/audio/**/*.wav
 python tools/generate_ui.py                                             # regera assets/ui/ (fonte Toca e texturas da interface)
+python tools/process_real_sounds.py --raw=PASTA                         # corta e trata as gravações reais (CREDITS.md)
 ```
 
 - **Argumentos do DevTools** (depois de `--`), documentados em `autoload/dev_tools.gd`:
@@ -359,7 +360,14 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
     - passos em grama, terra, pedra e tronco, casco do cervo, impactos de flecha, golpe na madeira, rangido, coleta e faca (Kenney). Pedra e tronco passaram por passa-baixa, porque o goblin anda descalço;
     - puxar, encaixar e soltar o arco (Medieval SFX, OpenGameArt).
   - Passos em terra (`step_dirt_*`): gravação real numa estrada de terra (Freesound, CC0), cortada passo a passo com um expansor para o ambiente da gravação não sobrar no fim. A caverna (`step_cave_*`) usa os mesmos cortes, com passa-baixa de 3 kHz e um tom abaixo. Já foram testados e rejeitados: as gravações de sapato do RPG Audio (o "toc-toc" de salto e ponta), passo sintético e passos de carpete ou neve abafados.
-  - O resto é sintético (`tools/generate_sounds.py`).
+  - Gravações do Freesound e do Wikimedia (CC0) no lugar de 26 sintéticos: folhas, fogueira, lâmpada, ventilador,
+    sino, bater de asas, corvo 1, bufo e pata do cervo, guincho do javali, rosnados e ganido do lobo, puxar e soltar
+    o ar, farejar, roncos da barriga, mastigar, dentes batendo (montado com um estalo real repetido), árvore caindo,
+    pedra jogada, persiana, glitch e porta blindada. Os brutos ficam fora do
+    repositório (links no CREDITS.md); `tools/process_real_sounds.py --raw=PASTA` corta, põe em mono, iguala o volume
+    ao do sintético que saiu (`LEVELS`) e grava em `audio/real/`: loops em WAV com chunk smpl e emenda cruzada de
+    2 s, o resto em OGG. O sino lá fora tem três badaladas e o `Outside` o repete pela duração dele.
+  - O resto é sintético (`tools/generate_sounds.py`); os sons que viraram gravação saíram de lá.
   - Uivo do lobo: o jogo usa `assets/audio/animals/wolf_howl_real_N.(ogg|wav|mp3)` se existir; senão, o sintético.
   - Origem de cada arquivo em `assets/CREDITS.md`.
 - **Goblin:**

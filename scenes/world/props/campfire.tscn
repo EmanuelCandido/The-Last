@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scenes/world/props/campfire.gd" id="1_script"]
 [ext_resource type="Texture2D" path="res://assets/textures/bark.png" id="2_bark"]
-[ext_resource type="AudioStream" path="res://assets/audio/ambience/fire_loop.wav" id="3_fire"]
+[ext_resource type="AudioStream" path="res://assets/audio/real/campfire_loop.wav" id="3_fire"]
 [ext_resource type="Shader" path="res://assets/shaders/rock.gdshader" id="4_rock"]
 [ext_resource type="Texture2D" path="res://assets/textures/rock.png" id="5_rock"]
 [ext_resource type="Texture2D" path="res://assets/textures/ground_forest.png" id="6_moss"]

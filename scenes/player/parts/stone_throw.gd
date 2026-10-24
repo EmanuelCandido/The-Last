@@ -6,7 +6,7 @@ extends Node
 ##
 ## Parte do goblin: um nó filho do Player. Tirar o nó tira a mecânica.
 
-const THROW_SOUND := preload("res://assets/audio/sfx/stone_throw.wav")
+const THROW_SOUND := preload("res://assets/audio/real/stone_throw.ogg")
 
 @onready var _player: Player = get_parent()
 

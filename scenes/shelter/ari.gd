@@ -9,8 +9,8 @@ extends CharacterBody3D
 ## Montado por código. Quem cria é o Shelter (spawn_ari); quem liga o controle são as cenas
 ## de acordar (wake_in) e de deitar de volta (lie_down_in).
 
-const BREATH_IN := preload("res://assets/audio/sfx/breath_in.wav")
-const GASP := preload("res://assets/audio/sfx/gasp.wav")
+const BREATH_IN := preload("res://assets/audio/real/breath_in.ogg")
+const GASP := preload("res://assets/audio/real/gasp.ogg")
 const HEARTBEAT := preload("res://assets/audio/sfx/heartbeat.wav")
 const MOUSE_SENSITIVITY := 0.0025
 const PITCH_LIMIT := deg_to_rad(80.0)

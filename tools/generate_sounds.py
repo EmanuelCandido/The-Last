@@ -155,30 +155,8 @@ def wind_loop(seconds=24):
     return rms_norm(body) + 0.35 * rms_norm(howl) * (0.3 + 0.7 * gust) + 0.12 * rms_norm(hiss)
 
 
-def leaves_loop(seconds=16):
-    rng = np.random.default_rng(2)
-    n = seconds * SR
-    gust = slow_env(n, rng, 1, 5)
-    hiss = band(periodic_noise(n, rng), 1800, 8500) * (0.25 + 0.75 * gust)
-    times = thinned_times(rng, n, 140, gust**1.5)
-    crackle = place_events(n, times, lambda: burst(rng, rng.uniform(0.004, 0.02), rng.uniform(0.002, 0.008)) * rng.uniform(0.2, 1.0))
-    crackle = band(crackle, 2000, 9000)
-    return 0.5 * rms_norm(hiss) + rms_norm(crackle)
 
 
-def fire_loop(seconds=12):
-    rng = np.random.default_rng(3)
-    n = seconds * SR
-    flicker = slow_env(n, rng, 20, 80, 0.6, 1.0) * slow_env(n, rng, 2, 6, 0.7, 1.0)
-    roar = band(periodic_noise(n, rng, beta=1.0), 40, 400) * flicker
-    cracks = place_events(n, rng.uniform(0, n, 7 * seconds),
-                          lambda: burst(rng, rng.uniform(0.003, 0.012), rng.uniform(0.0008, 0.004), 0.0002) * rng.lognormal(0, 0.6))
-    cracks = band(cracks, 900, 7000)
-    pops = place_events(n, rng.uniform(0, n, seconds // 2),
-                        lambda: burst(rng, 0.05, rng.uniform(0.008, 0.02), 0.0003) * rng.uniform(1.5, 3.0))
-    pops = band(pops, 300, 4000)
-    hiss = band(periodic_noise(n, rng), 3000, 9000) * flicker
-    return 0.18 * rms_norm(roar) + 0.7 * peak_norm(cracks) + 0.6 * peak_norm(pops) + 0.02 * rms_norm(hiss)
 
 
 def cave_loop(seconds=12):
@@ -297,31 +275,8 @@ def drip(variant):
 
 # --- Árvore caindo e vozes de bichos (caça) -----------------------------------------
 
-def tree_fall():
-    """Estalos e rangido enquanto tomba, depois o baque no chão (~3 s)."""
-    rng = np.random.default_rng(96)
-    n = int(3.2 * SR)
-    t = np.arange(n) / SR
-    creak = np.zeros(n)
-    for fc in (180, 260, 390):
-        creak += band_oneshot(rng.standard_normal(n), fc * 0.96, fc * 1.04, edge=0.03)
-    creak *= (0.5 + 0.5 * np.sin(TAU * 11 * t) ** 2) * smoothstep(0.0, 0.4, t) * (1 - smoothstep(1.4, 1.75, t))
-    cracks = place_events(n, rng.uniform(0, 1.6 * SR, 14), lambda: burst(rng, 0.03, 0.006, 0.0003) * rng.uniform(0.3, 1.0))
-    cracks[int(1.8 * SR):] = 0
-    cracks = band_oneshot(cracks, 800, 6000)
-    impact_t = np.maximum(t - 1.75, 0)
-    impact = band_oneshot(rng.standard_normal(n), 40, 700) * np.exp(-impact_t / 0.35) * (t >= 1.75)
-    rumble = tone(np.full(n, 55.0)) * np.exp(-impact_t / 0.5) * (t >= 1.75)
-    branches = place_events(n, rng.uniform(1.75 * SR, 2.4 * SR, 25), lambda: burst(rng, 0.04, 0.01, 0.0005) * rng.uniform(0.2, 0.8))
-    branches = band_oneshot(branches, 1000, 7000)
-    return 0.5 * peak_norm(creak) + 0.6 * peak_norm(cracks) + peak_norm(impact) + 0.6 * peak_norm(rumble) + 0.5 * peak_norm(branches)
 
 
-def deer_snort():
-    rng = np.random.default_rng(97)
-    t = np.arange(int(0.4 * SR)) / SR
-    breath = formants(rng.standard_normal(len(t)), [(600, 200, 1.0), (1400, 300, 0.6)])
-    return peak_norm(breath) * np.minimum(t / 0.01, 1.0) * np.exp(-t / 0.12)
 
 
 def rabbit_squeal():
@@ -332,38 +287,8 @@ def rabbit_squeal():
 
 # --- Corpo, fogo e caverna (sobrevivência) ------------------------------------------
 
-def stomach_growl(variant):
-    """Ronco da barriga: um tom grave que sobe e desce, borbulhando, com bolhas soltas."""
-    rng = np.random.default_rng(140 + variant)
-    dur = rng.uniform(1.1, 1.6)
-    n = int(dur * SR)
-    t = np.arange(n) / SR
-    f = rng.uniform(70, 105) * (1 + 0.3 * np.sin(TAU * rng.uniform(0.6, 1.2) * t + rng.uniform(0, TAU))
-                                + 0.08 * np.sin(TAU * rng.uniform(5, 8) * t))
-    voice = tone(f, ((1, 1.0), (2, 0.6), (3, 0.35), (4, 0.2), (5, 0.1)))
-    # Borbulha: o tom vem em golfadas irregulares, não contínuo.
-    gurgle = (0.55 + 0.45 * np.sin(TAU * rng.uniform(9, 15) * t + 2.0 * np.sin(TAU * 3.1 * t))) ** 2
-    bubble = lambda: tone(np.full(int(0.05 * SR), rng.uniform(180, 420))) * np.exp(-np.arange(int(0.05 * SR)) / SR / 0.012)
-    bubbles = place_events(n, rng.uniform(0, n, rng.integers(5, 10)), bubble)
-    env = np.sin(np.pi * t / dur) ** 0.7 * (1 - 0.4 * smoothstep(0.5, 0.7, t / dur) * smoothstep(0.9, 0.7, t / dur))
-    x = formants(voice * gurgle, [(160, 70, 1.0), (380, 110, 0.6), (700, 150, 0.2)]) * env
-    return band_oneshot(peak_norm(x) + 0.25 * peak_norm(bubbles) * env, 40, 1200)
 
 
-def chew(variant):
-    """Mastigar carne: mordidas úmidas e abafadas, cada uma com um estalo de fibra."""
-    rng = np.random.default_rng(150 + variant)
-    n = int(0.9 * SR)
-    out = np.zeros(n)
-    for k in range(4):
-        start = int((0.08 + k * 0.2 + rng.uniform(-0.03, 0.03)) * SR)
-        squish = band_oneshot(burst(rng, 0.12, rng.uniform(0.03, 0.05), 0.008), 300, 2500) * rng.uniform(0.6, 1.0)
-        fiber = band_oneshot(burst(rng, 0.02, 0.004, 0.0005), 1500, 6000) * rng.uniform(0.2, 0.5)
-        thump = tone(np.full(int(0.08 * SR), rng.uniform(90, 130))) * np.exp(-np.arange(int(0.08 * SR)) / SR / 0.02)
-        for ev, gain in ((squish, 1.0), (fiber, 0.6), (thump, 0.4)):
-            end = min(n, start + len(ev))
-            out[start:end] += gain * peak_norm(ev)[: end - start]
-    return out
 
 
 def sizzle_loop(seconds=6):
@@ -436,19 +361,6 @@ def owl(variant):
     return out
 
 
-def wolf_growl(variant):
-    """Rosnado: um ronco grave e áspero que sobe e desce, com a respiração por trás."""
-    rng = np.random.default_rng(200 + variant)
-    dur = rng.uniform(1.2, 1.8)
-    n = int(dur * SR)
-    t = np.arange(n) / SR
-    f = rng.uniform(85, 110) * (1 + 0.12 * np.sin(TAU * rng.uniform(0.8, 1.5) * t))
-    voice = tone(f, ((1, 1.0), (2, 0.8), (3, 0.6), (4, 0.4), (5, 0.3), (6, 0.2)))
-    rough = 0.6 + 0.4 * np.sign(np.sin(TAU * rng.uniform(25, 40) * t))
-    breath = band_oneshot(rng.standard_normal(n), 300, 2500)
-    env = smoothstep(0.0, 0.15, t) * (1 - smoothstep(dur - 0.3, dur, t))
-    x = formants(voice * rough, [(400, 150, 1.0), (900, 200, 0.5)]) + 0.25 * peak_norm(breath)
-    return band_oneshot(peak_norm(x) * env, 50, 3000)
 
 
 def wolf_bite():
@@ -465,86 +377,12 @@ def wolf_bite():
     return out
 
 
-def wolf_yelp():
-    """Ganido de lobo ferido: agudo, caindo rápido, duas vezes."""
-    out = []
-    for dur, f0 in ((0.28, 1300), (0.4, 1150)):
-        t = np.arange(int(dur * SR)) / SR
-        freq = f0 - 600 * (t / dur) ** 0.7
-        out.append(tone(freq, ((1, 1.0), (2, 0.4), (3, 0.15))) * np.sin(np.pi * t / dur) ** 0.5)
-        out.append(silence(0.08))
-    return concat(*out)
 
 
-def teeth_chatter():
-    """Dentes batendo de frio: estalinhos rápidos e irregulares."""
-    rng = np.random.default_rng(220)
-    n = int(1.4 * SR)
-    times = np.cumsum(rng.uniform(0.045, 0.08, 30)) * SR
-    clicks = place_events(n, times[times < n - 400], lambda: burst(rng, 0.008, 0.0015, 0.0002) * rng.uniform(0.4, 1.0))
-    t = np.arange(n) / SR
-    return band_oneshot(clicks, 1500, 7000) * smoothstep(0.0, 0.1, t) * (1 - smoothstep(1.1, 1.4, t))
 
 
-# --- Caça completa ------------------------------------------------------------------
-
-def heartbeat():
-    """Uma batida do coração ouvida por dentro: dois baques graves e abafados (tum-tum)."""
-    rng = np.random.default_rng(230)
-    n = int(0.5 * SR)
-    t = np.arange(n) / SR
-    out = np.zeros(n)
-    for start, gain, f0 in ((0.0, 1.0, 52), (0.17, 0.65, 46)):
-        local = np.maximum(t - start, 0)
-        thump = tone(f0 * (1 + 0.6 * np.exp(-local / 0.02))) * (t >= start) * np.exp(-local / 0.06) * np.minimum(local / 0.004, 1)
-        out += gain * thump
-    out += 0.08 * band_oneshot(rng.standard_normal(n), 30, 200) * np.exp(-t / 0.08)
-    return band_oneshot(out, 20, 260)
 
 
-def breath_in():
-    """Puxar o ar pelo nariz e prender: um chiado curto que sobe e corta seco."""
-    rng = np.random.default_rng(240)
-    n = int(0.55 * SR)
-    t = np.arange(n) / SR
-    air = formants(rng.standard_normal(n), [(900, 300, 1.0), (2400, 500, 0.6), (4200, 700, 0.3)])
-    return band_oneshot(air, 300, 6000) * smoothstep(0.0, 0.35, t) * (1 - smoothstep(0.46, 0.5, t))
-
-
-def gasp():
-    """Soltar o ar preso: um bufo forte pela boca e duas puxadas ofegantes."""
-    rng = np.random.default_rng(250)
-    parts = []
-    for dur, lo, hi, gain in ((0.45, 200, 3500, 1.0), (0.3, 400, 5000, 0.55), (0.32, 400, 5000, 0.5)):
-        n = int(dur * SR)
-        t = np.arange(n) / SR
-        air = formants(rng.standard_normal(n), [(700, 250, 1.0), (1500, 400, 0.7), (2800, 600, 0.3)])
-        env = smoothstep(0.0, 0.04, t) * np.exp(-t / (dur * 0.45))
-        parts.append(gain * peak_norm(band_oneshot(air, lo, hi)) * env)
-        parts.append(silence(0.12))
-    return concat(*parts)
-
-
-def sniff():
-    """Farejar: três fungadas curtas e úmidas, a última mais longa."""
-    rng = np.random.default_rng(260)
-    parts = []
-    for dur in (0.09, 0.08, 0.16):
-        n = int(dur * SR)
-        t = np.arange(n) / SR
-        air = formants(rng.standard_normal(n), [(1800, 500, 1.0), (3500, 700, 0.6)])
-        parts.append(peak_norm(band_oneshot(air, 600, 7000)) * np.sin(np.pi * t / dur) ** 0.6)
-        parts.append(silence(0.06))
-    return concat(*parts)
-
-
-def stone_throw():
-    """Pedra saindo da mão: um zunido curto de ar."""
-    rng = np.random.default_rng(270)
-    n = int(0.35 * SR)
-    t = np.arange(n) / SR
-    whoosh = band_oneshot(rng.standard_normal(n), 250, 1800) * np.sin(np.pi * np.minimum(t / 0.3, 1)) ** 2
-    return whoosh
 
 
 def stone_hit(variant):
@@ -596,15 +434,6 @@ def monitor_beep():
     return tone(np.full(n, 960.0), ((1, 1.0), (3, 0.05))) * env
 
 
-def fan_hum():
-    """Ventilador vazando: zumbido grave de 110 Hz com o chiado ritmado da hélice, 3 s."""
-    rng = np.random.default_rng(310)
-    n = int(3.0 * SR)
-    t = np.arange(n) / SR
-    hum = tone(np.full(n, 110.0), ((1, 1.0), (2, 0.5), (3, 0.25), (4, 0.12)))
-    chop = band_oneshot(rng.standard_normal(n), 400, 3000) * (0.5 + 0.5 * np.sin(TAU * 18.0 * t)) ** 3
-    env = smoothstep(0.0, 0.6, t) * (1 - smoothstep(2.3, 3.0, t))
-    return (peak_norm(hum) + 0.35 * peak_norm(chop)) * env
 
 
 def stone_door():
@@ -634,39 +463,8 @@ def stone_click(variant):
     return out
 
 
-def wing_flap():
-    """Corvo levantando voo: três batidas de asa abafadas."""
-    rng = np.random.default_rng(340)
-    parts = []
-    for gap in (0.0, 0.11, 0.13):
-        parts.append(silence(gap))
-        flap = band_oneshot(burst(rng, 0.09, 0.025, 0.006), 150, 2200)
-        parts.append(peak_norm(flap) * rng.uniform(0.7, 1.0))
-    return concat(*parts)
 
 
-# --- O Abrigo -----------------------------------------------------------------------
-
-def shelter_loop(seconds=12):
-    """Ar parado de sala fechada: o zumbido de 50 Hz da rede, a ventilação e o concreto."""
-    rng = np.random.default_rng(400)
-    n = seconds * SR
-    t = np.arange(n) / SR
-    mains = tone(np.full(n, 50.0), ((1, 1.0), (2, 0.6), (3, 0.35), (4, 0.15), (6, 0.06)))
-    vent = band(periodic_noise(n, rng, beta=0.8), 90, 900) * slow_env(n, rng, 1, 3, 0.7, 1.0)
-    rattle = band(periodic_noise(n, rng), 1800, 3200, edge=0.06) * (0.5 + 0.5 * np.sin(TAU * 0.25 * t)) ** 6
-    return 0.5 * rms_norm(mains) + rms_norm(vent) + 0.08 * rms_norm(rattle)
-
-
-def light_buzz(seconds=4):
-    """Lâmpada fluorescente velha: zumbido áspero de 100 Hz, cheio de harmônicos."""
-    rng = np.random.default_rng(410)
-    n = seconds * SR
-    harmonics = tuple((k, 1.0 / k) for k in range(1, 30))
-    buzz = tone(np.full(n, 100.0), harmonics)
-    buzz = band(np.sign(buzz) * np.abs(buzz) ** 0.6, 100, 5000)
-    hiss = band(periodic_noise(n, rng), 3000, 8000) * slow_env(n, rng, 2, 6, 0.3, 1.0)
-    return rms_norm(buzz) + 0.15 * rms_norm(hiss)
 
 
 def servo():
@@ -727,13 +525,6 @@ def keeper_voice(variant):
     return concat(voice, silence(0.08), 0.4 * keeper_beep())
 
 
-def blind_rattle():
-    """As lâminas da persiana girando: estalinhos de plástico em cascata."""
-    rng = np.random.default_rng(450)
-    n = int(0.5 * SR)
-    times = np.sort(rng.uniform(0, 0.38 * SR, 22))
-    clicks = place_events(n, times, lambda: band_oneshot(burst(rng, 0.02, 0.003, 0.0003), 1500, 7000) * rng.uniform(0.3, 1.0))
-    return clicks
 
 
 def stuck_buzz():
@@ -765,68 +556,10 @@ def wall_scratch(variant):
     return (peak_norm(grit) * (0.4 + 0.6 * judder) + body) * env
 
 
-def glitch():
-    """O fim de uma memória: estalos digitais, chiado em rajadas e um tom que cai, 1,6 s."""
-    rng = np.random.default_rng(530)
-    n = int(1.6 * SR)
-    t = np.arange(n) / SR
-    noise = rng.standard_normal(n)
-    # Rajadas de chiado em degraus (blocos de 30 a 90 ms ligados ou não).
-    gate = np.zeros(n)
-    i = 0
-    while i < n:
-        step = int(rng.uniform(0.03, 0.09) * SR)
-        gate[i:i + step] = rng.uniform(0.2, 1.0) if rng.random() < 0.65 else 0.0
-        i += step
-    crushed = np.round(band_oneshot(noise, 300, 7000) * 6) / 6
-    fall = tone(900 * np.exp(-t * 2.2) + 60, ((1, 1.0), (3, 0.3)))
-    fall = np.sign(fall) * 0.5
-    env = smoothstep(0.0, 0.05, t) * (1 - smoothstep(1.4, 1.6, t))
-    return (peak_norm(crushed) * gate + 0.4 * fall * smoothstep(0.6, 1.0, t)) * env
 
 
-def blast_door():
-    """A porta blindada da saída subindo (Final 2): as travas soltando, o motor gemendo, o atrito
-    da chapa nos trilhos e a pancada lá em cima, 5,5 s."""
-    rng = np.random.default_rng(540)
-    n = int(5.5 * SR)
-    t = np.arange(n) / SR
-    out = np.zeros(n)
-    # Três travas soltando, metal grosso.
-    for i, at in enumerate((0.05, 0.3, 0.62)):
-        start = int(at * SR)
-        m = n - start
-        tt = np.arange(m) / SR
-        ring = sum(np.sin(TAU * f * tt) * np.exp(-tt / d) for f, d in ((180 + 25 * i, 0.25), (433, 0.12), (1210, 0.05)))
-        hit = band_oneshot(burst(rng, 0.05, 0.01), 200, 3000)
-        out[start:start + len(hit)] += 0.8 * hit
-        out[start:] += 0.35 * ring
-    # O motor: um gemido que sobe, com o ronco da chapa raspando.
-    rise = smoothstep(0.8, 1.6, t) * (1 - smoothstep(5.0, 5.25, t))
-    whine = tone(70 + 40 * smoothstep(0.8, 5.0, t), ((1, 1.0), (2, 0.6), (3, 0.4), (5, 0.2)))
-    grind = band_oneshot(rng.standard_normal(n), 60, 900) * (0.75 + 0.25 * np.sin(TAU * 9.0 * t))
-    out += (0.45 * peak_norm(whine) + 0.6 * peak_norm(grind)) * rise
-    end = np.maximum(t - 5.2, 0.0)
-    thud = band_oneshot(rng.standard_normal(n), 30, 500) * np.exp(-end / 0.12) * (t >= 5.2)
-    return out + 0.9 * peak_norm(thud)
 
 
-def church_bell():
-    """Um sino de igreja ao longe (Final 2): parciais de sino (o zumbido, a fundamental, a terça
-    menor, a quinta, a nominal e as de cima) com a batida do badalo, abafado pela distância, 7 s."""
-    rng = np.random.default_rng(550)
-    n = int(7.0 * SR)
-    t = np.arange(n) / SR
-    base = 196.0
-    partials = ((0.5, 1.0, 5.0), (1.0, 0.8, 3.6), (1.19, 0.6, 2.6), (1.5, 0.35, 2.0), (2.0, 0.55, 1.6), (2.52, 0.25, 1.1), (3.0, 0.2, 0.8), (4.2, 0.12, 0.5))
-    bell = np.zeros(n)
-    for ratio, amp, decay in partials:
-        # Cada parcial bate um pouco (o sino não é redondo perfeito).
-        beat = 1.0 + 0.15 * np.sin(TAU * rng.uniform(0.6, 1.8) * t)
-        bell += amp * np.sin(TAU * base * ratio * t + rng.uniform(0, TAU)) * np.exp(-t / decay) * beat
-    strike = band_oneshot(burst(rng, 0.04, 0.008), 800, 5000) * 0.4
-    bell[:len(strike)] += strike
-    return band_oneshot(bell, 80, 2400)
 
 
 def crowd_loop(seconds=10):
@@ -886,15 +619,6 @@ def rain_loop(seconds=16):
     return rms_norm(hiss) + 0.35 * rms_norm(patter) + 0.6 * rms_norm(drops) + 0.3 * rms_norm(thuds)
 
 
-def deer_stomp():
-    """O cervo bate a pata: um baque surdo no chão e um bufo curto pelo nariz."""
-    rng = np.random.default_rng(901)
-    n = int(0.5 * SR)
-    t = np.arange(n) / SR
-    thud = band_oneshot(rng.standard_normal(n), 60, 500) * np.exp(-t / 0.03)
-    puff = formants(rng.standard_normal(n), [(700, 250, 1.0), (1600, 350, 0.5)])
-    puff = np.roll(puff * np.minimum(t / 0.008, 1.0) * np.exp(-t / 0.07), int(0.12 * SR))
-    return peak_norm(1.4 * peak_norm(thud) + 0.6 * peak_norm(puff))
 
 
 def boar_grunt(variant):
@@ -915,18 +639,6 @@ def boar_grunt(variant):
     return band_oneshot(np.concatenate(out), 50, 3000)
 
 
-def boar_squeal():
-    """Guincho do javali ferido ou investindo: agudo, áspero e com ronco por baixo."""
-    rng = np.random.default_rng(920)
-    dur = 0.8
-    n = int(dur * SR)
-    t = np.arange(n) / SR
-    f = 900 + 500 * np.sin(np.pi * t / dur) + 40 * np.sin(TAU * 22 * t)
-    voice = tone(f, ((1, 1.0), (2, 0.6), (3, 0.35), (4, 0.2)))
-    rough = 0.6 + 0.4 * np.sign(np.sin(TAU * 35 * t))
-    grunt = tone(np.full(n, 90.0), tuple((k, 1.0 / k) for k in range(1, 10)))
-    x = formants(voice * rough, [(1200, 300, 1.0), (2600, 400, 0.4)]) + 0.3 * peak_norm(grunt)
-    return band_oneshot(peak_norm(x) * smoothstep(0.0, 0.04, t) * (1 - smoothstep(dur - 0.2, dur, t)), 80, 6000)
 
 
 def cricket_song(seconds=4):
@@ -987,62 +699,41 @@ def write_ambient_life():
 def main():
     print("Gerando sons em", ROOT)
     write_wav(ROOT / "ambience" / "wind_loop.wav", wind_loop(), loop=True)
-    write_wav(ROOT / "ambience" / "leaves_loop.wav", leaves_loop(), loop=True)
-    write_wav(ROOT / "ambience" / "fire_loop.wav", fire_loop(), loop=True)
     write_wav(ROOT / "ambience" / "cave_loop.wav", cave_loop(), loop=True)
     write_wav(ROOT / "ambience" / "grasshoppers_loop.wav", grasshoppers_loop(), loop=True)
     for v in range(1, 5):
         write_wav(ROOT / "animals" / f"bird_{v}.wav", bird(v))
-    for v in range(1, 3):
-        write_wav(ROOT / "animals" / f"crow_{v}.wav", crow(v))
+    # crow_1 é gravação real (assets/audio/real/crow_caw.ogg).
+    write_wav(ROOT / "animals" / "crow_2.wav", crow(2))
     write_wav(ROOT / "animals" / "woodpecker.wav", woodpecker())
     write_wav(ROOT / "animals" / "wolf_howl.wav", wolf_howl())
     for v in range(1, 4):
         write_wav(ROOT / "sfx" / f"drip_{v}.wav", drip(v))
-    write_wav(ROOT / "sfx" / "tree_fall.wav", tree_fall())
-    write_wav(ROOT / "animals" / "deer_snort.wav", deer_snort())
     write_wav(ROOT / "animals" / "rabbit_squeal.wav", rabbit_squeal())
-    for v in range(1, 3):
-        write_wav(ROOT / "sfx" / f"stomach_growl_{v}.wav", stomach_growl(v))
-        write_wav(ROOT / "sfx" / f"chew_{v}.wav", chew(v))
     write_wav(ROOT / "ambience" / "sizzle_loop.wav", sizzle_loop(), loop=True)
     write_wav(ROOT / "sfx" / "moss_fall.wav", moss_fall())
     write_wav(ROOT / "ambience" / "crickets_loop.wav", crickets_loop(), loop=True)
     for v in range(1, 3):
         write_wav(ROOT / "animals" / f"owl_{v}.wav", owl(v))
-        write_wav(ROOT / "animals" / f"wolf_growl_{v}.wav", wolf_growl(v))
     write_wav(ROOT / "animals" / "wolf_bite.wav", wolf_bite())
-    write_wav(ROOT / "animals" / "wolf_yelp.wav", wolf_yelp())
-    write_wav(ROOT / "sfx" / "teeth_chatter.wav", teeth_chatter())
     write_wav(ROOT / "sfx" / "heartbeat.wav", heartbeat())
-    write_wav(ROOT / "sfx" / "breath_in.wav", breath_in())
-    write_wav(ROOT / "sfx" / "gasp.wav", gasp())
-    write_wav(ROOT / "sfx" / "sniff.wav", sniff())
-    write_wav(ROOT / "sfx" / "stone_throw.wav", stone_throw())
     for v in range(1, 3):
         write_wav(ROOT / "sfx" / f"stone_hit_{v}.wav", stone_hit(v))
     write_wav(ROOT / "sfx" / "mud_rub.wav", mud_rub())
     write_wav(ROOT / "sfx" / "snare_snap.wav", snare_snap())
     write_wav(ROOT / "sfx" / "monitor_beep.wav", monitor_beep())
-    write_wav(ROOT / "sfx" / "fan_hum.wav", fan_hum())
     write_wav(ROOT / "sfx" / "stone_door.wav", stone_door())
     for v in range(1, 3):
         write_wav(ROOT / "sfx" / f"stone_click_{v}.wav", stone_click(v))
-    write_wav(ROOT / "animals" / "wing_flap.wav", wing_flap())
     write_wav(ROOT / "ambience" / "shelter_loop.wav", shelter_loop(), loop=True)
-    write_wav(ROOT / "ambience" / "light_buzz.wav", light_buzz(), loop=True)
     write_wav(ROOT / "sfx" / "servo.wav", servo())
     write_wav(ROOT / "ambience" / "wheel_loop.wav", wheel_loop(), loop=True)
     write_wav(ROOT / "sfx" / "keeper_beep.wav", keeper_beep())
     for v in range(1, 3):
         write_wav(ROOT / "sfx" / f"keeper_voice_{v}.wav", keeper_voice(v))
-    write_wav(ROOT / "sfx" / "blind_rattle.wav", blind_rattle())
     write_wav(ROOT / "sfx" / "stuck_buzz.wav", stuck_buzz(), loop=True)
     for v in range(1, 3):
         write_wav(ROOT / "sfx" / f"wall_scratch_{v}.wav", wall_scratch(v))
-    write_wav(ROOT / "sfx" / "glitch.wav", glitch())
-    write_wav(ROOT / "sfx" / "blast_door.wav", blast_door())
-    write_wav(ROOT / "sfx" / "church_bell.wav", church_bell())
     write_wav(ROOT / "ambience" / "crowd_loop.wav", crowd_loop(), loop=True)
     write_f9()
     write_ambient_life()
@@ -1051,10 +742,8 @@ def main():
 def write_f9():
     """Os sons da F9 (dá para gerar só eles: python -c "import generate_sounds as g; g.write_f9()")."""
     write_wav(ROOT / "ambience" / "rain_loop.wav", rain_loop(), loop=True)
-    write_wav(ROOT / "animals" / "deer_stomp.wav", deer_stomp())
     for v in range(1, 3):
         write_wav(ROOT / "animals" / f"boar_grunt_{v}.wav", boar_grunt(v))
-    write_wav(ROOT / "animals" / "boar_squeal.wav", boar_squeal())
 
 
 if __name__ == "__main__":

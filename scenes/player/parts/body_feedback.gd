@@ -6,7 +6,7 @@ extends Node
 ##
 ## Parte do goblin: um nó filho do Player. Tirar o nó tira os avisos.
 
-const GROWL_SOUNDS := [preload("res://assets/audio/sfx/stomach_growl_1.wav"), preload("res://assets/audio/sfx/stomach_growl_2.wav")]
+const GROWL_SOUNDS := [preload("res://assets/audio/real/stomach_growl_1.ogg"), preload("res://assets/audio/real/stomach_growl_2.ogg")]
 
 var _growl_timer := 0.0
 var _warned_hungry := false

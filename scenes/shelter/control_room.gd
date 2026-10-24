@@ -12,8 +12,8 @@ extends Node3D
 ## Filho do Shelter, no espaço dele (as coordenadas são as do Abrigo).
 
 const FEED_SHADER := preload("res://assets/shaders/camera_feed.gdshader")
-const SERVER_HUM := preload("res://assets/audio/sfx/fan_hum.wav")
-const STATIC := preload("res://assets/audio/sfx/glitch.wav")
+const SERVER_HUM := preload("res://assets/audio/real/extractor_fan.ogg")
+const STATIC := preload("res://assets/audio/real/glitch.ogg")
 const READER_BEEP := preload("res://assets/audio/sfx/keeper_beep.wav")
 const ROOM := Rect2(2.0, 1.0, 6.0, 6.0)
 const DOOR_CLOSED_X := 4.0

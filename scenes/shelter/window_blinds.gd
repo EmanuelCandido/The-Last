@@ -6,7 +6,7 @@ extends Node3D
 ## A origem é o meio da abertura, na face de dentro da parede; lá fora é +Z.
 
 const VIEW_SHADER := preload("res://assets/shaders/window_view.gdshader")
-const RATTLE := preload("res://assets/audio/sfx/blind_rattle.wav")
+const RATTLE := preload("res://assets/audio/real/blind_rattle.ogg")
 const SLATS := 17
 const SLAT_GAP := 0.07
 

@@ -8,7 +8,7 @@ extends Node3D
 
 const GLITCH_SHADER := preload("res://assets/shaders/memory_glitch.gdshader")
 const SCRATCH_SOUNDS := [preload("res://assets/audio/sfx/wall_scratch_1.wav"), preload("res://assets/audio/sfx/wall_scratch_2.wav")]
-const GLITCH_SOUND := preload("res://assets/audio/sfx/glitch.wav")
+const GLITCH_SOUND := preload("res://assets/audio/real/glitch.ogg")
 const WORD := "ACORDA"
 ## Altura da palavra na parede (local da caverna) e de onde sai o raio que acha a rocha.
 const WORD_HEIGHT := 0.58

@@ -12,8 +12,8 @@ extends Node
 ##
 ## Parte do goblin: um nó filho do Player. Tirar o nó tira a mecânica.
 
-const BREATH_IN := preload("res://assets/audio/sfx/breath_in.wav")
-const GASP := preload("res://assets/audio/sfx/gasp.wav")
+const BREATH_IN := preload("res://assets/audio/real/breath_in.ogg")
+const GASP := preload("res://assets/audio/real/gasp.ogg")
 const HEARTBEAT := preload("res://assets/audio/sfx/heartbeat.wav")
 
 ## Segundos com o ar preso agora (0 = respirando).

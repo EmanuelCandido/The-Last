@@ -18,7 +18,7 @@ const HIT_SOUNDS := [
 	preload("res://assets/audio/real/tree_hit_1.ogg"), preload("res://assets/audio/real/tree_hit_2.ogg"),
 	preload("res://assets/audio/real/tree_hit_3.ogg"), preload("res://assets/audio/real/tree_hit_4.ogg"),
 ]
-const FALL_SOUND := preload("res://assets/audio/sfx/tree_fall.wav")
+const FALL_SOUND := preload("res://assets/audio/real/tree_fall.ogg")
 ## Rangido real de madeira (Kenney, CC0) quando o tronco começa a ceder.
 const CREAK_SOUNDS := [
 	preload("res://assets/audio/real/wood_creak_1.ogg"), preload("res://assets/audio/real/wood_creak_2.ogg"),

@@ -5,7 +5,7 @@ extends Node
 ##
 ## Parte do goblin: um nó filho do Player. Tirar o nó tira a mecânica.
 
-const CHEW_SOUNDS := [preload("res://assets/audio/sfx/chew_1.wav"), preload("res://assets/audio/sfx/chew_2.wav")]
+const CHEW_SOUNDS := [preload("res://assets/audio/real/chew_1.ogg"), preload("res://assets/audio/real/chew_2.ogg")]
 const MESSAGES := {
 	&"cooked_meat": "Comeu carne assada.",
 	&"meat": "Comeu carne crua.",

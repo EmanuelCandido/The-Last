@@ -5,7 +5,7 @@ extends Node3D
 ## Tuning.CROW_RESPAWN_SECONDS depois, outro chega.
 
 const CAWS := [
-	preload("res://assets/audio/animals/crow_1.wav"),
+	preload("res://assets/audio/real/crow_caw.ogg"),
 	preload("res://assets/audio/animals/crow_2.wav"),
 ]
 

@@ -14,8 +14,8 @@ extends Node3D
 ##   z = -44    a rua cruza outra; z = -50, a fachada da ótica fechando a rua
 
 const WIND := preload("res://assets/audio/ambience/wind_loop.wav")
-const LEAVES := preload("res://assets/audio/ambience/leaves_loop.wav")
-const BELL := preload("res://assets/audio/sfx/church_bell.wav")
+const LEAVES := preload("res://assets/audio/real/leaves_wind_loop.wav")
+const BELL := preload("res://assets/audio/real/church_bell_toll.ogg")
 const CROWD := preload("res://assets/audio/ambience/crowd_loop.wav")
 const FACE := preload("res://assets/textures/ari_reflection.png")
 const STAIR_FROM := Vector2(-3.6, 0.0)
@@ -101,7 +101,8 @@ func _process(delta: float) -> void:
 		_crowd.volume_db = move_toward(_crowd.volume_db, -2.0, delta * 3.0)
 		_bell_timer -= delta
 		if _bell_timer <= 0.0:
-			_bell_timer = 5.5
+			# A gravação tem três badaladas: emendada no fim, o sino dobra sem parar no ritmo dele.
+			_bell_timer = BELL.get_length()
 			_bell.play()
 	_update_reflection(delta)
 

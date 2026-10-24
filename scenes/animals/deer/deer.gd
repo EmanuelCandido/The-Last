@@ -4,8 +4,8 @@ extends Animal
 ## quando algo chama a atenção, encara quando desconfia, bate a pata e bufa antes de fugir, e
 ## foge em disparada com a manada. De noite deita e dorme com a manada.
 
-const SNORT := preload("res://assets/audio/animals/deer_snort.wav")
-const STOMP := preload("res://assets/audio/animals/deer_stomp.wav")
+const SNORT := preload("res://assets/audio/real/deer_snort.ogg")
+const STOMP := preload("res://assets/audio/real/deer_stomp.ogg")
 
 ## Cor do pelo (o cervo branco troca).
 var fur_color := Color(0.62, 0.43, 0.27)

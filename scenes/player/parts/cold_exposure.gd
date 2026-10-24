@@ -6,7 +6,7 @@ extends Node
 ##
 ## Parte do goblin: um nó filho do Player. Tirar o nó tira o frio.
 
-const CHATTER := preload("res://assets/audio/sfx/teeth_chatter.wav")
+const CHATTER := preload("res://assets/audio/real/teeth_chatter.ogg")
 ## Onde sai o vapor da respiração, no espaço do Visual (o goblin olha para +Z).
 const MOUTH := Vector3(0.0, 0.7, 0.16)
 ## Segundos de uma respiração (inspira e solta o vapor).

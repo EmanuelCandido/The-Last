@@ -32,7 +32,7 @@ const CLICK := preload("res://assets/audio/sfx/stone_click_1.wav")
 const SNIP := preload("res://assets/audio/sfx/snare_snap.wav")
 const PICKUP := preload("res://assets/audio/real/pickup_2.ogg")
 const ALARM := preload("res://assets/audio/sfx/keeper_beep.wav")
-const BLAST_DOOR := preload("res://assets/audio/sfx/blast_door.wav")
+const BLAST_DOOR := preload("res://assets/audio/real/blast_door.ogg")
 ## A porta blindada da saída: fechada e aberta (y do meio dela).
 const EXIT_DOOR_Y := 1.15
 const EXIT_DOOR_OPEN_Y := 3.5

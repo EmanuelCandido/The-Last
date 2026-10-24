@@ -14,7 +14,7 @@ extends Node
 ## - depois do R4 (flag "access_card"), os chamados carregam a voz do Zelador.
 
 const WIND_LOOP := preload("res://assets/audio/ambience/wind_loop.wav")
-const LEAVES_LOOP := preload("res://assets/audio/ambience/leaves_loop.wav")
+const LEAVES_LOOP := preload("res://assets/audio/real/leaves_wind_loop.wav")
 ## Uivo sintético: usado só enquanto não houver gravações reais (wolf_howl_real_N.ogg/.wav/.mp3).
 const WOLF := preload("res://assets/audio/animals/wolf_howl.wav")
 const WOLF_REAL_PATTERN := "res://assets/audio/animals/wolf_howl_real_%d.%s"

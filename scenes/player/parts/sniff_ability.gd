@@ -8,7 +8,7 @@ extends Node
 ##
 ## Parte do goblin: um nó filho do Player. Tirar o nó tira a mecânica.
 
-const SNIFF_SOUND := preload("res://assets/audio/sfx/sniff.wav")
+const SNIFF_SOUND := preload("res://assets/audio/real/sniff.ogg")
 ## Cor da trilha de cada espécie (o resto usa DEFAULT_SCENT).
 const SCENT_COLORS := {
 	&"deer": Color(0.78, 0.36, 0.06),

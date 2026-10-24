@@ -11,8 +11,8 @@ enum Mode { FLOCK, LANDING, PERCHED, LEAVING, FALLING, DOWN }
 
 const HIT_LAYER := 8
 const PICKUP_SOUND := preload("res://assets/audio/real/pickup_1.ogg")
-const FLAP_SOUND := preload("res://assets/audio/animals/wing_flap.wav")
-const CAWS := [preload("res://assets/audio/animals/crow_1.wav"), preload("res://assets/audio/animals/crow_2.wav")]
+const FLAP_SOUND := preload("res://assets/audio/real/wing_flap.ogg")
+const CAWS := [preload("res://assets/audio/real/crow_caw.ogg"), preload("res://assets/audio/animals/crow_2.wav")]
 ## A voz do Zelador saindo do bico (Ato III).
 const KEEPER_VOICE := preload("res://assets/audio/sfx/keeper_voice_1.wav")
 const MODEL := preload("res://assets/models/animals/crow.glb")

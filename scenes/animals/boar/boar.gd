@@ -7,7 +7,7 @@ extends Animal
 ## correndo, então dá para sair da frente no último instante. Calmo de novo, recupera as investidas.
 
 const GRUNTS := [preload("res://assets/audio/animals/boar_grunt_1.wav"), preload("res://assets/audio/animals/boar_grunt_2.wav")]
-const SQUEAL := preload("res://assets/audio/animals/boar_squeal.wav")
+const SQUEAL := preload("res://assets/audio/real/boar_squeal.ogg")
 const HIT_SOUND := preload("res://assets/audio/animals/wolf_bite.wav")
 const HIT_RANGE := 1.1
 const RUN_SECONDS := 3.5
