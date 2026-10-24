@@ -82,10 +82,12 @@ func describe_save() -> String:
 	return "Dia %d · Ciclo %d" % [int(clock.get("day", 1)), int(story.get("cycle", Story.START_CYCLE))]
 
 
-## Os riscos da parede no save do disco (0 sem save): o que o menu principal mostra.
-func saved_marks() -> int:
-	var story: Dictionary = _saved_globals().get("story", {})
-	return int(story.get("marks", 0))
+## O dia do save do disco (0 sem save): os riscos que o menu principal mostra.
+func saved_day() -> int:
+	if not has_save():
+		return 0
+	var clock: Dictionary = _saved_globals().get("clock", {})
+	return int(clock.get("day", 1))
 
 
 ## Os autoloads gravados no save do disco ({} sem save ou com o arquivo estragado).

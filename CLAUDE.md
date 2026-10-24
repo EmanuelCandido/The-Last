@@ -138,9 +138,8 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
     `item_icons` (12×12 + sombra, na ordem de `ICONS` no gerador e de `UiStyle.ICONS`).
   - `UiStyle` tem a paleta (`INK`, `INK_DIM`, `ACCENT`, `MOSS`, `MARK`... e `hex()` para BBCode) e as peças:
     `rock_panel(kind)`, `sprite(textura, escala)`, `menu_title()`, `tally_line(texto)` (os riscos da parede e o
-    texto apagado ao lado: `TallyMarks` desenha texel a texel um risco por noite dormida no ciclo, `Story.marks`,
-    ou os do save no menu principal, `UiStyle.nights_marked()`; em grupos de cinco como na caverna, sem nenhum
-    risco antes da primeira noite), `footer(pai, texto)` (lápide e "[Esc] Voltar ao jogo" no canto de baixo), `menu_button()` (com
+    texto apagado ao lado: `TallyMarks` desenha texel a texel um risco por dia, `Clock.day` (o Dia 1 já
+    tem um), ou o dia do save no menu principal, `UiStyle.days_marked()`; em grupos de cinco como na caverna), `footer(pai, texto)` (lápide e "[Esc] Voltar ao jogo" no canto de baixo), `menu_button()` (com
     `add_marker`: o marcador laranja à esquerda, só no foco), `item_icon(item)`, `hud_font_size()` (32, 48 ou 64
     pelo tamanho de texto das Configurações), `fog_backdrop()` (neblina em Bayer, `ui_fog.gdshader`, nos créditos)
     e `separator()`.

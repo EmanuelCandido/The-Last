@@ -114,10 +114,10 @@ static func tally_line(text := "") -> HBoxContainer:
 	return row
 
 
-## Quantos riscos a parede da caverna tem neste ciclo (um por noite dormida): os do jogo, ou os
-## do save quando o menu principal está aberto.
-static func nights_marked() -> int:
-	return SaveSystem.saved_marks() if Game.menu_open else Story.marks
+## Quantos riscos o menu mostra: um por dia (o Dia 1 já tem um), do relógio do jogo, ou do save
+## quando o menu principal está aberto (0 sem save).
+static func days_marked() -> int:
+	return SaveSystem.saved_day() if Game.menu_open else Clock.day
 
 
 ## O rodapé dos menus: a tecla-lápide e "[Esc] Voltar ao jogo". Fica no canto de baixo de `parent`.

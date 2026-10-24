@@ -1,8 +1,7 @@
 class_name TallyMarks
 extends Control
-## Os riscos da parede da caverna no cabeçalho dos menus: um por noite dormida neste ciclo
-## (Story.marks; no menu principal, os do save), em grupos de quatro em pé com o quinto cortando
-## na diagonal. Desenhados texel a texel a 2x, cor de osso com grão e a sombra de 1 texel, como
+## Os riscos no cabeçalho dos menus, como os da parede da caverna: um por dia (Clock.day; no menu
+## principal, o dia do save), em grupos de quatro em pé com o quinto cortando na diagonal. Desenhados texel a texel a 2x, cor de osso com grão e a sombra de 1 texel, como
 ## as outras peças da interface. Contam de novo sempre que aparecem.
 
 const PIXEL := 2.0
@@ -31,7 +30,7 @@ func _notification(what: int) -> void:
 
 
 func _recount() -> void:
-	count = mini(UiStyle.nights_marked(), PER_ROW * MAX_ROWS * 5)
+	count = mini(UiStyle.days_marked(), PER_ROW * MAX_ROWS * 5)
 	var groups := ceili(count / 5.0)
 	var columns := mini(groups, PER_ROW)
 	var rows := ceili(groups / float(PER_ROW))
