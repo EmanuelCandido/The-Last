@@ -67,6 +67,20 @@ func _build_body() -> void:
 	_rest_body = _body.position
 
 
+## Leve: desaba de uma vez, de lado, com as traseiras esticadas para trás e as dianteiras à frente.
+func _setup_death(fall: CreatureDeath) -> void:
+	fall.pace = 1.6
+	fall.shift = 0.04
+	fall.roll = 1.5
+	fall.fold_front = Vector3(0.7, 0.0, 0.0)
+	fall.fold_hind = Vector3(-0.3, 0.0, 0.5)
+	fall.limp_front = Vector3(-0.8, 0.0, 0.0)
+	fall.limp_hind = Vector3(0.9, 0.0, -0.4)
+	fall.droop = 0.25
+	fall.head_tilt = -0.1
+	fall.head_drop = 0.4
+
+
 func _build_hitbox(area: Area3D) -> void:
 	# Um pouco maior que o corpo: alvo pequeno, mas justo de acertar.
 	_hit_shape(area, Vector3(0.26, 0.3, 0.4), Vector3(0.0, 0.17, 0.02))

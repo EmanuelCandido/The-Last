@@ -110,6 +110,16 @@ var _voice: OccludedAudio
 var _steps: OccludedAudio
 ## O corpo com esqueleto (CreatureModel): os pivôs dos ossos levam a pele a cada quadro.
 var model: CreatureModel
+## A queda e o corpo morto (só quem tem as pernas no modelo); o tempo desde a morte (-1 = vivo).
+var _death: CreatureDeath
+var _death_time := -1.0
+## O bicho todo deita junto com o chão embaixo dele (encosta) enquanto cai.
+var _death_from := Quaternion.IDENTITY
+var _death_to := Quaternion.IDENTITY
+## Correndo quando morre, ainda vai com o embalo (m/s) e escorrega até parar.
+var _death_slide := 0.0
+## Lado para onde a última flechada empurrou (-1/1; 0 = nenhuma): o bicho tomba para lá.
+var _hit_side := 0.0
 
 
 func setup(world_terrain: Terrain, home_position: Vector2, rng_seed: int) -> void:
@@ -129,6 +139,11 @@ func _ready() -> void:
 	if herd != "":
 		add_to_group(herd)
 	_build_body()
+	if model != null and model.joint("t_coxa_E") != null:
+		_death = CreatureDeath.new()
+		_death.setup(model)
+		_death.height = dead_height
+		_setup_death(_death)
 	_hitbox = Area3D.new()
 	_hitbox.collision_layer = HIT_LAYER
 	_hitbox.collision_mask = 0
@@ -159,10 +174,19 @@ func _physics_process(delta: float) -> void:
 	_animate(delta)
 
 
-## A pele segue os pivôs em todo quadro, inclusive morto (o tombo é um tween no corpo).
-func _process(_delta: float) -> void:
+## A pele segue os pivôs em todo quadro, inclusive caindo e morto.
+func _process(delta: float) -> void:
+	if _death_time >= 0.0 and _death_time < CreatureDeath.STILL:
+		_death_time = minf(_death_time + delta, CreatureDeath.STILL)
+		_slide(delta)
+		_update_fall()
 	if model != null:
 		model.sync()
+
+
+## Ajustes da queda da espécie (altura deitado, pernas, pescoço).
+func _setup_death(_fall_pose: CreatureDeath) -> void:
+	pass
 
 
 ## Monta as partes do corpo como filhos deste nó.
@@ -205,9 +229,11 @@ func _vital_multiplier(_local_point: Vector3) -> float:
 
 
 ## Uma flechada: `power` é a força do disparo (0..1); `damage` multiplica o dano (flecha emplumada).
-func take_hit(power: float, point: Vector3, _direction: Vector3, damage := 1.0) -> void:
+func take_hit(power: float, point: Vector3, direction: Vector3, damage := 1.0) -> void:
 	if state == State.DEAD:
 		return
+	# Empurrado para o lado esquerdo (+X), tomba sobre ele (rola para o lado negativo).
+	_hit_side = -signf((global_basis.inverse() * direction).x)
 	var hurt := lerpf(0.6, 1.4, power) * damage * _vital_multiplier(to_local(point))
 	health -= hurt
 	_wound += hurt
@@ -293,9 +319,7 @@ func kill() -> void:
 	speed = 0.0
 	_hitbox.queue_free()
 	add_to_group(&"interactable")
-	var body := body_node()
-	body.rotation.z = PI * 0.5
-	body.position.y = dead_height
+	_fall(true)
 
 
 func interaction_prompt() -> String:
@@ -576,14 +600,47 @@ func _bleed_out(delta: float) -> void:
 
 func _die() -> void:
 	state = State.DEAD
+	_death_slide = speed
 	speed = 0.0
 	_hitbox.queue_free()
 	add_to_group(&"interactable")
-	var body := body_node()
-	var tween := create_tween().set_parallel()
-	tween.tween_property(body, "rotation:z", PI * 0.5, 0.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tween.tween_property(body, "position:y", dead_height, 0.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_fall(false)
 	_alarm_herd()
+
+
+## Começa a queda (CreatureDeath): as pernas dobram, o corpo tomba de lado e deita junto com o
+## chão. `at_once` já põe o corpo deitado e parado (o coelho morto no laço).
+func _fall(at_once: bool) -> void:
+	var body := body_node()
+	if _death == null:
+		body.rotation.z = PI * 0.5
+		body.position.y = dead_height
+		return
+	var normal := terrain.get_normal(position.x, position.z) if terrain != null else Vector3.UP
+	_death_from = quaternion
+	_death_to = Quaternion(Vector3.UP, normal) * Quaternion(Vector3.UP, rotation.y)
+	var side := _hit_side if _hit_side != 0.0 else (1.0 if _rng.randf() < 0.5 else -1.0)
+	_death.start(side, 0.0 if at_once else _rng.randf_range(0.6, 1.2))
+	_death_time = CreatureDeath.STILL if at_once else 0.0
+	_update_fall()
+
+
+## O embalo da corrida: freia em ~1 s (uns 3 m a galope), sem atravessar rocha nem sair do vale.
+func _slide(delta: float) -> void:
+	if _death_slide <= 0.0 or terrain == null:
+		return
+	var forward := _death_to * Vector3.BACK
+	var next := Vector2(position.x, position.z) + Vector2(forward.x, forward.z).normalized() * _death_slide * delta
+	_death_slide = move_toward(_death_slide, 0.0, 7.0 * delta)
+	if not _is_walkable(next):
+		_death_slide = 0.0
+		return
+	position = Vector3(next.x, terrain.get_height(next.x, next.y), next.y)
+
+
+func _update_fall() -> void:
+	_death.apply(_death_time)
+	quaternion = _death_from.slerp(_death_to, smoothstep(0.5, 1.3, _death_time))
 
 
 func _pick_target() -> Vector2:

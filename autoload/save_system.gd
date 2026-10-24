@@ -76,10 +76,24 @@ func describe_save() -> String:
 	var payload: Variant = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
 	if payload is not Dictionary:
 		return "corrompido"
-	var globals: Dictionary = (payload as Dictionary).get("globals", {})
+	var globals := _saved_globals()
 	var clock: Dictionary = globals.get("clock", {})
 	var story: Dictionary = globals.get("story", {})
 	return "Dia %d · Ciclo %d" % [int(clock.get("day", 1)), int(story.get("cycle", Story.START_CYCLE))]
+
+
+## Os riscos da parede no save do disco (0 sem save): o que o menu principal mostra.
+func saved_marks() -> int:
+	var story: Dictionary = _saved_globals().get("story", {})
+	return int(story.get("marks", 0))
+
+
+## Os autoloads gravados no save do disco ({} sem save ou com o arquivo estragado).
+func _saved_globals() -> Dictionary:
+	if not has_save():
+		return {}
+	var payload: Variant = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
+	return (payload as Dictionary).get("globals", {}) if payload is Dictionary else {}
 
 
 ## O estado da partida agora (a fase, os nós persistentes e os autoloads).

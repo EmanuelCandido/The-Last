@@ -75,6 +75,26 @@ def _frame(tangent: Vector):
     return side, lift
 
 
+def _frames(pts):
+    """Um referencial (lado, cima) por ponto do caminho, cada um levado do anterior (transporte
+    paralelo). Com _frame em cada ponto, uma perna quase vertical que muda de inclinação virava o
+    anel de lado e o tubo saía torcido, com uma cintura de ampulheta na junta."""
+    frames = []
+    for j in range(len(pts)):
+        tangent = (pts[min(j + 1, len(pts) - 1)] - pts[max(j - 1, 0)]).normalized()
+        side = None
+        if frames:
+            prev = frames[-1][0]
+            side = prev - tangent * prev.dot(tangent)
+            side = side.normalized() if side.length > 1e-6 else None
+        if side is None:
+            side, lift = _frame(tangent)
+        else:
+            lift = side.cross(tangent).normalized()
+        frames.append((side, lift))
+    return frames
+
+
 def ellipsoid(bm, center, radii, rotation=None, segments=18, rings=12, shape=None):
     """Elipsoide; `rotation` é uma Matrix 3x3 no espaço do Godot; `shape(n) -> fator` deforma."""
     c = Vector(center)
@@ -106,9 +126,9 @@ def tube(bm, points, radii, sides=14, caps=True):
     pts = [Vector(p) for p in points]
     rs = [(r, r) if isinstance(r, (int, float)) else r for r in radii]
     rings = []
+    frames = _frames(pts)
     for j, p in enumerate(pts):
-        tangent = (pts[min(j + 1, len(pts) - 1)] - pts[max(j - 1, 0)]).normalized()
-        side, lift = _frame(tangent)
+        side, lift = frames[j]
         ring = []
         for i in range(sides):
             t = 2 * math.pi * i / sides
@@ -130,9 +150,9 @@ def horn(bm, points, radii, sides=8):
     """Tubo que fecha em ponta (presas, pontas de galhada, garras, bico)."""
     pts = [Vector(p) for p in points]
     rings = []
+    frames = _frames(pts)
     for j, p in enumerate(pts):
-        tangent = (pts[min(j + 1, len(pts) - 1)] - pts[max(j - 1, 0)]).normalized()
-        side, lift = _frame(tangent)
+        side, lift = frames[j]
         r = radii[j]
         rx, ry = (r, r) if isinstance(r, (int, float)) else r
         rings.append([bm.verts.new(B(p + side * math.cos(2 * math.pi * i / sides) * rx + lift * math.sin(2 * math.pi * i / sides) * ry)) for i in range(sides)])
@@ -302,6 +322,12 @@ class Creature:
     def _weigh(self, ob):
         segments = [(name, B(h), B(t), flesh) for name, _parent, h, t, flesh in self.bones]
         groups = {name: ob.vertex_groups.new(name=name) for name, *_ in self.bones}
+        # Cadeia das pernas: osso -> (cabeça, cauda, pai, filho na mesma perna).
+        chain = {}
+        for name, parent, h, t, _flesh in self.bones:
+            if is_leg(name):
+                child = next((n for n, pa, *_ in self.bones if pa == name and is_leg(n)), None)
+                chain[name] = (B(h), B(t), parent, child)
         for v in ob.data.vertices:
             p = v.co
             gp = G(p)
@@ -315,11 +341,35 @@ class Creature:
                 scores.append((d, name))
             scores.sort()
             best = scores[0][0]
-            picked = [(math.exp(-((d - best) / 0.35) ** 2), name) for d, name in scores[:4]]
+            picked = self._joint_blend(scores[0][1], p, chain)
+            if picked is None:
+                picked = [(math.exp(-((d - best) / 0.35) ** 2), name) for d, name in scores[:4]]
             total = sum(w for w, _ in picked)
             for w, name in picked:
                 if w / total > 0.02:
                     groups[name].add([v.index], w / total, "REPLACE")
+
+    @staticmethod
+    def _joint_blend(best, p, chain):
+        """Na perna, a pele é do osso mais perto e só se mistura com o vizinho perto da junta (pelo
+        comprimento ao longo do osso). Pelos raios de carne, a coxa grossa puxava a canela fina por
+        um palmo abaixo do joelho, e a perna torcia e afinava ao dobrar."""
+        if best not in chain:
+            return None
+        a, b, parent, child = chain[best]
+        ab = b - a
+        length = ab.length
+        along = (p - a).dot(ab) / max(length, 1e-9)
+        # Meia largura da mistura: estreita nas juntas da perna, mais larga no quadril e no ombro.
+        zone = min(0.035, 0.2 * length) if parent in chain else min(0.07, 0.3 * length)
+        weights = {best: 1.0}
+        if parent is not None and along < zone:
+            own = smooth01((along + zone) / (2 * zone))
+            weights = {best: own, parent: 1.0 - own}
+        elif child is not None and length - along < zone:
+            own = smooth01((length - along + zone) / (2 * zone))
+            weights = {best: own, child: 1.0 - own}
+        return [(w, name) for name, w in weights.items() if w > 0.0]
 
     def _rig(self):
         data = bpy.data.armatures.new(self.name + "_rig")
@@ -340,6 +390,15 @@ class Creature:
 
 
 # --- Pernas de quadrúpede ------------------------------------------------------------------
+
+def is_leg(name):
+    return any(part in name for part in ("_coxa_", "_canela_", "_pata_"))
+
+
+def smooth01(x):
+    x = max(0.0, min(1.0, x))
+    return x * x * (3.0 - 2.0 * x)
+
 
 def leg_bones(c, prefix, side, parent, joints, flesh):
     """Três ossos por perna: coxa (até o joelho), canela (até o jarrete/carpo), pata (até o chão)."""
@@ -362,7 +421,7 @@ class Deer(Creature):
     HEAD = Vector((0.0, 1.47, 0.68))
 
     def __init__(self, name="deer", old=False):
-        super().__init__(name, voxel=0.01, target_faces=7000, bumps=1.0)
+        super().__init__(name, voxel=0.01, target_faces=9000, bumps=1.0)
         self.old = old
         neck = 1.18 if old else 1.0
         bm = self.body
@@ -409,19 +468,20 @@ class Deer(Creature):
             f = [mirror(p, s) for p in self.FRONT]
             tube(bm, [f[0], f[1]], [0.078, 0.058])
             ellipsoid(bm, (0.1 * s, 0.8, 0.39), (0.058, 0.12, 0.075))  # músculo do braço
-            tube(bm, [f[1], (0.1 * s, 0.52, 0.41), f[2]], [0.05, 0.04, 0.03])
-            ellipsoid(bm, f[2], (0.032, 0.034, 0.034))  # "joelho" (carpo)
-            tube(bm, [f[2], f[3]], [0.025, 0.023])
-            ellipsoid(bm, f[3], (0.028, 0.03, 0.03))  # boleto
-            tube(bm, [f[3], f[4]], [0.023, 0.021], caps=False)
+            # Raios com folga: a suavização da malha come uns milímetros das partes finas.
+            tube(bm, [f[1], (0.1 * s, 0.52, 0.41), f[2]], [0.056, 0.046, 0.037])
+            ellipsoid(bm, f[2], (0.039, 0.041, 0.041))  # "joelho" (carpo)
+            tube(bm, [f[2], f[3]], [0.032, 0.03])
+            ellipsoid(bm, f[3], (0.035, 0.037, 0.037))  # boleto
+            tube(bm, [f[3], f[4]], [0.03, 0.028], caps=False)
             k = [mirror(p, s) for p in self.HIND]
-            tube(bm, [k[0], k[1]], [0.09, 0.064])
-            tube(bm, [k[1], (0.105 * s, 0.56, -0.38), k[2]], [0.06, 0.043, 0.028])
-            ellipsoid(bm, (0.105 * s, 0.6, -0.355), (0.048, 0.08, 0.06), rot_xyz(x=0.6))  # panturrilha
-            ellipsoid(bm, k[2], (0.028, 0.034, 0.038))  # ponta do jarrete
-            tube(bm, [k[2], k[3]], [0.025, 0.023])
-            ellipsoid(bm, k[3], (0.028, 0.03, 0.03))
-            tube(bm, [k[3], k[4]], [0.023, 0.021], caps=False)
+            tube(bm, [k[0], k[1]], [0.09, 0.066])
+            tube(bm, [k[1], (0.105 * s, 0.56, -0.38), k[2]], [0.064, 0.05, 0.036])
+            ellipsoid(bm, (0.105 * s, 0.6, -0.355), (0.05, 0.085, 0.064), rot_xyz(x=0.6))  # panturrilha
+            ellipsoid(bm, k[2], (0.035, 0.04, 0.045))  # ponta do jarrete
+            tube(bm, [k[2], k[3]], [0.032, 0.03])
+            ellipsoid(bm, k[3], (0.035, 0.037, 0.037))
+            tube(bm, [k[3], k[4]], [0.03, 0.028], caps=False)
         # Rabo curto e chato.
         tube(bm, [(0, 1.07, -0.57), (0, 1.02, -0.63), (0, 0.97, -0.66)], [(0.034, 0.02), (0.032, 0.018), (0.022, 0.014)])
 
@@ -433,7 +493,7 @@ class Deer(Creature):
                 hoof = self.detail("casco", f"{prefix}_pata_{n}")
                 x, z = leg[4][0] * s, leg[4][2]
                 for toe in (1, -1):
-                    ellipsoid(hoof, (x + 0.012 * toe, 0.03, z + 0.01), (0.015, 0.034, 0.04), rot_xyz(x=-0.25), 10, 8, shape=flat_bottom)
+                    ellipsoid(hoof, (x + 0.015 * toe, 0.03, z + 0.01), (0.019, 0.036, 0.045), rot_xyz(x=-0.25), 10, 8, shape=flat_bottom)
                 for toe in (1, -1):
                     ellipsoid(hoof, (x + 0.014 * toe, 0.11, z - 0.04), (0.007, 0.011, 0.009), None, 8, 6)  # esporões
             ear = self.detail("pelo", f"orelha_{n}")

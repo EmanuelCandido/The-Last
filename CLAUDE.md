@@ -82,7 +82,8 @@ scenes/
                      OldDeer (o Velho), Rabbit, Boar (javali), CrowFlock e Crow, Wolf e WolfPack, Watchers (os olhos do
                      Zelador: corvos sentinela e espiões, cervo branco); birds/: BirdLife e Bird (pássaros
                      pousados nas árvores); CreatureModel (modelo com esqueleto preso a pivôs), AnimalLook
-                     (pelo pixelado por região) e QuadrupedGait (passo e galope das pernas de três juntas)
+                     (pelo pixelado por região), QuadrupedGait (passo e galope das pernas de três juntas) e
+                     CreatureDeath (a queda e o corpo morto dos de quatro patas)
   shelter/           o Abrigo 9 (mundo real, 2 km abaixo): Shelter (salas por código), ShelterLook (materiais e peças),
                      CareCapsule, VitalsMonitor, WindowBlinds, FlickerLight, Caretaker (corpo do Zelador), Keeper (a IA
                      dele), Visit (lucidez e objetivos da visita), ShelterSwitch (fusível, alicate, cabo, cartão), Ari
@@ -132,12 +133,14 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
     pausa usa separação -12 para dar um item a cada 41 px.
   - Peças desenhadas (`tools/generate_ui.py`, sempre em escala inteira): os painéis de rocha `rock_menu`,
     `rock_pause` e `rock_wide` (a 3x, 240 linhas = 720 px; a borda direita é uma silhueta em degraus que se
-    desfaz em pontilhado), o `logo` "A TOCA" (O trocado pelo arco da caverna, a 3x), os riscos `tally`, a
+    desfaz em pontilhado), o `logo` "A TOCA" (O trocado pelo arco da caverna, a 3x), a
     `cave_icon`, a tecla-lápide `key_icon` do rodapé, o `marker` laranja do foco, as setas `up_down` e o atlas
     `item_icons` (12×12 + sombra, na ordem de `ICONS` no gerador e de `UiStyle.ICONS`).
   - `UiStyle` tem a paleta (`INK`, `INK_DIM`, `ACCENT`, `MOSS`, `MARK`... e `hex()` para BBCode) e as peças:
-    `rock_panel(kind)`, `sprite(textura, escala)`, `menu_title()`, `tally_line(texto)` (riscos e o texto apagado
-    ao lado), `footer(pai, texto)` (lápide e "[Esc] Voltar ao jogo" no canto de baixo), `menu_button()` (com
+    `rock_panel(kind)`, `sprite(textura, escala)`, `menu_title()`, `tally_line(texto)` (os riscos da parede e o
+    texto apagado ao lado: `TallyMarks` desenha texel a texel um risco por noite dormida no ciclo, `Story.marks`,
+    ou os do save no menu principal, `UiStyle.nights_marked()`; em grupos de cinco como na caverna, sem nenhum
+    risco antes da primeira noite), `footer(pai, texto)` (lápide e "[Esc] Voltar ao jogo" no canto de baixo), `menu_button()` (com
     `add_marker`: o marcador laranja à esquerda, só no foco), `item_icon(item)`, `hud_font_size()` (32, 48 ou 64
     pelo tamanho de texto das Configurações), `fog_backdrop()` (neblina em Bayer, `ui_fog.gdshader`, nos créditos)
     e `separator()`.
@@ -276,7 +279,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - **corpo (`CreatureModel`):** o modelo da espécie (`assets/models/animals/*.glb`) com esqueleto. Cada osso vira um
     pivô (Node3D com o nome do osso, na junta, sem giro) e o código do bicho anima os pivôs; `Animal._process` chama
     `model.sync()`, que dá a cada osso o mesmo movimento do pivô desde o repouso (até `CreatureModel.SYNC_RANGE`).
-    Flechas presas, o tombo da morte (tween no `corpo`) e as pegadas seguem iguais. Ossos: `corpo`, `peito`,
+    Flechas presas (no pivô `corpo`) e as pegadas seguem iguais. Ossos: `corpo`, `peito`,
     `pescoco`, `cabeca`, `orelha_E/D`, `cauda` e as pernas `d_`/`t_` (`coxa` → `canela` → `pata`, `_E`/`_D`); aves:
     `corpo`, `cabeca`, `asa_E/D` (o corvo também `pernas` e `cauda`). Asas e pernas escondidas = pivô com escala ~0;
   - **pelo (`AnimalLook`):** cada região do modelo (`bicho.pelo`, `bicho.claro`, `bicho.casco`...) recebe da paleta
@@ -284,7 +287,14 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
     pose de repouso como a pele do goblin) ou uma cor lisa. Malha e materiais são feitos uma vez por espécie;
   - **passo (`QuadrupedGait`):** cervo, javali e lobo andam em quatro tempos e galopam com tempo no ar; o ciclo anda
     com a distância (`stride_walk`/`stride_run`), e no ar o carpo e o jarrete dobram. `fold()` deita, `lift_front()`
-    bate a pata.
+    bate a pata;
+  - **morte (`CreatureDeath`, só quem tem `t_coxa_E`: cervos, coelho, javali e lobo; aves não):** `Animal._fall` parte da
+    pose em que o bicho estava: as dianteiras dobram, o peito desce, o corpo tomba de lado (para onde a flechada
+    empurrou, `_hit_side`), bate e assenta com as pernas moles, o pescoço para trás e a cabeça no chão; depois a
+    traseira de cima chuta e vem o último fôlego (parado em `CreatureDeath.STILL`). Correndo, escorrega uns 3 m com o
+    embalo (`_slide`), e o bicho todo deita junto com a encosta. Cada espécie ajusta em `_setup_death` (altura
+    deitado = `dead_height`, rolagem, pernas, pescoço; o Velho apoia a cabeça na galhada). `kill()` (laço) já põe
+    a pose final.
 
   O jogador expõe `noise_level()` e `visibility()` (agachado, parado e coberto por capim ou mata).
 - **Física, camadas:** 1 `world` (terreno, caverna, pedras, troncos caídos), 2 `trees`, 3 `player`, 4 `animals` (Area3D de acerto). Raios de som só testam a camada 1. Visão dos bichos: 1 e 2. Flechas: 1, 2 e 4.
@@ -367,7 +377,11 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 - **Bichos:** `assets/models/animals/source/build_animals.py` (Blender, por linha de comando) monta cada espécie como o
   goblin: corpo de lofts, tubos e bolhas fundido por remesh de voxel, suavizado, com calombos e reduzido; detalhes à
   parte (cascos, olhos, focinho, orelhas, galhada, presas, crina, garras, bico, rêmiges); regiões por função da
-  posição; pesos pela distância ao osso em "raios de carne". As medidas ficam no espaço do Godot. Regerar:
+  posição; pesos pela distância ao osso em "raios de carne", mas na perna a pele é do osso mais perto e só se
+  mistura com o vizinho perto da junta (`_joint_blend`; antes a coxa grossa puxava a canela fina e a perna torcia).
+  Os anéis dos tubos seguem o anterior (`_frames`, transporte paralelo): com um referencial solto por anel, a
+  perna quase vertical virava de lado no carpo e saía com cintura de ampulheta. As medidas ficam no espaço do
+  Godot. Regerar:
   ```powershell
   & $blender --background --python assets\models\animals\source\build_animals.py -- [especie ...] [--preview=pasta]
   ```

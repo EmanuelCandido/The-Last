@@ -43,6 +43,13 @@ func _look_key() -> String:
 	return "old_deer"
 
 
+## A galhada não deixa a cabeça deitar no chão: ela fica apoiada nas pontas, meio erguida.
+func _setup_death(fall: CreatureDeath) -> void:
+	fall.neck_drop = 0.15
+	fall.head_drop = 0.0
+	fall.head_tilt = 0.2
+
+
 func _physics_process(delta: float) -> void:
 	super(delta)
 	# No fim da tarde ele vai embora, se o goblin não está perto para ver.

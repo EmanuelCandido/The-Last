@@ -220,6 +220,14 @@ func _build_body() -> void:
 	_gait.run_speed = 1.8
 
 
+## Sem pescoço: a cabeça pesada vira sozinha para o chão. O corpo redondo não deita tão de lado.
+func _setup_death(fall: CreatureDeath) -> void:
+	fall.roll = 1.3
+	fall.shift = 0.14
+	fall.head_tilt = 0.1
+	fall.head_drop = 0.35
+
+
 func _build_hitbox(area: Area3D) -> void:
 	_hit_shape(area, Vector3(0.46, 0.56, 1.0), Vector3(0.0, 0.54, -0.02))
 	_hit_shape(area, Vector3(0.3, 0.32, 0.42), Vector3(0.0, 0.5, 0.62))

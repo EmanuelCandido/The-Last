@@ -14,7 +14,6 @@ extends RefCounted
 const FOG_SHADER := preload("res://assets/shaders/ui_fog.gdshader")
 const NOISE := preload("res://assets/textures/macro_noise.png")
 const LOGO := preload("res://assets/ui/logo.png")
-const TALLY := preload("res://assets/ui/tally.png")
 const CAVE_ICON := preload("res://assets/ui/cave_icon.png")
 const KEY_ICON := preload("res://assets/ui/key_icon.png")
 const MARKER := preload("res://assets/ui/marker.png")
@@ -101,17 +100,24 @@ static func menu_title(text: String) -> Label:
 	return label(text.to_upper(), &"MenuTitle")
 
 
-## A linha de baixo do título: os três riscos e, ao lado, um texto apagado ("Dia 4 · tarde").
+## A linha de baixo do título: os riscos da parede (TallyMarks) e, ao lado, um texto apagado
+## ("Dia 4 · tarde").
 static func tally_line(text := "") -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 28)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(sprite(TALLY, 2))
+	row.add_child(TallyMarks.new())
 	var hint := label(text, &"Hint", 32)
 	hint.name = "Text"
 	hint.visible = text != ""
 	row.add_child(hint)
 	return row
+
+
+## Quantos riscos a parede da caverna tem neste ciclo (um por noite dormida): os do jogo, ou os
+## do save quando o menu principal está aberto.
+static func nights_marked() -> int:
+	return SaveSystem.saved_marks() if Game.menu_open else Story.marks
 
 
 ## O rodapé dos menus: a tecla-lápide e "[Esc] Voltar ao jogo". Fica no canto de baixo de `parent`.

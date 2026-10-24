@@ -1355,17 +1355,6 @@ def logo():
     return with_shadow(pixels, 0.7)
 
 
-def tally():
-    """Três riscos cruzados por um traço, como os da parede da caverna (desenhado a 2x)."""
-    mask = np.zeros((12, 27), dtype=bool)
-    for i, x in enumerate((4, 13, 22)):
-        for y in range(12):
-            mask[y, x + (1 if (i == 1 and y < 4) or (i == 2 and y > 8) else 0)] = True
-    mask[6, :15] = True
-    mask[5, 15:] = True
-    return with_shadow(mask_sprite(mask, BONE, 51, 5.0))
-
-
 def cave_icon():
     """A boca da caverna: um morro cor de osso com o arco escuro embaixo (desenhado a 3x)."""
     def shape(d):
@@ -1792,7 +1781,6 @@ def textures():
     save("rock_wide", rock_panel(340, 240, [(0.0, 308), (0.25, 318), (0.5, 304), (0.75, 312),
                                             (1.0, 322)], 63))
     save("logo", logo())
-    save("tally", tally())
     save("cave_icon", cave_icon())
     save("key_icon", key_icon())
     save("item_icons", item_icons())
