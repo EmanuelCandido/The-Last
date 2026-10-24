@@ -153,11 +153,19 @@ func _command_members() -> void:
 				deer.sleep()
 			elif far >= spread + 1.5:
 				deer.regroup()
-		elif far > maxf(spread * 1.5, minf(Tuning.HERD_REJOIN_DISTANCE, spread * 3.0)):
+		elif far > _rejoin_distance(spread):
 			deer.regroup()
 		elif mode == Mode.SHELTER and far < spread + 1.0 and deer.state == Animal.State.GRAZE:
 			# Debaixo da árvore, parado esperando a chuva passar.
 			deer.stand()
+
+
+## A partir de que distância do centro o cervo volta para a manada. Na chuva é curta: todos
+## debaixo da copa (com a de sempre, até 9 m, metade pastava fora dela, molhando).
+func _rejoin_distance(spread: float) -> float:
+	if mode == Mode.SHELTER:
+		return spread + Tuning.HERD_SHELTER_REJOIN
+	return maxf(spread * 1.5, minf(Tuning.HERD_REJOIN_DISTANCE, spread * 3.0))
 
 
 ## Tira da manada quem foi coletado (o nó sumiu) ou morreu.

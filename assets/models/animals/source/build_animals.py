@@ -430,18 +430,23 @@ class Deer(Creature):
         def h(x, y, z):
             return tuple(H + Vector((x, y, z)))
 
-        # Tronco: peito fundo, flanco recolhido na frente da anca, garupa redonda.
+        # Tronco: peito fundo (o esterno desce até o cotovelo, ~0,66 m: o peito é quase metade da
+        # altura da cernelha; mais raso, a perna parecia comprida demais e o bicho, um camelo),
+        # flanco recolhido na frente da anca, garupa redonda.
+        # A garupa fecha aos poucos (um salto de raio no fim virava um prato chato atrás).
         loft(bm, [
-            (-0.6, 1.02, 0.05, 0.05, 0.05),
-            (-0.56, 1.02, 0.12, 0.11, 0.13),
-            (-0.47, 1.0, 0.155, 0.13, 0.2),
-            (-0.33, 0.99, 0.15, 0.12, 0.19),
-            (-0.18, 0.99, 0.155, 0.12, 0.21),
-            (0.0, 1.0, 0.17, 0.13, 0.25),
-            (0.18, 1.01, 0.17, 0.14, 0.28),
-            (0.32, 1.03, 0.155, 0.13, 0.29),
-            (0.43, 1.07, 0.12, 0.11, 0.25),
-            (0.5, 1.13, 0.075, 0.08, 0.13),
+            (-0.65, 1.0, 0.035, 0.035, 0.04),
+            (-0.625, 1.01, 0.08, 0.075, 0.09),
+            (-0.59, 1.015, 0.11, 0.1, 0.125),
+            (-0.55, 1.02, 0.13, 0.115, 0.15),
+            (-0.47, 1.0, 0.155, 0.13, 0.22),
+            (-0.33, 0.99, 0.15, 0.12, 0.22),
+            (-0.18, 0.99, 0.16, 0.12, 0.26),
+            (0.0, 1.0, 0.175, 0.13, 0.3),
+            (0.18, 1.01, 0.175, 0.14, 0.34),
+            (0.32, 1.03, 0.16, 0.13, 0.37),
+            (0.43, 1.07, 0.125, 0.11, 0.31),
+            (0.5, 1.13, 0.08, 0.08, 0.16),
         ])
         # Cernelha, escápulas, costelas e ancas: o relevo dos ossos e músculos sob o pelo.
         ellipsoid(bm, (0, 1.14, 0.27), (0.06, 0.06, 0.16))
@@ -451,8 +456,9 @@ class Deer(Creature):
             ellipsoid(bm, (0.1 * s, 0.94, -0.39), (0.08, 0.17, 0.15), rot_xyz(x=-0.2))
             ellipsoid(bm, (0.12 * s, 0.97, 0.08), (0.05, 0.14, 0.2))
         # Pescoço: curto, mais fundo que largo, grosso embaixo (no Velho, com juba).
-        tube(bm, [(0, 1.06, 0.42), (0, 1.2, 0.53), h(0, -0.1, -0.06), h(0, -0.02, -0.03)],
-             [(0.085 * neck, 0.13 * neck), (0.07 * neck, 0.1 * neck), (0.056 * neck, 0.074 * neck), (0.052, 0.062)], 16)
+        # A base nasce funda no peito (o pescoço fino e alto lia como camelo pastando).
+        tube(bm, [(0, 1.0, 0.4), (0, 1.18, 0.52), h(0, -0.1, -0.06), h(0, -0.02, -0.03)],
+             [(0.1 * neck, 0.17 * neck), (0.078 * neck, 0.12 * neck), (0.058 * neck, 0.08 * neck), (0.052, 0.062)], 16)
         if old:
             ellipsoid(bm, (0, 1.2, 0.54), (0.08, 0.13, 0.1), rot_xyz(x=-0.6),
                       shape=lambda n: 1.0 + 0.12 * noise.noise(n * 4.0))
@@ -483,7 +489,7 @@ class Deer(Creature):
             ellipsoid(bm, k[3], (0.035, 0.037, 0.037))
             tube(bm, [k[3], k[4]], [0.03, 0.028], caps=False)
         # Rabo curto e chato.
-        tube(bm, [(0, 1.07, -0.57), (0, 1.02, -0.63), (0, 0.97, -0.66)], [(0.034, 0.02), (0.032, 0.018), (0.022, 0.014)])
+        tube(bm, [(0, 1.07, -0.6), (0, 1.03, -0.67), (0, 0.97, -0.71)], [(0.036, 0.022), (0.034, 0.02), (0.024, 0.015)])
 
         # Detalhes.
         flat_bottom = lambda n: 1.0 - 0.35 * max(0.0, -n.y) ** 2 - 0.15 * max(0.0, n.y)
@@ -514,7 +520,7 @@ class Deer(Creature):
         self.bone("peito", "corpo", (0, 1.02, 0.18), (0, 1.05, 0.42), 0.2)
         self.bone("pescoco", "peito", (0, 1.1, 0.45), h(0, -0.06, -0.05), 0.09)
         self.bone("cabeca", "pescoco", h(0, -0.02, -0.03), h(0, -0.04, 0.22), 0.07)
-        self.bone("cauda", "corpo", (0, 1.06, -0.56), (0, 0.97, -0.66), 0.035)
+        self.bone("cauda", "corpo", (0, 1.06, -0.6), (0, 0.97, -0.71), 0.035)
         for s in (1, -1):
             n = "E" if s > 0 else "D"
             self.bone(f"orelha_{n}", "cabeca", h(0.05 * s, 0.05, -0.02), h(0.13 * s, 0.15, -0.04), 0.04)
@@ -555,9 +561,9 @@ class Deer(Creature):
             return "claro"  # anel do olho
         if p.z > 0.5 and 1.22 < p.y < 1.42 and n.y < -0.2 and abs(p.x) < 0.06:
             return "claro"  # garganta
-        if p.z < -0.53 and p.y > 0.86 and n.z < 0.2:
-            return "claro"  # espelho do traseiro
-        if p.y > 0.7 and p.y < 0.9 and n.y < -0.6 and -0.36 < p.z < 0.36:
+        if p.z < -0.55 and 0.84 < p.y < 1.04 and abs(p.x) < 0.075 and n.z < -0.3:
+            return "claro"  # espelho do traseiro: só embaixo do rabo (o traseiro todo virava uma bola branca)
+        if p.y > 0.62 and p.y < 0.86 and n.y < -0.6 and -0.36 < p.z < 0.36:
             return "claro"  # barriga
         if p.y < 0.4:
             return "pelo_escuro"

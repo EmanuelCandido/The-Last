@@ -117,6 +117,11 @@ func _finish(recipe: Dictionary) -> void:
 				# A abertura fica para onde o goblin olha.
 				var facing := _player.facing()
 				field.build_at(_player.global_position, atan2(facing.x, facing.z))
+		&"cairn":
+			var cairns := get_tree().get_first_node_in_group(CairnField.GROUP) as CairnField
+			if cairns != null:
+				# Um passo à frente: o marco não nasce dentro do goblin.
+				cairns.build_at(_player.global_position + _player.facing() * 0.7)
 	OccludedAudio.play_at(_player, CRAFT_SOUNDS.pick_random(), _player.global_position + Vector3.UP * 0.6, &"World", -4.0, 3.0)
 	Events.notification_shown.emit(String(recipe.get("message", recipe.name)))
 	Events.crafted.emit(recipe.id)

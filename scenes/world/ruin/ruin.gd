@@ -4,6 +4,7 @@ extends Node3D
 ## com a frente (e o arco da entrada) virada para +Z, de onde a trilha chega.
 ## - Nave: paredes quebradas em alturas diferentes, um rombo na parede direita, entulho e hera.
 ## - No fundo da nave, a porta lisa com os discos (RuinDoor).
+## - Na fachada, uma espadana (parede do sino) com um sino rachado que bate com o vento (RuinBell).
 ## - Atrás dela, a sala-espelho: a planta da sala 2714 do Abrigo (5 × 6 m), com o sarcófago
 ##   no lugar da cápsula, uma janela de pedra com grades no lugar da janela, a frase de Ari
 ##   na parede e um ninho de corvo no alto da parede, onde o teto quebrou.
@@ -31,12 +32,15 @@ var terrain: Terrain
 var floor_y := 0.0
 var door: RuinDoor
 var sarcophagus: Sarcophagus
+var bell: RuinBell
 
 var _rng := RandomNumberGenerator.new()
 var _walls := SurfaceTool.new()
 var _rock: ShaderMaterial
 var _floor_stone: ShaderMaterial
 var _nest := Vector3.ZERO
+## Eixo do sino, embaixo da verga da espadana (espaço da ruína).
+var _bell_axis := Vector3.ZERO
 
 
 func build(world_terrain: Terrain) -> void:
@@ -52,6 +56,7 @@ func build(world_terrain: Terrain) -> void:
 	_walls.begin(Mesh.PRIMITIVE_TRIANGLES)
 	_build_nave()
 	_build_room()
+	_build_bell_gable()
 	var mesh := _walls.commit()
 	var walls := MeshInstance3D.new()
 	walls.name = "Walls"
@@ -75,6 +80,10 @@ func build(world_terrain: Terrain) -> void:
 	_build_nest()
 	_build_rubble()
 	_build_ivy()
+	bell = RuinBell.new()
+	bell.name = "Bell"
+	add_child(bell)
+	bell.position = _bell_axis
 
 	door = RuinDoor.new()
 	door.name = "Door"
@@ -170,6 +179,20 @@ func _wall(a: Vector2, b: Vector2, heights: Vector2, on_floor: bool, openings: A
 			# Feita à mão: cada bloco sai um pouco do prumo.
 			var center := Vector3(mid.x, (low + high) * 0.5, mid.y) + Vector3(_rng.randf_range(-0.03, 0.03), 0.0, _rng.randf_range(-0.03, 0.03))
 			_block(center, Vector3(WALL + _rng.randf_range(-0.04, 0.04), high - low, along.length() + 0.04), yaw + _rng.randf_range(-0.03, 0.03))
+
+
+## A espadana (F10): no pedaço alto da esquerda da fachada sobem dois pilares e uma verga, acima
+## de onde a parede quebrou; o sino pendura no vão entre eles e aparece de longe na neblina.
+func _build_bell_gable() -> void:
+	var front := NAVE.end.y
+	var x := NAVE.position.x + 1.0
+	var ground := _ground(x, front)
+	var top := ground + 4.75
+	for side: float in [-1.0, 1.0]:
+		var low := ground - 0.5
+		_block(Vector3(x + side * 0.4, (low + top) * 0.5, front), Vector3(0.26, top - low, WALL * 0.8), _rng.randf_range(-0.02, 0.02))
+	_block(Vector3(x, top + 0.13, front), Vector3(1.1, 0.26, WALL * 0.9), _rng.randf_range(-0.02, 0.02))
+	_bell_axis = Vector3(x, top - 0.03, front)
 
 
 ## Arco de pedras em semicírculo sobre o vão da frente.

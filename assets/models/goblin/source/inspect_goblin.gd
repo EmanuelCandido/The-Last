@@ -79,12 +79,12 @@ func _run() -> void:
 			animator.velocity_local = Vector3(0.0, 0.0, 2.0) if pose == "walk" else Vector3.ZERO
 			animator.aiming = pose == "aim"
 			animator.draw = 0.7 if pose == "aim" else 0.0
-			if player._bow != null:
-				player._bow.visible = false
+			if player._gear.bow != null:
+				player._gear.bow.visible = false
 			if pose == "aim":
-				if player._bow == null:
-					player._bow = player._attach(BowMesh.build_bow(), "braco_E*mao")
-				player._bow.visible = true
+				if player._gear.bow == null:
+					player._gear.bow = player._gear.attach(BowMesh.build_bow(), "braco_E*mao")
+				player._gear.bow.visible = true
 			if pose == "punch":
 				animator.play_action(&"punch", 0.5)
 			for step in (14 if pose == "punch" else 40):
@@ -94,7 +94,7 @@ func _run() -> void:
 		if pose == "aim":
 			# Bone attachments have now received the new pose, as in the live controller.
 			for player in players:
-				player._bow.global_basis = player._visual.global_basis
+				player._gear.bow.global_basis = player._visual.global_basis
 			await get_tree().process_frame
 		if DisplayServer.get_name() != "headless":
 			await RenderingServer.frame_post_draw

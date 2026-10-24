@@ -18,6 +18,8 @@ extends Control
 var _notice_tween: Tween
 var _hint_tween: Tween
 var _hint_alpha := 1.0
+## Uma anotação entrou no escuro (sono, flash, Abrigo): o aviso espera o goblin acordar.
+var _note_pending := false
 
 @onready var _debug_label: Label = %DebugLabel
 @onready var _hint_box: Control = %HintBox
@@ -54,6 +56,9 @@ func _ready() -> void:
 	_show_hint()
 	# O menu principal fecha: as dicas de controle aparecem de novo para quem chega.
 	Events.game_started.connect(_show_hint)
+	Story.note_added.connect(func(_text: String) -> void: _on_note())
+	Events.woke_up.connect(func(_reason: StringName) -> void: _flush_note())
+	Events.shelter_left.connect(_flush_note)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -97,7 +102,8 @@ func _show_hint() -> void:
 ## As dicas de controle com as teclas de agora: "[W A S D] mover · [Shift] correr...".
 func _refresh_hint() -> void:
 	var keys := Settings.key_labels()
-	var walk := "%s %s %s %s" % [keys["move_forward"], keys["move_left"], keys["move_back"], keys["move_right"]]
+	var walk: String = keys["move"] if Settings.using_gamepad else \
+		"%s %s %s %s" % [keys["move_forward"], keys["move_left"], keys["move_back"], keys["move_right"]]
 	var parts := PackedStringArray()
 	for pair: Array in [[walk, "mover"], [keys["sprint"], "correr"], [keys["crouch"], "agachar"],
 			[keys["interact"], "pegar"], [keys["eat"], "comer"], [keys["pause"], "pausar (veja as Dicas)"]]:
@@ -143,12 +149,29 @@ func _show_notice(text: String) -> void:
 	_notice_tween.tween_property(_notice_box, "modulate:a", 0.0, 1.2)
 
 
+## Uma anotação nova (Story.notes): avisa onde ler. No escuro (dormindo, num flash, acordado no
+## Abrigo, numa cena), o aviso espera e sai quando o goblin já está de pé.
+func _on_note() -> void:
+	if Game.resting or Game.awake or Game.cutscene or Game.in_flash() or Game.menu_open:
+		_note_pending = true
+		return
+	Events.notification_shown.emit("Anotação nova. [%s] Dicas" % Settings.key_label(&"pause", true))
+
+
+func _flush_note() -> void:
+	if not _note_pending:
+		return
+	_note_pending = false
+	# Acordar leva uns 6 s (a cena de levantar): o aviso vem depois, com a tela clara.
+	get_tree().create_timer(Tuning.NOTE_NOTICE_DELAY, false).timeout.connect(_on_note)
+
+
 func _on_settings_changed(key: StringName) -> void:
 	match key:
 		&"text_scale_index":
 			_apply_text_scale()
 			_refresh_items()
-		&"keys":
+		&"keys", &"input_device":
 			_refresh_hint()
 		&"show_hints":
 			if Settings.show_hints:

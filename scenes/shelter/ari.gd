@@ -95,6 +95,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	_pant = maxf(_pant - delta, 0.0)
+	# O analógico direito olha, como no goblin (F10: antes Ari só olhava com o mouse).
+	var look := Input.get_vector("camera_left", "camera_right", "camera_up", "camera_down") if controls else Vector2.ZERO
+	if look != Vector2.ZERO:
+		var vertical := -1.0 if Settings.invert_y else 1.0
+		_yaw -= look.x * Tuning.ARI_GAMEPAD_LOOK_SPEED * delta
+		_pitch = clampf(_pitch - look.y * Tuning.ARI_GAMEPAD_LOOK_SPEED * delta * vertical, -PITCH_LIMIT, PITCH_LIMIT)
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back") if controls else Vector2.ZERO

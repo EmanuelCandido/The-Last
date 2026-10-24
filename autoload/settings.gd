@@ -6,6 +6,11 @@ extends Node
 ## Quem lê: o Player e Ari (sensibilidade, inverter Y, campo de visão), o HUD (dicas de controle e
 ## tamanho dos avisos), a BlurredVision (tamanho das legendas) e os textos que mostram teclas
 ## (key_label). Os padrões ficam em Tuning.SETTINGS_*.
+##
+## O aparelho em uso (F10): quem mexeu por último, o controle ou o teclado e mouse
+## (`using_gamepad`). Os textos que mostram tecla (key_label, key_labels) seguem ele: "[E] Pegar"
+## vira "[X] Pegar". Ao trocar, emite `changed(&"input_device")`. A troca de teclas da tela de
+## Configurações continua sendo só do teclado e do mouse (keyboard_label).
 
 signal changed(key: StringName)
 
@@ -58,6 +63,18 @@ const MOUSE_NAMES := {
 const SHORT_MOUSE_NAMES := {
 	MOUSE_BUTTON_LEFT: "Clique", MOUSE_BUTTON_RIGHT: "Botão dir.", MOUSE_BUTTON_MIDDLE: "Meio",
 }
+## Botões do controle com os nomes do controle do Xbox (o padrão do Godot); a cruz com setas.
+const PAD_NAMES := {
+	JOY_BUTTON_A: "A", JOY_BUTTON_B: "B", JOY_BUTTON_X: "X", JOY_BUTTON_Y: "Y",
+	JOY_BUTTON_BACK: "View", JOY_BUTTON_START: "Menu", JOY_BUTTON_LEFT_STICK: "L3",
+	JOY_BUTTON_RIGHT_STICK: "R3", JOY_BUTTON_LEFT_SHOULDER: "LB", JOY_BUTTON_RIGHT_SHOULDER: "RB",
+	JOY_BUTTON_DPAD_UP: "Cruz ↑", JOY_BUTTON_DPAD_DOWN: "Cruz ↓", JOY_BUTTON_DPAD_LEFT: "Cruz ←",
+	JOY_BUTTON_DPAD_RIGHT: "Cruz →",
+}
+const PAD_AXIS_NAMES := {
+	JOY_AXIS_LEFT_X: "LS", JOY_AXIS_LEFT_Y: "LS", JOY_AXIS_RIGHT_X: "RS", JOY_AXIS_RIGHT_Y: "RS",
+	JOY_AXIS_TRIGGER_LEFT: "LT", JOY_AXIS_TRIGGER_RIGHT: "RT",
+}
 
 # Vídeo
 var fullscreen := Tuning.SETTINGS_FULLSCREEN
@@ -80,6 +97,10 @@ var _config := ConfigFile.new()
 var _gain := AudioEffectAmplify.new()
 var _gamma_layer: CanvasLayer
 var _gamma: ShaderMaterial
+
+
+## O último aparelho usado foi o controle (os textos de tecla mostram os botões dele).
+var using_gamepad := false
 
 
 func _ready() -> void:
@@ -147,10 +168,44 @@ func binding(action: StringName) -> InputEvent:
 	return null
 
 
-## O nome da tecla principal da ação ("E", "Shift", "Botão direito"); `short` encurta o mouse.
+## Quem mexeu por último: o controle (botão ou analógico bem inclinado) ou o teclado e mouse.
+func _input(event: InputEvent) -> void:
+	var pad := using_gamepad
+	if event is InputEventJoypadButton and event.pressed:
+		pad = true
+	elif event is InputEventJoypadMotion and absf((event as InputEventJoypadMotion).axis_value) > 0.5:
+		pad = true
+	elif (event is InputEventKey or event is InputEventMouseButton) and event.is_pressed():
+		pad = false
+	elif event is InputEventMouseMotion and (event as InputEventMouseMotion).relative.length() > 4.0:
+		pad = false
+	if pad != using_gamepad:
+		using_gamepad = pad
+		changed.emit(&"input_device")
+
+
+## O nome da tecla principal da ação no aparelho em uso ("E", "Shift", "Botão direito"; no
+## controle, "X", "RT", "Cruz ↓"); `short` encurta o mouse.
 func key_label(action: StringName, short := false) -> String:
+	if using_gamepad:
+		var pad := pad_binding(action)
+		if pad != null:
+			return event_label(pad, short)
+	return keyboard_label(action, short)
+
+
+## O nome da tecla do teclado ou do mouse (a tela de troca de teclas usa este).
+func keyboard_label(action: StringName, short := false) -> String:
 	var event := binding(action)
 	return "?" if event == null else event_label(event, short)
+
+
+## O botão (ou eixo) do controle da ação, ou null.
+func pad_binding(action: StringName) -> InputEvent:
+	for event in InputMap.action_get_events(action):
+		if event is InputEventJoypadButton or event is InputEventJoypadMotion:
+			return event
+	return null
 
 
 ## Os nomes das teclas para String.format: {interact}, {eat}, {craft}...
@@ -159,6 +214,9 @@ func key_labels() -> Dictionary:
 	for entry in REMAPPABLE:
 		labels[String(entry[0])] = key_label(entry[0], true)
 	labels["pause"] = key_label(&"pause", true)
+	# As quatro direções juntas: "WASD" no teclado, o analógico no controle.
+	labels["move"] = labels["move_forward"] if using_gamepad else \
+		"%s%s%s%s" % [labels["move_forward"], labels["move_left"], labels["move_back"], labels["move_right"]]
 	return labels
 
 
@@ -177,6 +235,10 @@ func event_label(event: InputEvent, short := false) -> String:
 		if short and SHORT_MOUSE_NAMES.has(button):
 			return SHORT_MOUSE_NAMES[button]
 		return MOUSE_NAMES.get(button, "Mouse %d" % button) as String
+	if event is InputEventJoypadButton:
+		return PAD_NAMES.get((event as InputEventJoypadButton).button_index, "Botão %d" % (event as InputEventJoypadButton).button_index) as String
+	if event is InputEventJoypadMotion:
+		return PAD_AXIS_NAMES.get((event as InputEventJoypadMotion).axis, "Eixo") as String
 	return "?"
 
 

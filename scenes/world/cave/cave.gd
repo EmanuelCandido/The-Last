@@ -22,6 +22,9 @@ const DRIP_SOUNDS := [
 
 var _noise := FastNoiseLite.new()
 var _drip_timer := 2.0
+## A luz do olho acostumado (só de noite) e a última noite aplicada.
+var _night_fill: SpotLight3D
+var _last_night := -1.0
 
 @onready var _drip: AudioStreamPlayer3D = $Drip
 
@@ -51,8 +54,23 @@ func build(floor_height: float) -> void:
 	body.add_child(collision)
 	add_child(body)
 
+	_dress_bones()
+	var smoke := CaveSmoke.new()
+	smoke.name = "Smoke"
+	smoke.fire = $Campfire
+	add_child(smoke)
+	# Por fora, acima da boca: a fumaça aparece já subindo pela encosta (de dentro, na boca, os
+	# bolos em dither viravam um chuvisco de pontos contra o céu).
+	smoke.position = Vector3(0.0, ForestLayout.CAVE_HEIGHT + 1.4, -ForestLayout.CAVE_DEPTH * 0.5 - 1.2)
+	_build_night_fill()
+
 
 func _process(delta: float) -> void:
+	var night := Clock.night()
+	if _night_fill != null and absf(night - _last_night) > 0.01:
+		_last_night = night
+		_night_fill.light_energy = Tuning.CAVE_NIGHT_FILL * night
+		_night_fill.visible = night > 0.01
 	_drip_timer -= delta
 	if _drip_timer <= 0.0:
 		_drip_timer = randf_range(1.5, 6.0)
@@ -60,6 +78,59 @@ func _process(delta: float) -> void:
 		_drip.pitch_scale = randf_range(0.85, 1.2)
 		_drip.position = Vector3(randf_range(-2.0, 2.0), ForestLayout.CAVE_HEIGHT * 0.8, randf_range(-1.0, 5.0))
 		_drip.play()
+
+
+## De noite, o olho se acostuma: uma luz fraca, fria, sem sombra e sem brilho, só o bastante
+## para as silhuetas (a pele, as paredes, o goblin) aparecerem longe do fogo. A luz ambiente da
+## sonda quase não mexia na imagem: a rocha é escura e o tonemap esmaga os escuros. É um
+## holofote do alto apontado para o chão, aberto: não alcança o teto, e a pintura (o código da
+## porta) continua só legível com a fogueira cheia. De dia fica apagada.
+func _build_night_fill() -> void:
+	_night_fill = SpotLight3D.new()
+	_night_fill.name = "NightFill"
+	_night_fill.light_color = Tuning.CAVE_NIGHT_FILL_COLOR
+	_night_fill.light_specular = 0.0
+	_night_fill.spot_range = ForestLayout.CAVE_HEIGHT + 3.0
+	_night_fill.spot_angle = 72.0
+	_night_fill.spot_attenuation = 0.4
+	_night_fill.shadow_enabled = false
+	add_child(_night_fill)
+	_night_fill.position = Vector3(0.0, ForestLayout.CAVE_HEIGHT - 1.2, 0.5)
+	_night_fill.rotation.x = -PI * 0.5
+
+
+## Os ossos largados no chão (BoneA e BoneB da cena): uma haste com as duas pontas grossas
+## (as epífises), no material de osso dos troféus (PropLook), em vez de uma cápsula lisa.
+func _dress_bones() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2714
+	for node_name in [&"BoneA", &"BoneB"]:
+		var bone := get_node_or_null(NodePath(node_name)) as MeshInstance3D
+		if bone != null:
+			bone.mesh = _bone_mesh(rng, rng.randf_range(0.26, 0.34))
+
+
+## Osso longo ao longo de Y, centrado na origem: haste um pouco torta e mais fina no meio,
+## e em cada ponta dois côndilos achatados.
+static func _bone_mesh(rng: RandomNumberGenerator, length: float) -> ArrayMesh:
+	var builder := TreeBuilder.Builder.new()
+	var st := builder.tool_for(PropLook.bone())
+	var half := length * 0.5
+	var bend := Vector3(rng.randf_range(-0.01, 0.01), 0.0, rng.randf_range(-0.01, 0.01))
+	var points := [Vector3.DOWN * half, Vector3.DOWN * half * 0.3 + bend, Vector3.UP * half * 0.3 + bend, Vector3.UP * half]
+	var radii := [0.022, 0.015, 0.015, 0.022]
+	for i in points.size() - 1:
+		TreeBuilder.add_branch(st, points[i], points[i + 1], radii[i], radii[i + 1], 7)
+	for end: Vector3 in [Vector3.DOWN * half, Vector3.UP * half]:
+		var tip := end + end.normalized() * 0.008
+		for side: float in [-1.0, 1.0]:
+			var knob := SphereMesh.new()
+			knob.radius = 0.02
+			knob.height = 0.032
+			knob.radial_segments = 7
+			knob.rings = 4
+			st.append_from(knob, 0, Transform3D(Basis.IDENTITY, tip + Vector3(side * 0.013, 0.0, 0.0)))
+	return builder.commit()
 
 
 func _build_mesh() -> ArrayMesh:

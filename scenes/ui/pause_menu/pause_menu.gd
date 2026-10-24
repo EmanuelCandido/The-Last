@@ -9,7 +9,7 @@ extends Control
 ## viram as teclas de agora (Settings.key_labels). As anotações da história (Story.notes) entram
 ## embaixo, em outra cor.
 const TIPS := """[b]CONTROLES[/b]
-{move_forward}{move_left}{move_back}{move_right} — andar  ·  {sprint} — correr  ·  {crouch} — agachar  ·  {jump} — pular
+{move} — andar  ·  {sprint} — correr  ·  {crouch} — agachar  ·  {jump} — pular
 {interact} — pegar, coletar, usar a fogueira, dormir  ·  {eat} — comer  ·  {craft} — lista de fabricar
 {sniff} (segurar) — farejar  ·  {hold_breath} (segurar) — prender o ar  ·  {throw} — jogar pedra
 {aim} — mirar com o arco
@@ -58,6 +58,12 @@ const TIPS := """[b]CONTROLES[/b]
 • A caça dá ossos: flechas de osso (ferem mais), arco de teixo (flecha mais rápida, braço firme) e, com couro, a cama de peles (o sono cura mais e dá menos fome).
 • Cada caça coletada deixa um troféu na parede da caverna.
 
+[b]NA NEBLINA[/b]
+• Com a fogueira da toca acesa, a fumaça sai pela boca da caverna e sobe acima das árvores: de longe, ela mostra onde fica a toca.
+• Marco de pedras (3 pedras, {craft}): uma torre de pedras na sua frente, que aparece de longe na neblina.
+• Perto de um pinheiro vivo, {interact} risca o tronco com as garras: a casca raspada fica clara dos dois lados. Riscando árvores pelo caminho, dá para voltar pela mesma trilha.
+• Na ruína, um sino velho bate quando o vento é forte. Dá para se guiar pelo som.
+
 [b]FOME, FOGO E SONO[/b]
 • O goblin sente fome com o tempo. A barriga ronca quando é hora de comer; se a fome apertar demais, ela começa a machucar.
 • Aperte {eat} para comer. Carne crua mata pouco a fome e às vezes faz mal; assada, enche a barriga.
@@ -100,6 +106,12 @@ var _slots: VBoxContainer
 var _slot_real: Button
 var _slot_old: Button
 var _slots_back: Button
+## A pergunta antes de sair sem salvar (F10), no lugar dos itens, e o que fazer se confirmar.
+var _leave: VBoxContainer
+var _leave_text: Label
+var _leave_save: Button
+var _leave_back: Button
+var _leave_action := Callable()
 ## Aviso que está no lugar do dia, e até quando (Time.get_ticks_msec; 0 = enquanto pausado).
 var _status := ""
 var _status_until := 0
@@ -131,6 +143,10 @@ func _on_game_paused(paused: bool) -> void:
 		_folder_button.visible = MetaFiles.has_letter()
 		_state_label.text = _state_text()
 		_tips_text.text = _tips_with_notes()
+		# A tecla do rodapé segue o aparelho em uso (Esc no teclado, Menu no controle).
+		for footer: Node in [_panel.get_node_or_null(^"Footer/Text"), _tips.get_node_or_null(^"Footer/Text")]:
+			if footer is Label:
+				(footer as Label).text = "[%s] Voltar ao jogo" % Settings.key_label(&"pause", true)
 		show_tips(false)
 
 
@@ -203,6 +219,52 @@ func show_slots(slots_visible: bool) -> void:
 func _show_items(items_visible: bool) -> void:
 	_items.visible = items_visible
 	_slots.visible = not items_visible
+	if _leave != null:
+		_leave.visible = false
+
+
+## Sair (para o menu ou do jogo): se o que foi feito desde o último salvar se perderia, pergunta
+## antes, no lugar dos itens; senão sai direto. O X da janela também passa por aqui (Game).
+func ask_leave(action: Callable) -> void:
+	if not SaveSystem.can_lose_progress():
+		action.call()
+		return
+	_leave_action = action
+	var minutes := maxi(1, roundi(SaveSystem.unsaved_seconds() / 60.0))
+	if Game.awake:
+		_leave_text.text = "Acordado não dá para salvar.\nO que você fez desde que salvou\n(há %d min) se perde." % minutes
+	else:
+		_leave_text.text = "O que você fez desde que salvou\n(há %d min) se perde." % minutes
+	_leave_save.visible = not Game.awake
+	show_tips(false)
+	_items.visible = false
+	_slots.visible = false
+	_leave.visible = true
+	(_leave_save if _leave_save.visible else _leave_back).grab_focus()
+
+
+func _build_leave() -> void:
+	_leave = _column()
+	_leave.visible = false
+	_leave.add_theme_constant_override(&"separation", 0)
+	_leave_text = UiStyle.label("")
+	_leave_text.add_theme_color_override(&"font_color", UiStyle.BLOOD.lightened(0.25))
+	_leave.add_child(_leave_text)
+	_leave_save = _menu_item(_leave, "Salvar e sair", func() -> void:
+		if SaveSystem.save_game():
+			_leave_now())
+	_menu_item(_leave, "Sair sem salvar", _leave_now)
+	_leave_back = _menu_item(_leave, "Voltar", func() -> void:
+		_show_items(true)
+		_resume_button.grab_focus())
+
+
+func _leave_now() -> void:
+	var action := _leave_action
+	_leave_action = Callable()
+	_show_items(true)
+	if action.is_valid():
+		action.call()
 
 
 func _build() -> void:
@@ -225,9 +287,10 @@ func _build() -> void:
 	_menu_item(_items, "Dicas", show_tips.bind(true))
 	_folder_button = _menu_item(_items, "Abrir pasta do jogo", MetaFiles.open_game_folder)
 	_settings_button = _menu_item(_items, "Configurações", open_settings)
-	_menu_item(_items, "Menu principal", Game.back_to_menu)
-	_menu_item(_items, "Sair do jogo", Game.quit)
+	_menu_item(_items, "Menu principal", ask_leave.bind(Game.back_to_menu))
+	_menu_item(_items, "Sair do jogo", ask_leave.bind(Game.quit))
 	_build_slots()
+	_build_leave()
 	UiStyle.footer(_panel, "[%s] Voltar ao jogo" % Settings.key_label(&"pause", true))
 	_build_tips()
 

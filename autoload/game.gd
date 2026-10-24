@@ -58,6 +58,8 @@ var _menu_camera: Camera3D
 func _ready() -> void:
 	# Precisa receber input mesmo pausado, para conseguir despausar.
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# O X da janela passa pelo _notification: com progresso não salvo, pergunta antes (F10).
+	get_tree().set_auto_accept_quit(false)
 	_ear_filter.cutoff_hz = 20500.0
 	AudioServer.add_bus_effect(0, _ear_filter)
 	Events.player_died.connect(func(_cause: StringName) -> void: pass_out(&"death"))
@@ -592,6 +594,18 @@ func set_paused(paused: bool) -> void:
 
 func quit() -> void:
 	get_tree().quit()
+
+
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_WM_CLOSE_REQUEST:
+		return
+	var pause_menu := ui_root.get_node_or_null(^"PauseMenu") if ui_root != null else null
+	if DevTools.automated or cutscene or pause_menu == null or not SaveSystem.can_lose_progress():
+		quit()
+		return
+	if not get_tree().paused:
+		set_paused(true)
+	pause_menu.ask_leave(quit)
 
 
 func _spawn_player() -> void:

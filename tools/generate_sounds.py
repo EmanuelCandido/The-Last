@@ -857,6 +857,7 @@ def main():
     write_wav(ROOT / "ambience" / "crowd_loop.wav", crowd_loop(), loop=True)
     write_f9()
     write_ambient_life()
+    write_f10()
 
 
 def write_f9():
@@ -864,6 +865,37 @@ def write_f9():
     write_wav(ROOT / "ambience" / "rain_loop.wav", rain_loop(), loop=True)
     for v in range(1, 3):
         write_wav(ROOT / "animals" / f"boar_grunt_{v}.wav", boar_grunt(v))
+
+
+def bell_clank(variant):
+    """O sino rachado da ruína batendo com o vento (F10): as parciais de um sino pequeno de bronze
+    (hum, fundamental, terça menor, quinta, nominal), cada uma dividida em duas um pouco
+    desafinadas (a rachadura faz batimento e chiado), o baque surdo do badalo e um zumbido curto
+    da trinca. A segunda variante é uma batida mais fraca, de raspão."""
+    rng = np.random.default_rng(610 + variant)
+    n = int(3.4 * SR)
+    t = np.arange(n) / SR
+    f0 = 590.0 * (1.0 if variant == 1 else 1.012)
+    strength = 1.0 if variant == 1 else 0.55
+    out = np.zeros(n)
+    for ratio, amp, decay in ((0.5, 0.5, 2.2), (1.0, 1.0, 1.6), (1.19, 0.6, 1.1), (1.5, 0.35, 0.8),
+                              (2.0, 0.7, 0.6), (2.52, 0.3, 0.35), (3.01, 0.22, 0.25), (4.1, 0.15, 0.15)):
+        split = rng.uniform(1.5, 4.5)
+        for detune in (-split * 0.5, split * 0.5):
+            f = f0 * ratio + detune
+            phase = rng.uniform(0, TAU)
+            out += amp * 0.5 * np.sin(TAU * f * t + phase) * np.exp(-t / (decay * (0.7 + 0.3 * strength)))
+    # A trinca: um chiado que segue o tom nos primeiros instantes.
+    crack = band_oneshot(rng.standard_normal(n), 1800, 5200) * np.exp(-t / 0.18) * (0.6 + 0.4 * np.sin(TAU * f0 * t))
+    clapper = band_oneshot(rng.standard_normal(n), 120, 900) * np.exp(-t / 0.02)
+    env = smoothstep(0.0, 0.002, t)
+    return (peak_norm(out) + 0.25 * peak_norm(crack) + 0.5 * peak_norm(clapper)) * env * strength
+
+
+def write_f10():
+    """Os sons da F10 (só eles: python -c "import generate_sounds as g; g.write_f10()", em tools/)."""
+    for v in range(1, 3):
+        write_wav(ROOT / "sfx" / f"bell_clank_{v}.wav", bell_clank(v))
 
 
 if __name__ == "__main__":

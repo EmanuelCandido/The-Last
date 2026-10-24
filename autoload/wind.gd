@@ -57,9 +57,15 @@ func _process(delta: float) -> void:
 ## Força do vento (0..~1.2) num ponto do mundo. Mesma conta do shader foliage.
 func strength_at(world_position: Vector3) -> float:
 	var p := Vector2(world_position.x, world_position.z)
-	var uv := (p - _offset) / gust_scale
+	return exposure_at(p) * aloft_at(world_position)
+
+
+## O vento no alto, acima do abrigo do chão e da mata (clima × rajada): o que bate num sino
+## pendurado a 5 m (RuinBell). No chão, strength_at ainda multiplica pelo abrigo.
+func aloft_at(world_position: Vector3) -> float:
+	var uv := (Vector2(world_position.x, world_position.z) - _offset) / gust_scale
 	var gust := smoothstep(0.35, 0.8, _sample(_gust_image, uv - uv.floor()))
-	return exposure_at(p) * intensity * (0.35 + 0.9 * gust)
+	return intensity * (0.35 + 0.9 * gust)
 
 
 ## Quanto o ponto está exposto ao vento (0 abrigado .. 1 aberto).

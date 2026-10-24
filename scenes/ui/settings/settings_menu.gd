@@ -221,7 +221,7 @@ func _options(text: String, names: PackedStringArray, selected: int, on_select: 
 func _key_row(text: String, action: StringName) -> void:
 	var row := _row(text)
 	var button := Button.new()
-	button.text = Settings.key_label(action)
+	button.text = Settings.keyboard_label(action)
 	button.custom_minimum_size.x = 220.0
 	button.pressed.connect(func() -> void:
 		if _waiting_button != null:
@@ -235,7 +235,7 @@ func _key_row(text: String, action: StringName) -> void:
 
 func _stop_waiting(message: String) -> void:
 	if _waiting_button != null and is_instance_valid(_waiting_button):
-		_waiting_button.text = Settings.key_label(_waiting)
+		_waiting_button.text = Settings.keyboard_label(_waiting)
 	_waiting = &""
 	_waiting_button = null
 	_status.text = message

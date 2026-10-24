@@ -171,6 +171,19 @@ func is_tree_dead(id: int) -> bool:
 	return _vegetation.trees[id].dead
 
 
+## Base (no chão) e raio do tronco da árvore `id`; `tree_standing` = ainda não caiu.
+func tree_base(id: int) -> Vector3:
+	return _vegetation.trees[id].base
+
+
+func tree_radius(id: int) -> float:
+	return _vegetation.trees[id].radius
+
+
+func tree_standing(id: int) -> bool:
+	return id >= 0 and id < _vegetation.trees.size() and not _vegetation.trees[id].fallen
+
+
 func hit_tree(id: int, from: Vector3) -> bool:
 	return _vegetation.hit_tree(id, from)
 
@@ -255,6 +268,14 @@ func _place_props() -> void:
 	blinds.name = "Blinds"
 	blinds.terrain = _terrain
 	props.add_child(blinds)
+	# Os marcos que o goblin deixa para se achar na neblina (F10).
+	var cairns := CairnField.new()
+	cairns.name = "Cairns"
+	cairns.terrain = _terrain
+	props.add_child(cairns)
+	var marks := TreeMarks.new()
+	marks.name = "TreeMarks"
+	props.add_child(marks)
 
 
 func _spawn_animal(animal: Animal, home: Vector2) -> void:

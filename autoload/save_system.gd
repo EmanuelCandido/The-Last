@@ -18,6 +18,31 @@ const PERSIST_GROUP := &"persist"
 ## 1: só inventário fora da fase. 2: estado global genérico (história, relógio, corpo).
 const FORMAT_VERSION := 2
 
+## Segundos de jogo (sem pausa) desde o último salvar, carregar ou começo de partida (F10): o
+## menu de pausa e o X da janela perguntam antes de sair perdendo isso.
+var _unsaved := 0.0
+
+
+func _ready() -> void:
+	Events.game_started.connect(func() -> void: _unsaved = 0.0)
+
+
+func _process(delta: float) -> void:
+	if Game.current_level != null and not Game.menu_open:
+		_unsaved += delta
+
+
+## Sair agora perde progresso de verdade: uma partida jogada há mais de
+## Tuning.UNSAVED_WARN_SECONDS desde o último salvar (o menu, o Bem-vindo de volta e os finais
+## não perdem nada).
+func can_lose_progress() -> bool:
+	return _unsaved > Tuning.UNSAVED_WARN_SECONDS and Game.current_level != null and not Game.menu_open \
+		and not Game.welcome and Game.ending == &""
+
+
+func unsaved_seconds() -> float:
+	return _unsaved
+
 
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_PATH)
@@ -32,6 +57,7 @@ func save_game() -> bool:
 		push_error("Não foi possível salvar em %s: %s" % [SAVE_PATH, error_string(FileAccess.get_open_error())])
 		return false
 	file.store_string(JSON.stringify(snapshot(), "\t"))
+	_unsaved = 0.0
 	return true
 
 
@@ -54,6 +80,7 @@ func load_game(fresh := false) -> bool:
 	if not restore(payload):
 		return false
 	MetaFiles.ensure()
+	_unsaved = 0.0
 	return true
 
 

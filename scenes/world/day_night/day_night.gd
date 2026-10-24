@@ -54,6 +54,10 @@ func apply(night: float) -> void:
 	environment.environment.fog_light_color = fog
 	var sky_energy: float = lerpf(day.sky_energy, dark.sky_energy, night)
 	_sky.energy_multiplier = sky_energy * overcast
+	# O olho se acostuma: de noite parte da luz ambiente deixa de vir do céu (quase preto) e
+	# passa a ser um piso azulado fixo. A noite continua escura, mas as silhuetas aparecem.
+	environment.environment.ambient_light_color = Tuning.NIGHT_AMBIENT_COLOR
+	environment.environment.ambient_light_sky_contribution = 1.0 - Tuning.NIGHT_AMBIENT_FLOOR * night
 	# O horizonte some na neblina: puxa as cores do céu para a cor dela.
 	var tint := fog * (1.0 / maxf(fog.get_luminance(), 0.001)) * Color(_sky_rest.horizon).get_luminance()
 	_sky.sky_horizon_color = Color(_sky_rest.horizon).lerp(tint, night * 0.6 + twilight)

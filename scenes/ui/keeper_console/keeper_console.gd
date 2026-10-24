@@ -4,7 +4,9 @@ extends CanvasLayer
 ## poderes da história: `neblina off` some com a neblina da floresta (flag "fog_off"), `teleport`
 ## escolhe onde o goblin acorda, `give` cria itens. E os comandos dos finais: `ficar`, `acordar` e
 ## o secreto, `trocar <senha>`, que só aceita a senha da carta (Story.password).
-## O texto da ajuda fica em StoryBeats.CONSOLE_HELP. Esc ou `sair` fecha.
+## O texto da ajuda fica em StoryBeats.CONSOLE_HELP. Esc (B no controle) ou `sair` fecha.
+## Embaixo da linha de digitar ficam os comandos rápidos (F10), para quem joga com controle: a
+## cruz escolhe e A envia. O `trocar <senha>` continua só digitando (a senha vem de fora do jogo).
 
 ## Fechou (Esc ou "sair").
 signal closed
@@ -14,6 +16,8 @@ signal chose(reason: StringName)
 const KEY_SOUND := preload("res://assets/audio/sfx/stone_click_2.wav")
 const COLOR := Color(0.45, 1.0, 0.6)
 const DIM := Color(0.3, 0.62, 0.4)
+## Os comandos rápidos, na ordem dos botões.
+const QUICK := ["ajuda", "status", "neblina off", "neblina on", "ficar", "acordar", "sair"]
 ## Lugares do `teleport` (x, z no chão da floresta).
 const PLACES := {
 	"caverna": ForestLayout.SPAWN,
@@ -33,6 +37,7 @@ const ALERTS := {
 var _log: RichTextLabel
 var _field: LineEdit
 var _keys: AudioStreamPlayer
+var _quick_first: Button
 
 
 func _ready() -> void:
@@ -82,6 +87,7 @@ func _ready() -> void:
 	_field.text_submitted.connect(run)
 	_field.text_changed.connect(func(_text: String) -> void: _click())
 	row.add_child(_field)
+	column.add_child(_quick_row(font))
 	_keys = AudioStreamPlayer.new()
 	_keys.stream = KEY_SOUND
 	_keys.bus = &"Shelter"
@@ -90,13 +96,43 @@ func _ready() -> void:
 	_print("ZL-0 · UNIDADE DE CUIDADO · ABRIGO 9 · ALA C")
 	_print("PACIENTE: ARI · LEITO 2714 · CICLO %d · ESTADO: ACORDADO" % Story.cycle)
 	_print("[color=#%s]digite 'ajuda' para ver os comandos.[/color]\n" % DIM.to_html(false))
-	_field.grab_focus()
+	if Settings.using_gamepad:
+		_quick_first.grab_focus()
+	else:
+		_field.grab_focus()
 
 
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and (event as InputEventKey).keycode == KEY_ESCAPE:
+	var escape: bool = event is InputEventKey and event.pressed and (event as InputEventKey).keycode == KEY_ESCAPE
+	if escape or (event is InputEventJoypadButton and event.is_action_pressed(&"ui_cancel")):
 		get_viewport().set_input_as_handled()
 		closed.emit()
+
+
+## A linha de comandos rápidos: botões sem moldura, na cor do terminal.
+func _quick_row(font: Font) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 18)
+	for command: String in QUICK:
+		var button := Button.new()
+		button.text = "[%s]" % command
+		button.flat = true
+		button.focus_mode = Control.FOCUS_ALL
+		button.add_theme_font_override(&"font", font)
+		button.add_theme_font_size_override(&"font_size", 15)
+		for state: StringName in [&"font_color", &"font_hover_color", &"font_pressed_color"]:
+			button.add_theme_color_override(state, DIM)
+		button.add_theme_color_override(&"font_focus_color", COLOR)
+		var focus := StyleBoxFlat.new()
+		focus.bg_color = Color(COLOR, 0.15)
+		button.add_theme_stylebox_override(&"focus", focus)
+		button.pressed.connect(func() -> void:
+			_click()
+			run(command))
+		row.add_child(button)
+		if _quick_first == null:
+			_quick_first = button
+	return row
 
 
 ## Roda um comando (o que se digitou e Enter).

@@ -404,6 +404,40 @@ def berry_card(size=64):
     return fill_transparent(rgb, alpha), alpha
 
 
+def tree_blaze(w=24, h=40):
+    """Casca raspada no tronco (F10): uma mancha irregular de madeira clara, com a borda da casca
+    rasgada mais escura e três riscos fundos de garra. Fundo transparente (vai colado na casca)."""
+    rng = np.random.default_rng(141)
+    yy, xx = np.mgrid[0:h, 0:w] + 0.5
+    # Elipse comprida com a borda roída pelo ruído.
+    edge = spectral_noise(h, w, 1.2, 142) - 0.5
+    shape = ((xx - w / 2) / (w * 0.42)) ** 2 + ((yy - h / 2) / (h * 0.46)) ** 2 + edge * 0.55
+    alpha = (shape < 1.0).astype(float)
+    grain = spectral_noise(h, w, 1.4, 143, stretch_y=5.0)
+    rgb = ramp(grain, [(0.0, (0.52, 0.42, 0.29)), (0.5, (0.70, 0.60, 0.44)), (1.0, (0.80, 0.71, 0.55))])
+    # A casca rasgada em volta: escura, como a madeira que já começou a oxidar.
+    rim = (shape > 0.72) & (shape < 1.0)
+    rgb[rim] = rgb[rim] * 0.55
+    for i in range(3):
+        x = w / 2 + (i - 1) * 4.5 + rng.uniform(-0.6, 0.6)
+        stroke(rgb, x, h * 0.18 + rng.uniform(0, 2), rng.uniform(-0.12, 0.12), 1.0, h * 0.62, np.array([0.24, 0.17, 0.10]), wrap=False)
+    return fill_transparent(rgb, alpha), alpha
+
+
+def smoke_puff(size=32):
+    """Bolo de fumaça (F10, a fumaça da toca vista de longe): redondo, mais denso no meio, com a
+    borda comida pelo ruído. O alpha vira dither no jogo (ALPHA_HASH), no estilo pixelado."""
+    yy, xx = np.mgrid[0:size, 0:size] + 0.5
+    r = np.sqrt((xx - size / 2) ** 2 + (yy - size / 2) ** 2) / (size / 2)
+    noise = spectral_noise(size, size, 1.6, 151)
+    alpha = np.clip((1.0 - r) * 1.4 + (noise - 0.5) * 0.9, 0.0, 1.0) ** 1.3
+    # Zera de vez antes da borda do quad: o ruído deixava os cantos acesos e o bolo virava um quadrado.
+    alpha *= np.clip((0.95 - r) / 0.25, 0.0, 1.0)
+    shade = 0.75 + 0.25 * (1.0 - yy / size)  # luz de cima
+    rgb = np.stack([shade * (0.86 + 0.1 * noise)] * 3, axis=-1) * np.array([1.0, 0.99, 0.97])
+    return rgb, alpha
+
+
 def leaf(size=16):
     """Uma folha solta (partículas de folhas caindo)."""
     rgb = np.zeros((size, size, 3))
@@ -652,6 +686,8 @@ def main():
     save("cobblestone.png", cobblestone())
     save("plaster.png", plaster())
     save("ari_reflection.png", *ari_reflection())
+    save("tree_blaze.png", *tree_blaze())
+    save("smoke_puff.png", *smoke_puff())
     save_gray("macro_noise.png", spectral_noise(256, 256, 1.8, 101))
     save_gray("dither_noise.png", spectral_noise(64, 64, 0.2, 102))
 

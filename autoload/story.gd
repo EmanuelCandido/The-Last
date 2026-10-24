@@ -66,6 +66,9 @@ func set_flag(flag: StringName, value := true) -> void:
 		return
 	if value:
 		_flags[flag] = true
+		# Avançou na história: as dicas progressivas recomeçam a contar (F10).
+		if flag in StoryBeats.PROGRESS_FLAGS:
+			_counters[&"stuck_sleeps"] = 0
 	else:
 		_flags.erase(flag)
 	flag_changed.emit(flag, value)
@@ -76,6 +79,7 @@ func set_act(value: int) -> void:
 	if act == value:
 		return
 	act = value
+	_counters[&"stuck_sleeps"] = 0
 	act_changed.emit(act)
 	changed.emit()
 
@@ -243,6 +247,7 @@ func _on_slept() -> void:
 	else:
 		marks += 1
 	add_count(StringName("sleeps_act_%d" % act))
+	add_count(&"stuck_sleeps")
 	# Um dia inteiro sem alarme: o Zelador relaxa.
 	if not _alarmed_today:
 		add_vigilance(Tuning.VIGILANCE_CALM_SLEEP)

@@ -16,7 +16,9 @@ extends RefCounted
 ##   "act": n, "act_at_least": n, "marks_at_least": n, "flag": nome, "not_flag": nome,
 ##   "counter_at_least": {nome: n}, "reason": motivo do gatilho (ex.: "sleep"),
 ##   "any": [condições, ...] (basta uma valer).
-##   Contadores automáticos: "<bicho>_harvested", "<receita>_crafted", "sleeps_act_<n>".
+##   Contadores automáticos: "<bicho>_harvested", "<receita>_crafted", "sleeps_act_<n>" e
+##   "stuck_sleeps" (noites dormidas desde o último avanço: um flag de PROGRESS_FLAGS ou o ato
+##   mudando). As dicas progressivas (F10) usam o "stuck_sleeps".
 ## Ações (`do`, em ordem):
 ##   {"set_flag": nome}, {"clear_flag": nome}, {"set_act": n}, {"add_note": texto},
 ##   {"notify": texto}, {"flash": n} (passa no escuro do sono ou da morte; 0 = sorteado entre
@@ -26,6 +28,13 @@ extends RefCounted
 ##   Flags automáticos: "flash_<n>_seen" (o flash passou).
 ## Flags que escrevem arquivos de verdade (MetaFiles): "old_save" (ciclo_346.sav) e
 ## "letter_left" (leia_me_se_lembrar.txt).
+
+## Flags que contam como avanço na história: ligar um deles (ou mudar de ato) zera o contador
+## "stuck_sleeps". As dicas progressivas entram quando ele passa de alguns dias (F10).
+const PROGRESS_FLAGS: Array[StringName] = [
+	&"moss_fell", &"saw_ruin_window", &"ruin_door_open", &"first_wake", &"room_seen", &"blind_spot",
+	&"climate_cut", &"access_card", &"control_room", &"confession",
+]
 
 ## Código da porta da ruína: a pintura do teto (2 cervos, 7 corvos, 1 lobo, 4 coelhos).
 const DOOR_CODE := "2714"
@@ -142,28 +151,28 @@ const BEATS: Array[Dictionary] = [
 		# O primeiro cervo visível perto trava 0,4 s no meio do passo, e o som some junto.
 		"id": "clue_deer_freeze",
 		"on": "woke",
-		"when": {"act": 1, "marks_at_least": 2},
+		"when": {"act": 1, "marks_at_least": 1},
 		"do": [{"set_flag": "clue_deer_freeze"}],
 	},
 	{
 		# Um corvo pousa perto e segue o goblin com a cabeça, sem crocitar.
 		"id": "clue_crow_stare",
 		"on": "woke",
-		"when": {"act": 1, "marks_at_least": 3},
+		"when": {"act": 1, "marks_at_least": 2},
 		"do": [{"set_flag": "clue_crow_stare"}],
 	},
 	{
 		# Na primeira noite na caverna, três bipes no ritmo do coração.
 		"id": "clue_beep",
 		"on": "woke",
-		"when": {"act": 1, "marks_at_least": 4},
+		"when": {"act": 1, "marks_at_least": 3},
 		"do": [{"set_flag": "clue_beep"}],
 	},
 	{
 		# Na próxima rajada forte, o zumbido de um ventilador.
 		"id": "clue_fan",
 		"on": "woke",
-		"when": {"act": 1, "marks_at_least": 5},
+		"when": {"act": 1, "marks_at_least": 4},
 		"do": [{"set_flag": "clue_fan"}],
 	},
 	{
@@ -174,8 +183,8 @@ const BEATS: Array[Dictionary] = [
 			"act": 1,
 			"reason": "sleep",
 			"any": [
-				{"marks_at_least": 7, "counter_at_least": {"deer_harvested": 1}},
-				{"marks_at_least": 10},
+				{"marks_at_least": 5, "counter_at_least": {"deer_harvested": 1}},
+				{"marks_at_least": 8},
 			],
 		},
 		"do": [{"set_flag": "moss_fell"}, {"set_act": 2}],
@@ -200,7 +209,7 @@ const BEATS: Array[Dictionary] = [
 		"id": "memory_346",
 		"on": "memory",
 		"when": {"reason": "346"},
-		"do": [{"add_note": "Ele vê pelos corvos."}],
+		"do": [{"add_note": "Ele vê pelos corvos."}, {"set_flag": "memory_346_seen"}],
 	},
 	{
 		"id": "flash_3",
@@ -301,6 +310,75 @@ const BEATS: Array[Dictionary] = [
 		"on": "choice",
 		"when": {"reason": "trocar", "flag": "confession"},
 		"do": [{"set_flag": "ending_swap"}, {"ending": "swap"}],
+	},
+	# --- Dicas progressivas (F10) -----------------------------------------------------------
+	# Quem fica dias sem avançar ganha uma anotação de Ari apontando o próximo passo, e depois
+	# outra mais direta. O Ato I não tem dica: lá é para parecer só o jogo.
+	{
+		"id": "hint_door_1",
+		"on": "slept",
+		"when": {"flag": "saw_ruin_window", "not_flag": "ruin_door_open", "counter_at_least": {"stuck_sleeps": 2}},
+		"do": [{"add_note": "A porta da ruína pede quatro números. Os bichos pintados no teto da toca... com o fogo alto dá para contar."}],
+	},
+	{
+		"id": "hint_door_2",
+		"on": "slept",
+		"when": {"flag": "saw_ruin_window", "not_flag": "ruin_door_open", "counter_at_least": {"stuck_sleeps": 4}},
+		"do": [{"add_note": "Cervos, corvos, lobo, coelhos. Quantos de cada, nessa ordem."}],
+	},
+	{
+		"id": "hint_ritual_1",
+		"on": "slept",
+		"when": {"flag": "ruin_door_open", "not_flag": "first_wake", "counter_at_least": {"stuck_sleeps": 2}},
+		"do": [{"add_note": "A frase na sala da ruína. Deitar na pedra e prender o ar."}],
+	},
+	{
+		"id": "hint_ritual_2",
+		"on": "slept",
+		"when": {"flag": "ruin_door_open", "not_flag": "first_wake", "counter_at_least": {"stuck_sleeps": 4}},
+		"do": [{"add_note": "Deitado no sarcófago, segurar o ar e contar até vinte. Sem soltar."}],
+	},
+	{
+		"id": "hint_r1",
+		"on": "slept",
+		"when": {"act": 3, "not_flag": "room_seen", "counter_at_least": {"stuck_sleeps": 2}},
+		"do": [{"add_note": "Lá: olhar o monitor e a janela, e voltar para a cama antes de apagar. Para voltar lá, prender o ar no escuro."}],
+	},
+	{
+		"id": "hint_r2",
+		"on": "slept",
+		"when": {"flag": "room_seen", "not_flag": "blind_spot", "counter_at_least": {"stuck_sleeps": 2}},
+		"do": [{"add_note": "O quadro de fusíveis da sala. O vermelho apaga o sensor do corredor."}],
+	},
+	{
+		"id": "hint_r3",
+		"on": "slept",
+		"when": {"flag": "blind_spot", "not_flag": "climate_cut", "counter_at_least": {"stuck_sleeps": 2}},
+		"do": [{"add_note": "No almoxarifado tem um alicate. O cabo do clima fica no quadro de lá."}],
+	},
+	{
+		"id": "hint_r4",
+		"on": "slept",
+		"when": {"flag": "climate_cut", "not_flag": "access_card", "counter_at_least": {"stuck_sleeps": 2}},
+		"do": [{"add_note": "Ele recarrega quase desligado e só ouve. Rastejando, o cartão sai do peito dele."}],
+	},
+	{
+		"id": "hint_control_room",
+		"on": "slept",
+		"when": {"flag": "access_card", "not_flag": "control_room", "counter_at_least": {"stuck_sleeps": 2}},
+		"do": [{"add_note": "O leitor do cartão fica na porta fechada do corredor."}],
+	},
+	{
+		"id": "hint_recordings",
+		"on": "slept",
+		"when": {"flag": "control_room", "not_flag": "confession", "counter_at_least": {"stuck_sleeps": 1}},
+		"do": [{"add_note": "As gravações das câmeras. Abrir."}],
+	},
+	{
+		"id": "hint_memory",
+		"on": "slept",
+		"when": {"flag": "old_save", "not_flag": "memory_346_seen", "counter_at_least": {"stuck_sleeps": 3}},
+		"do": [{"add_note": "Tem um arquivo em Carregar que eu não salvei."}],
 	},
 	# --- Reciclagem ----------------------------------------------------------------------
 	{

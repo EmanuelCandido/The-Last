@@ -35,6 +35,8 @@ const WARMUP_FRAMES := 10
 var skip_intro := false
 ## Rodando um roteiro de teste (--run): o Final 3 não fecha o jogo.
 var scripted := false
+## Rodando qualquer teste (--frames, --screenshot ou --run): o diário de playtest não grava.
+var automated := false
 ## O jogo começa pelo menu principal (sempre, menos nos testes; --menu força).
 var show_menu := true
 
@@ -43,6 +45,7 @@ func _ready() -> void:
 	var args := _parse_user_args()
 	skip_intro = args.has("skip-intro")
 	scripted = args.has("run")
+	automated = scripted or args.has("frames") or args.has("screenshot")
 	show_menu = args.has("menu") or not (args.has("frames") or args.has("screenshot"))
 	if args.has("frames") or args.has("screenshot"):
 		_run(args)
@@ -80,10 +83,12 @@ func _run(args: Dictionary) -> void:
 		Game.play_flash(int(args["flash"]))
 	if args.has("run"):
 		var script := load(String(args["run"])) as GDScript
-		if script == null:
-			push_error("[DevTools] Roteiro não encontrado: %s" % args["run"])
-		else:
-			await script.new().run()
+		if script == null or not script.can_instantiate():
+			# Roteiro que não existe ou não compila: fecha na hora (antes ficava parado para sempre).
+			push_error("[DevTools] Roteiro não encontrado ou com erro: %s" % args["run"])
+			get_tree().quit(1)
+			return
+		await script.new().run()
 	for action in held:
 		Input.action_press(action)
 	if args.has("press"):

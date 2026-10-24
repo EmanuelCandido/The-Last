@@ -11,7 +11,7 @@ extends RefCounted
 ##   "message": aviso ao terminar;
 ##   "once": true = só dá para ter uma (a roupa, vestida para sempre);
 ##   "special": algo que a CraftAbility faz além de dar itens (&"torch": acende a tocha na mão;
-##   &"blind": monta a tocaia aos pés do goblin).
+##   &"blind": monta a tocaia aos pés do goblin; &"cairn": empilha um marco de pedras na frente dele).
 
 const LIST: Array[Dictionary] = [
 	{
@@ -54,6 +54,12 @@ const LIST: Array[Dictionary] = [
 		"id": &"yew_bow", "name": "Arco de teixo",
 		"cost": {&"wood": 3, &"hide": 1, &"bone": 2}, "gives": {&"yew_bow": 1}, "once": true,
 		"message": "Arco de teixo: a flecha sai mais rápida e o braço treme menos.",
+	},
+	# F10: o marco de pedras, para achar o caminho de volta na neblina.
+	{
+		"id": &"cairn", "name": "Marco de pedras",
+		"cost": {&"stone": 3}, "gives": {}, "special": &"cairn",
+		"message": "Empilhou um marco de pedras. Na neblina, ele mostra o caminho.",
 	},
 	{
 		"id": &"fur_bed", "name": "Cama de peles",

@@ -83,11 +83,11 @@ O estado da história fica no autoload `Story`: `act` (1–4), `cycle` (347), `m
 | Beat | Quando dispara | O que acontece |
 |---|---|---|
 | `intro` | Começo do jogo | Acorda na caverna (cena atual). |
-| `clue_deer_freeze` | Ao acordar com 2 riscos, no primeiro cervo visível a < 30 m | O cervo trava 0,4 s no meio do passo e o som do casco some junto. Uma vez. |
-| `clue_crow_stare` | Ao acordar com 3 riscos, na primeira vez fora da caverna | Um corvo pousa a ~6 m e segue o goblin com a cabeça por 8 s, sem crocitar, e vai embora. |
-| `clue_beep` | Ao acordar com 4 riscos, na primeira noite | No meio do som da caverna, 3 bipes no ritmo do coração (72 bpm). |
-| `clue_fan` | Ao acordar com 5 riscos | Na próxima rajada forte, um zumbido grave (110 Hz) com chiado de hélice por 3 s. |
-| `moss_falls` | Ao acordar com ≥ 7 riscos e ≥ 1 cervo coletado, **ou** com 10 riscos (para não travar quem não caça cervo) | Um pedaço de musgo cai da parede ao lado da pele e mostra **centenas de riscos antigos**. Começa o Ato II. |
+| `clue_deer_freeze` | Ao acordar com 1 risco, no primeiro cervo visível a < 30 m | O cervo trava 0,4 s no meio do passo e o som do casco some junto. Uma vez. |
+| `clue_crow_stare` | Ao acordar com 2 riscos, na primeira vez fora da caverna | Um corvo pousa a ~6 m e segue o goblin com a cabeça por 8 s, sem crocitar, e vai embora. |
+| `clue_beep` | Ao acordar com 3 riscos, na primeira noite | No meio do som da caverna, 3 bipes no ritmo do coração (72 bpm). |
+| `clue_fan` | Ao acordar com 4 riscos | Na próxima rajada forte, um zumbido grave (110 Hz) com chiado de hélice por 3 s. |
+| `moss_falls` | Ao acordar com ≥ 5 riscos e ≥ 1 cervo coletado, **ou** com 8 riscos (para não travar quem não caça cervo) | Um pedaço de musgo cai da parede ao lado da pele e mostra **centenas de riscos antigos**. Começa o Ato II. |
 
 **Feito (F4):** os beats só ligam o flag (`clue_deer_freeze`...); o nó `Clues` (`scenes/world/clues/`) espera a hora, faz a pista uma vez e liga `<flag>_seen`. O corvo que encara vem do `Watchers`. A rajada do ventilador ficou em 0,5 (`Tuning.CLUE_FAN_GUST`): medido, o vento passa de 0,75 em só 1% das vezes, e a pista quase nunca acontecia.
 
@@ -511,6 +511,8 @@ Ao deitar no sarcófago no fim do Ato II:
 | **Bipe** | Ato I uma vez; Ato II às vezes à noite na caverna; Ato III sempre, baixinho, na caverna |
 | **Ventilador** | A partir do Ato II, nas rajadas fortes (abrigo > 0,8 e rajada > 0,7) |
 
+**F10:** o sino rachado da ruína (`RuinBell`) bate com o vento forte. Na floresta é um marco pelo som; no Final 2, o mesmo sino toca na cidade de verdade: era Vilarrasa vazando o tempo todo.
+
 **Feito (F4 e F7):** o bipe do Ato III toca a cada batida (72 bpm) dentro da caverna, a -30 dB, mais baixo perto da boca. O ventilador usa a rajada de `Tuning.CLUE_FAN_GUST` (§3, F4).
 
 ### HUD de sinais vitais
@@ -641,6 +643,40 @@ A caçada estava difícil demais e o jogo do goblin precisava de mais motivo par
 
 ---
 
+## 8c. Polimento e orientação (F10)
+
+Depois de uma análise do jogo inteiro, esta fase corrige o que se via nos prints, tira riscos de design e acrescenta como se achar na neblina. Números em `Tuning` (bloco "F10").
+
+### A. O que estava errado
+- **Osso liso na caverna:** era uma cápsula de cor chapada; virou um osso montado em código, no material de osso dos troféus. A ponta da lança ganhou a textura de rocha.
+- **Cervo com cara de camelo:** peito 8 cm mais fundo (o esterno no cotovelo), pescoço mais grosso na base, garupa redonda e o espelho branco só embaixo do rabo. As juntas das pernas não mudaram.
+- **Cabeça do goblin tapando a mira:** a câmera mirando vai mais para trás e para o lado (`AIM_CAMERA_DISTANCE`, `AIM_SHOULDER`).
+- **Noite quase preta na toca:** um holofote fraco sem sombra, apontado para o chão e longe da pintura do teto, acende de noite no salão (o olho acostumado) e, lá fora, parte da luz ambiente vira um piso azulado.
+- **Bugs achados pelos testes:** os lobos das matilhas distantes sobreviviam ao sono; o pool de pegadas (200) se renovava em 20 s com as cinco manadas (agora 1600); e, na chuva, metade da manada pastava fora da copa (agora quem se afasta uns passos volta para debaixo das árvores).
+
+### B. Ritmo e rede de segurança
+- **Ato I mais curto:** pistas nos riscos 1 a 4, musgo no 5º risco com um cervo (ou no 8º).
+- **Dicas progressivas:** quem fica dias sem avançar ganha anotações de Ari apontando o próximo passo (`stuck_sleeps`, beats `hint_*`). O Ato I não tem dica.
+- **Aviso de anotação nova** no HUD, depois de acordar quando ela entra no escuro.
+- **Sair sem salvar pergunta antes** (pause e o X da janela).
+- **Diário de playtest** (`Playtest`): o que mede quanto tempo cada pessoa leva até o musgo, onde morre e onde trava.
+
+### C. Orientação na neblina
+- **Marco de pedras** (receita, 3 pedras) e **tronco riscado** (E perto de um pinheiro vivo): trilhas que o próprio goblin deixa, e que ficam no save.
+- **Fumaça da toca:** com a fogueira acesa, a coluna sobe acima das árvores e mostra a toca de longe.
+- **O sino da ruína:** bate quando o vento é forte; dá para se guiar pelo som.
+- **Degraus:** o goblin sobe quinas de até 30 cm (pedra baixa, entulho), em vez de travar.
+
+### D. Técnico
+- Os roteiros de teste ficam em `tests/` e o `run_all.ps1` roda todos protegendo o save do jogador.
+- `player.gd` e `goblin_animator.gd` foram divididos em peças (`PlayerCamera`, `EdgeBalance`, `StepClimber`, `PlayerGear`, `GoblinActions`, `GoblinIdle`).
+- Controle: textos de tecla pelo aparelho em uso, Ari olha com o analógico, console do Zelador com comandos rápidos.
+- `export_presets.cfg` (Windows) e o projeto fixado no PC dentro do OneDrive.
+
+**Pronto quando:** `tests/run_all.ps1` inteiro passa (com o `test_melhorias`) e há prints da mira, da toca à noite, do marco e do tronco, da fumaça de longe e na chuva, do sino, da pergunta ao sair e do prompt com controle.
+
+---
+
 ## 9. Maleabilidade: como mudar o plano sem quebrar o jogo
 
 O plano vai mudar, talvez muito. O código segue estas regras para que uma mudança grande seja editar um arquivo, não caçar referências pelo projeto:
@@ -713,6 +749,7 @@ Cada fase termina jogável, com teste de fumaça, roteiro `--run` e print confer
 | **F7: Mistério meta** ✅ feita | Anotações, `ciclo_346.sav` e a memória, `leia_me`, falso travamento, sons vazando, HUD vital, voz do Zelador | Cada item do §7 disparado pelo seu beat |
 | **F8: Verdade e finais** ✅ feita | Sala de controle, câmeras, conversa, terminal, os 3 finais, créditos, menu principal, modo "Bem-vindo de volta" | Os 3 finais jogados de ponta a ponta |
 | **F9: Caça e vida na toca** ✅ feita | Chuva, manadas com casa e dia, caça legível (sangrar, corpo, mira, tocaia), coleta, carne que estraga, defumador, equipamento, prática, troféus, o Velho e o javali (§8b) | Roteiro de cada bloco e prints da chuva, da manada e dos troféus |
+| **F10: Polimento e orientação** ✅ feita | Testes versionados (`tests/`), degraus, marcos na neblina (pedras, tronco riscado, fumaça, sino), dicas progressivas, aviso de anotação, aviso ao sair, diário de playtest, controle, luz da noite, câmera da mira, cervo novo, export (§8c) | `tests/run_all.ps1` inteiro passando e prints de cada mudança |
 
 ---
 
@@ -725,7 +762,7 @@ Cada fase termina jogável, com teste de fumaça, roteiro `--run` e print confer
 | Por que Ari queria fugir? | Pânico ao acordar ferido e sozinho; ele se machucou tentando |
 | Quantos ciclos e quanto dura um? | Ciclo 347, ~12 dias simulados cada, 11 anos ao todo |
 | O que é o cervo branco? | O sedativo: comer reinicia o ciclo |
-| Quando o musgo cai? | 7º risco com 1 cervo coletado, ou 10º risco sem condição |
+| Quando o musgo cai? | 5º risco com 1 cervo coletado, ou 8º risco sem condição (era 7º e 10º; encurtado na F10, para o Ato I caber em 2 a 3 h) |
 | Como se acorda de propósito? | Ritual: agachado, parado, prendendo o ar 20 s num lugar de ritual |
 | Como o jogador aprende o ritual? | A frase na parede da sala-espelho, escrita pelo próprio Ari |
 | Qual é o código da porta? | 2714: a pintura (2 cervos, 7 corvos, 1 lobo, 4 coelhos) e o leito no monitor |

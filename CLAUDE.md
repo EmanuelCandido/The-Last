@@ -26,6 +26,8 @@ python tools/generate_textures.py                                       # regera
 python tools/generate_sounds.py                                         # regera assets/audio/**/*.wav
 python tools/generate_ui.py                                             # regera assets/ui/ (fonte Toca e texturas da interface)
 python tools/process_real_sounds.py --raw=PASTA                         # corta e trata as gravações reais (CREDITS.md)
+powershell -ExecutionPolicy Bypass -File tests\run_all.ps1              # todos os roteiros de tests/ (-Only f8 roda só um)
+& $godot --headless --path . --export-release "Windows Desktop"         # build/A Toca.exe (--export-debug liga o diário de playtest)
 ```
 
 - **Argumentos do DevTools** (depois de `--`), documentados em `autoload/dev_tools.gd`:
@@ -36,7 +38,10 @@ python tools/process_real_sounds.py --raw=PASTA                         # corta 
   - `--shelter` (acorda Ari no Abrigo, já de pé) e `--flash=n` (começa o flash n, para prints);
   - `--menu` (abre o menu principal; sem `--frames` nem `--screenshot` ele já abre sozinho) e `--welcome` (começa o Bem-vindo de volta);
   - `--run=roteiro.gd`.
-- **`--run`:** recebe um `RefCounted` com `func run() -> void` (pode usar `await`). É o jeito de testar mecânicas de ponta a ponta: pegar o arco, quebrar árvore, caçar, furtividade, assar, dormir, farejar, jogar pedra, fabricar.
+- **`--run`:** recebe um `RefCounted` com `func run() -> void` (pode usar `await`). É o jeito de testar mecânicas de ponta a ponta: pegar o arco, quebrar árvore, caçar, furtividade, assar, dormir, farejar, jogar pedra, fabricar. Roteiro que não existe ou não compila fecha o jogo na hora (código 1).
+- **`tests/`:** os roteiros de cada fase (`test_f1` a `test_f9`, `test_life`, `test_melhorias`), versionados. Imprimem `[T] ok`/`[T] FALHOU` e terminam com `[T] FIM: TUDO OK`. O `run_all.ps1` guarda e devolve os arquivos do jogador (`save.json`, `settings.cfg`, `toca.cfg`, a carta, o `ciclo_346.sav`, `playtest/`), roda um por um com limite de tempo (`-Timeout`, 300 s) e grava a saída em `%TEMP%\toca_tests`. Roteiro novo `tests/test_*.gd` entra sozinho. A exportação deixa `tests/` de fora.
+- **Diário de playtest (`Playtest`, autoload):** em build de depuração (editor e `--export-debug`) ou com `--playtest`, grava `user://playtest/sessao_*.log` (eventos, flags, mortes, sono, anotações, posição a cada 2 min e o tempo em cada ato). Fica desligado nos testes do DevTools e no export de lançamento.
+- **OneDrive:** o projeto fica numa pasta do OneDrive marcada para sempre ficar no PC (`attrib +P`). Arquivo novo herda; se o Godot reclamar de arquivo "só na nuvem", rode `attrib +P "<pasta>\*" /S /D` (e `attrib +P +H` no `.git`).
 - Roteiros que dormem salvam de verdade em `%APPDATA%/Godot/app_userdata/Jogo Pessoal/save.json`. Apague esse save depois do teste. Roteiros que mexem nas Configurações gravam `settings.cfg` na mesma pasta (apague também). Os finais também escrevem `toca.cfg` na mesma pasta (o título do jogo); `MetaFiles.forget_endings()` limpa. Num roteiro (`DevTools.scripted`), o Final 3 não fecha o jogo.
 - **`--press`** gera eventos de ação de verdade. `--hold` só segura a ação e não dispara `_unhandled_input`, então E, R e o soco precisam de `--press`.
 - `--fixed-fps 60` deixa o teste determinístico: 60 frames equivalem a 1 s de jogo. Os bichos nascem com semente aleatória.
@@ -50,30 +55,34 @@ python tools/process_real_sounds.py --raw=PASTA                         # corta 
 ```
 docs/                roteiro.md (rascunho) e plano.md (plano fechado de história e mecânicas, em fases)
 data/                tuning.gd (todos os números de ajuste), story_beats.gd (acontecimentos da história) e recipes.gd (receitas)
-autoload/            Events, Settings, Wind, Inventory, Clock, Weather, Vitals, Story, Game, SaveSystem, MetaFiles, DevTools
+autoload/            Events, Settings, Wind, Inventory, Clock, Weather, Vitals, Story, Game, SaveSystem, MetaFiles, DevTools, Playtest
 scenes/
   main/              cena raiz: LevelRoot + UI (HUD, ScreenFade, PauseMenu); abre o menu principal
   endings/           Endings (as cenas dos três finais) e WelcomeBack (o Bem-vindo de volta)
-  player/            goblin: player.gd (movimento, arco, soco, interação), goblin_animator.gd
-                     (animação procedural no esqueleto) e goblin_look.gd (texturas)
+  player/            goblin: player.gd (movimento, arco, soco, interação), PlayerCamera (câmera sobre o ombro),
+                     EdgeBalance (equilíbrio na borda), StepClimber (subir degraus), PlayerGear (arco na mão e
+                     aljava), goblin_animator.gd (animação procedural no esqueleto), GoblinActions (poses das ações),
+                     GoblinIdle (manias parado) e goblin_look.gd (texturas)
   player/parts/      mecânicas novas do goblin como nós filhos: EatAbility (F), BodyFeedback (fome), ColdExposure (frio),
                      SniffAbility (X), BreathControl (Q), StoneThrow (G), MudCamouflage, CraftAbility (R), TorchCarry,
-                     SnareSetter, LeatherClothes, AimGuide (mira com fôlego), Practice (aprender pela prática) e
-                     GoblinAutopilot (a IA que joga no Bem-vindo de volta)
+                     SnareSetter, LeatherClothes, AimGuide (mira com fôlego), Practice (aprender pela prática),
+                     TreeMarker (riscar o tronco) e GoblinAutopilot (a IA que joga no Bem-vindo de volta)
   items/             arco (pickup na caverna), HeldBow (arco na mão, corda que puxa), flecha (projétil), pedra jogada,
                      tocha, BowMesh e MeatMesh (malhas)
   levels/forest/     fase da floresta: forest.tscn/gd e ForestLayout (pontos-chave do mapa)
   levels/test_level/ fase de teste antiga (blocos CSG)
   world/terrain/     Terrain: relevo, malha em blocos, HeightMapShape3D, mapa de abrigo do vento
   world/cave/        Cave: casca de rocha procedural + fogueira, pele de dormir (e a cama de peles), riscos na parede
-                     (WallMarks), pintura no teto (CavePainting), troféus (Trophies), arco, gotejamento
+                     (WallMarks), pintura no teto (CavePainting), troféus (Trophies), arco, gotejamento e a fumaça
+                     vista de longe (CaveSmoke)
   world/vegetation/  TreeBuilder (malhas por código) e Vegetation (espalha, instancia, derruba árvores)
   world/props/       fogueira (lenha, assar), folhas caindo, monte de pedras, poça de lama, laço (Snare e SnareField),
-                     defumador (SmokingRack), coleta (ForageField e ForageSpot), tocaias (BlindField) e PropLook
-                     (materiais compartilhados dos props montados por código)
+                     defumador (SmokingRack), coleta (ForageField e ForageSpot), tocaias (BlindField), marcos de
+                     pedra (CairnField), troncos riscados (TreeMarks) e PropLook (materiais compartilhados dos props
+                     montados por código)
   world/tracks/      Tracks: pegadas dos bichos (MultiMesh)
   world/clues/       Clues: as pistas do Ato I e os sons que vazam do mundo real
-  world/ruin/        Ruin (capela e sala-espelho), RuinDoor (porta e discos) e Sarcophagus
+  world/ruin/        Ruin (capela, espadana e sala-espelho), RuinDoor (porta e discos), Sarcophagus e RuinBell (o sino)
   world/ambience/    Ambience: vento 3D, folhas nas árvores e os tocadores de chamados (call_at);
                      InsectField: grilos e gafanhotos de verdade no capim
   world/day_night/   DayNight: sol, céu e neblina pela hora (Clock.night)
@@ -104,6 +113,7 @@ assets/
   models/goblin/     goblin.glb + source/ (goblin.blend, polish_goblin.py, export_goblin.py)
   models/animals/    deer, old_deer, rabbit, boar, wolf, crow, songbird, woodpecker e owl (.glb) + source/build_animals.py
 tools/               geradores Python de texturas e sons (numpy + Pillow)
+tests/               roteiros --run de cada fase e o run_all.ps1
 ```
 
 ## Arquitetura
@@ -196,7 +206,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - **Bem-vindo de volta (`WelcomeBack`, `Game.start_welcome`, `Game.welcome`):** nada salva, o HUD some e o `GoblinAutopilot` (filho do Player) joga apertando as ações do `Input`: pega o arco, caça (cervo antes, coelho de perto; chega agachado, mira com a queda da flecha), coleta, come, fabrica flechas e dorme de noite. Depois de dormir uma vez (ou `Tuning.WELCOME_MAX_HOURS`), os riscos viram OBRIGADO (`WallMarks.carve`, `word_spot`), o goblin olha para a câmera e o menu volta com "Novo ciclo".
 - **Caça e vida na toca (F9, §8b do plano):**
   - **Chuva (`Weather`, autoload salvo):** a cada hora, `Tuning.RAIN_CHANCE_PER_HOUR` de começar; dura `RAIN_HOURS_MIN..MAX` e entra e sai em `RAIN_FADE_SECONDS` (`Weather.rain`, 0..1). Para com o relógio; o sono pula de uma vez. A floresta faz os riscos (`Rain`, GPUParticles3D em volta da câmera, some na caverna), adensa a neblina (`RAIN_FOG`) e o `DayNight` escurece (`RAIN_DARK`); o `Ambience` toca o `rain_loop` e cala os insetos. Os bichos ouvem e farejam menos (`RAIN_HEARING`, `RAIN_SCENT`). Molhado (fora da caverna e longe da copa, `Vegetation.canopy_at`), o dia não esquenta e o frio soma `RAIN_COLD`.
-  - **Manadas (`Herd`, filho de Animals):** uma por casa em `ForestLayout.DEER_HOMES`, de `HERD_SIZE_MIN..MAX` cervos. A manada tem um centro; cada cervo pasta em volta dele (`Animal.home = centro`, `home_radius`) e anda até ele quando fica longe (`Animal.regroup`). Modos pelo `Clock`: `ROAM` (de dia o centro vai de pasto em pasto pelo vale a `HERD_ROAM_SPEED`), `HOMEWARD` (fim da tarde), `SLEEP` (de noite em casa, `Animal.sleep`, estado `SLEEP`: `SLEEP_SIGHT` e `SLEEP_HEARING`) e `SHELTER` (chovendo, vai para `forest.shelter_near`, a copa mais fechada por perto, e fica parada, `Animal.stand`). Depois de uma fuga o centro passa a ser onde os cervos pararam. O sono do goblin põe a manada em casa (`place_near`). A cada amanhecer ela volta ao tamanho e a floresta repõe coelhos e javalis (`_restock`), sempre a mais de `RESTOCK_MIN_DISTANCE` do goblin.
+  - **Manadas (`Herd`, filho de Animals):** uma por casa em `ForestLayout.DEER_HOMES`, de `HERD_SIZE_MIN..MAX` cervos. A manada tem um centro; cada cervo pasta em volta dele (`Animal.home = centro`, `home_radius`) e anda até ele quando fica longe (`Animal.regroup`). Modos pelo `Clock`: `ROAM` (de dia o centro vai de pasto em pasto pelo vale a `HERD_ROAM_SPEED`), `HOMEWARD` (fim da tarde), `SLEEP` (de noite em casa, `Animal.sleep`, estado `SLEEP`: `SLEEP_SIGHT` e `SLEEP_HEARING`) e `SHELTER` (chovendo, vai para `forest.shelter_near`, a copa mais fechada por perto, e fica parada, `Animal.stand`; ali, o cervo a mais de `HERD_SHELTER_REJOIN` m além do espalhamento volta para debaixo da copa: com a distância de sempre, 9 m, metade pastava na chuva). Depois de uma fuga o centro passa a ser onde os cervos pararam. O sono do goblin põe a manada em casa (`place_near`). A cada amanhecer ela volta ao tamanho e a floresta repõe coelhos e javalis (`_restock`), sempre a mais de `RESTOCK_MIN_DISTANCE` do goblin.
   - **Caça legível:** o corpo avisa antes da fuga: com `DEER_ALERT_AT` o bicho para de pastar (orelhas em pé), desconfiado encara em silêncio e com `DEER_STOMP_AT` bate a pata e bufa (`Animal._on_stomp`). A ferida sangra até matar (`Animal._wound`, `BLEED_PER_DAMAGE`, mais rápido correndo). O cervo se acalma a 40 m (`calm_distance`); sozinho muda de casa, com manada volta para ela. Coletar dá `bone`.
   - **Mira com fôlego (`AimGuide`):** com o arco puxado e o ar preso, desenha a queda da flecha (`Arrow.start_velocity`, `Arrow.gravity_of`) até bater ou `AIM_GUIDE_MAX`.
   - **Tocaia (`BlindField`, persist):** a receita especial `&"blind"` monta galhos aos pés do goblin (no máximo `BLIND_MAX`); agachado a menos de `BLIND_RADIUS`, `visibility_factors[&"blind"] = BLIND_VISIBILITY`.
@@ -212,7 +222,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 - **Voz do Zelador na floresta (Ato III):** corvo espião com `Crow.speech` fala no primeiro crocito pousado; um salto de Vigilância ≥ `Tuning.KEEPER_ROCK_VOICE_RISE` faz o `Clues` tocar a voz dentro do chão ao lado do goblin. As falas ficam em `StoryBeats.LINES`, e a legenda é `Game.vision.say()`.
 - **Flashes (`FlashDirector`):** `Events.flash_requested` guarda o pedido; `Game.pass_out` mostra o flash no escuro, antes de acordar (`Game.play_flash`, com a versão curta na morte). Cada flash é uma função do tempo (`seek(t)` reproduz qualquer instante), com a câmera `Shelter.eyes` deitada na cápsula, a `BlurredVision` (`amount` = borrão, `lids` = pálpebras, `say()` = legenda) e o Zelador. No fim liga `flash_<n>_seen`.
 - **Clock:** dia e hora (1 h de jogo = 60 s). Para enquanto `Game.resting`. Dormir pula o tempo de uma vez e emite `skipped(horas)` (a fogueira queima a lenha, a matilha some). `night()` vai de 0 (dia) a 1 (noite fechada, 20h30–5h), suave no anoitecer e no amanhecer.
-- **Dia e noite (`DayNight`):** sol, cor e energia do céu e cor da neblina misturam `Tuning.DAY_LIGHT` e `NIGHT_LIGHT` por `Clock.night()`, com lusco-fusco quente no meio. A luz ambiente vem do céu, então a noite escurece tudo o que o fogo não ilumina. De noite os bichos enxergam pior o goblin (`Tuning.NIGHT_VISIBILITY`).
+- **Dia e noite (`DayNight`):** sol, cor e energia do céu e cor da neblina misturam `Tuning.DAY_LIGHT` e `NIGHT_LIGHT` por `Clock.night()`, com lusco-fusco quente no meio. A luz ambiente vem do céu, então a noite escurece tudo o que o fogo não ilumina; de noite, `NIGHT_AMBIENT_FLOOR` dela vira um piso azulado fixo (`NIGHT_AMBIENT_COLOR`, o olho acostumado). Na toca, a `Cave` acende de noite um holofote fraco sem sombra apontado para o chão (`NightFill`, `CAVE_NIGHT_FILL`), que não alcança a pintura do teto: a luz ambiente da sonda quase não mexia na imagem. De noite os bichos enxergam pior o goblin (`Tuning.NIGHT_VISIBILITY`).
 - **Vitals:** o corpo de Ari: saciedade, vida, frio e enjoo. Fome zerada machuca, frio no máximo machuca, queda acima de 8 m/s machuca (`Player`), mordida de lobo machuca; vida 0 emite `Events.player_died`. Sem barra no HUD: o corpo avisa (ronco, mão na barriga, tremor, vapor da respiração, dentes batendo, borda escura da tela com vida baixa).
 - **Frio (`ColdExposure`):** mede o ganho por segundo: noite × fora/dentro da caverna (`level.indoor_at`), vezes o vento no goblin, metade com a roupa (`clothes`); perto de fogo aceso (`Campfire.distance_to_fire`, grupo `fire`) esquenta. Dormir zera o frio.
 - **Dormir e morrer (`Game.pass_out(reason)`):** mesma sequência. A tela escurece, o som fecha (`close_ears`), o relógio vai para as 6h30, e então Vitals descansa (sono) ou revive com a carne perdida (morte). O goblin volta para a pele e roda o `wake`. Emite `slept` e `woke_up(reason)`. Dormir salva.
@@ -222,7 +232,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - O abrigo vem do mapa `Terrain.build_wind_exposure()`: mata fechada, vales e caverna abrigam.
   - CPU (`Wind.strength_at`) e GPU (`foliage.gdshader`, globais `wind_*`) fazem a mesma conta.
   - O som, as folhas caindo e a poeira no ar usam `strength_at`.
-- **Câmera:** braço próprio (`CameraPivot/CameraArm`), sem SpringArm. Em `_place_camera`, uma esfera de 0,22 m vai da nuca até o ombro (deslocamento lateral real, não `h_offset`) e de lá para trás, só contra a camada 1. Ao bater, encolhe na hora; quando abre, volta devagar. Colada no goblin, o que está perto da lente some em dither, pixel a pixel (`Tuning.CAMERA_FADE_NEAR..FAR`: `distance_fade` em `PIXEL_DITHER` nos materiais comuns e `camera_fade_near/far` no `goblin_skin.gdshader`, ligados por `Player._dither_near_camera` também nos itens que chegam na mão), e abaixo de `CAMERA_HIDE_DISTANCE` some de vez. Nada de `GeometryInstance3D.transparency`: a transparência de verdade mostrava o interior da boca e dos olhos. A casca da caverna tem `backface_collision` para a esfera não passar pelo verso dos triângulos.
+- **Câmera:** braço próprio (`CameraPivot/CameraArm`), sem SpringArm. Na `PlayerCamera` (`_place`), uma esfera de 0,22 m vai da nuca até o ombro (deslocamento lateral real, não `h_offset`) e de lá para trás, só contra a camada 1. Ao bater, encolhe na hora; quando abre, volta devagar. Colada no goblin, o que está perto da lente some em dither, pixel a pixel (`Tuning.CAMERA_FADE_NEAR..FAR`: `distance_fade` em `PIXEL_DITHER` nos materiais comuns e `camera_fade_near/far` no `goblin_skin.gdshader`, ligados por `PlayerCamera._dither_near_camera` também nos itens que chegam na mão), e abaixo de `CAMERA_HIDE_DISTANCE` some de vez. Nada de `GeometryInstance3D.transparency`: a transparência de verdade mostrava o interior da boca e dos olhos. A casca da caverna tem `backface_collision` para a esfera não passar pelo verso dos triângulos. Mirando, a câmera chega a `Tuning.AIM_CAMERA_DISTANCE` com o ombro em `AIM_SHOULDER` e o pivô sobe `AIM_PIVOT_RISE` (com 1,5 m e 0,6 a cabeça do goblin tapava um quarto da tela).
 - **Passos:** `Footsteps.surface_under()` lança um raio curto para baixo; se acertar uma colisão com meta `surface` (pedras `stone`, troncos `wood`, de `Vegetation._add_shape_collider`), vale ela, senão o `surface_at` do terreno (`cave` no salão da caverna, `stone`, `dirt`, `grass`).
 - **Interação:** nós no grupo `interactable` implementam `interaction_prompt() -> String` e `interact(player)`. São o arco no chão, flecha fincada, bicho abatido, corvo caído, fogueira, pele de dormir, monte de pedras, pedra jogada, poça de lama, tocha fincada e laço. O Player pega o mais próximo dentro de 1,8 m.
   - Opcionais: `interaction_enabled()` (false = só mostra o texto, sem [E]), `interaction_action()` (`{action, duration, at}`: a animação e quando chamar `interact`; padrão `pickup`) e `interaction_started(player)`.
@@ -233,7 +243,7 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
     - multiplicadores nos sentidos dos bichos, por nome: `visibility_factors`, `noise_factors` e `scent_factors` (ex.: `&"mud": 0.65`; tirar a chave tira o efeito).
   - Uma parte também pode ser interagível: a `SnareSetter` (Node3D `top_level`) se põe sobre a pegada de coelho mais perto.
 - **Fogueira:** lenha 0–3 (começa com 1), queima 1 a cada 6 min, inclusive dormindo. E acende ou põe lenha e assa carne (animação `cook`, a carne escurece na mão). Chama, luz e estalos crescem com a lenha.
-- **Riscos na parede (`WallMarks`):** um por noite dormida, em grupos de 5, colados na rocha por raios (na primeira volta da física). Os antigos ficam sob um musgo (`moss_patch.gdshader`) que despenca quando o flag `moss_fell` liga: no 7º risco com um cervo coletado, ou no 10º. Isso abre o Ato II.
+- **Riscos na parede (`WallMarks`):** um por noite dormida, em grupos de 5, colados na rocha por raios (na primeira volta da física). Os antigos ficam sob um musgo (`moss_patch.gdshader`) que despenca quando o flag `moss_fell` liga: no 5º risco com um cervo coletado, ou no 8º (as pistas do Ato I vêm nos riscos 1 a 4). Isso abre o Ato II.
 - **Árvores:** `Vegetation.trees` registra cada árvore em pé (posição, raio do tronco, seca ou não, instância no MultiMesh e colisão). `hit_tree()` derruba as secas depois de 4 golpes: a instância some, a colisão sai e uma cópia tomba.
 - **Animação do goblin (`GoblinAnimator`):** 100% procedural, direto no esqueleto; as animações do glb ficam paradas.
   - Cada frame monta uma *pose* (dicionário: altura do quadril, alvo de cada pé, ângulos de tronco, cabeça, braços e orelhas) e só no fim converte em rotações de osso (`_rotate`: eixos do modelo em repouso, carregados pelo pai).
@@ -243,24 +253,24 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - Camadas: andar/correr, respirar e olhar em volta parado, curva, agachar, pulo, aterrissar, mira e orelhas com mola.
   - Pulo (`_jump_pose`): o `Player` não sai do chão na hora; chama `begin_jump` e o corpo agacha por `Tuning.JUMP_PREP` (peito à frente, braços para trás), e só então vem o impulso (`jump_velocity` 2,9 m/s, uns 45 cm de altura, pouco mais que o quadril) e `jump_launched`. No ar a pose segue `vertical_speed`: pernas esticando com a ponta do pé no impulso, joelhos encolhidos no alto, pernas à frente procurando o chão e braços abertos na queda. Correndo vira salto: uma perna à frente e a outra dobrada para trás (`_jump_lead`), braços cruzados com as pernas. No pouso os braços vêm à frente.
   - **Nada perfeito:** a pose neutra (`_neutral`) já é a postura do goblin, curvada e assimétrica (ombro caído, cabeça torta, pés abertos para fora, braços pendurados). Por cima entram oscilações lentas (`_wave`) em cada parte, passadas com altura e abertura sorteadas, ritmo manco (pé direito atrasado), apoio que troca de perna parado e fôlego (ofega e apoia as mãos nos joelhos depois de correr).
-  - Manias parado (`_idle_overlay`): coçar a orelha, farejar, olhar para trás, examinar as garras. Não travam o jogador; qualquer movimento corta.
+  - Manias parado (`GoblinIdle.overlay`, com o estado delas): coçar a orelha, farejar, olhar para trás, examinar as garras. Não travam o jogador; qualquer movimento corta.
   - Arco: base de arqueiro (quadril e peito de lado, ombro do arco para o alvo, cabeça de volta olhando pela flecha, pés afastados), braço treme se segurar a corda puxada por mais de 1 s e coice ao soltar.
   - Mira com IK (`_aim_arms`, depois de toda a pose): a empunhadura vai para a linha que sai do canto da boca (`ANCHOR_REST`) até `aim_point`, um `draw_length` à frente; a mão da corda vai até `nock_depth` atrás da empunhadura real. `_reach` é IK de duas juntas por giros (braço até o cotovelo com `pole`, torção para o antebraço ficar no plano da dobra, antebraço até o punho), partindo dos ângulos da pose.
   - Pés: `_orient` deixa o pé paralelo ao chão no espaço do esqueleto, girado por `foot_*_yaw`; a perna abre com `leg_*_out`.
   - Pés no chão (`_ground_feet`): um raio por pé acha a altura e a inclinação do chão embaixo dele (degrau, pedra, encosta). O quadril desce para o pé mais baixo com apoio; pé sem chão fica pendurado, e com só um pé apoiado o peso vai para ele. `foot_supported` é lido pelo Player.
   - Coluna: o giro do tronco se divide entre `tronco` (lombar) e `peito`; por cima entram `spine_arch` (costas redondas em cima, lombar arqueada), `spine_bend` (curva de lado em S) e `neck_fwd` (`pescoco`). A soma lombar + peito é o giro antigo + arch / 2, então as poses dos braços continuam calibradas.
   - Borda (`_balance_overlay`): com `teeter` > 0 abre e gira os braços, joga o corpo para longe do vazio e olha para baixo.
-  - Ações cronometradas com eventos: `wake` (acordar), `pickup`, `harvest` (coletar caça), `punch`, `eat`, `cook` e `lie_down` (deitar para dormir). Faminto, a mania mais comum parado é a mão na barriga (`starving`). O Player só pega o item ou acerta o golpe no evento, quando a mão chega. Cada ação mexe o corpo todo (quadril, coluna, pescoço), com preparação e continuação: o soco arma girando quadril e ombro para trás e solta com o quadril na frente; pegar dobra no quadril com as costas curvas e sobe com o peito na frente.
+  - Ações cronometradas com eventos (as poses ficam em `GoblinActions.pose`): `wake` (acordar), `pickup`, `harvest` (coletar caça), `punch`, `eat`, `cook` e `lie_down` (deitar para dormir). Faminto, a mania mais comum parado é a mão na barriga (`starving`). O Player só pega o item ou acerta o golpe no evento, quando a mão chega. Cada ação mexe o corpo todo (quadril, coluna, pescoço), com preparação e continuação: o soco arma girando quadril e ombro para trás e solta com o quadril na frente; pegar dobra no quadril com as costas curvas e sobe com o peito na frente.
   - Mecânica do corpo (`_body_mechanics`, depois das ações e antes do equilíbrio): (1) dobradiça, em que a inclinação acima de 0,2 rad vai em parte para a bacia (`pelvis_pitch`), o quadril recua (`pelvis_z`) e as costas arredondam; (2) braços, em que esticar um traz o ombro (giro do peito) e erguer acima do ombro inclina o tronco; (3) molas, em que o tronco segue o quadril por uma mola (~2,4 Hz), comprimindo a coluna (`_squash`) nos passos e na aterrissagem, e a velocidade do peito segue a do corpo (~1,2 Hz), inclinando ao arrancar e ao frear. A cabeça compensa a mola. Sinal de giro: `torso_yaw`/`pelvis_yaw` positivos levam o ombro/quadril direito para a frente (vira para a esquerda, +X).
   - Precisa dos ossos `perna/canela/pe`, `braco/antebraco/mao`, `orelha`, `tronco`, `peito`, `pescoco`, `cabeca` e `quadril`. Sem eles o animador desliga sozinho.
-- **Equilíbrio (`Player._update_balance`):** no chão, se não há chão logo embaixo do centro do corpo, ele está na borda. O equilíbrio cai (mais rápido com um pé solto ou andando para o vazio; sem nenhum pé apoiado cai em ~0,25 s) e volta se ele andar para dentro ou se agachar. Se acabar, ele tomba para o lado do vazio (`_tipping`, sem `floor_snap`).
+- **Equilíbrio (`EdgeBalance.update`):** no chão, se não há chão logo embaixo do centro do corpo, ele está na borda. O equilíbrio cai (mais rápido com um pé solto ou andando para o vazio; sem nenhum pé apoiado cai em ~0,25 s) e volta se ele andar para dentro ou se agachar. Se acabar, ele tomba para o lado do vazio (`_tipping`, sem `floor_snap`).
 - **Arco:** `Player` mira com o botão direito (a câmera aproxima). Ao erguer o arco, encaixa uma flecha. Segura e solta o esquerdo para atirar. `Arrow` voa com gravidade, testada por raio a cada frame de física, e finca no que acerta.
   - Escala do goblin (braço de 32 cm): arco de 60 cm, corda a 8 cm da empunhadura, puxada de mais 21 cm, flecha de 38 cm.
   - `HeldBow` (filho do `Visual`, sem socket): o Player o põe todo frame em `GoblinAnimator.bow_grip_position()`, a pose do mesmo frame, porque um socket atrasaria um frame em relação à mão da corda. Carregado, fica deitado para a frente (`CARRY_RISE`) e balança com o antebraço; mirando, barriga para o alvo e um pouco deitado (`BOW_CANT`). Braços que dobram com `draw`, corda até `nock_depth(draw)` (volta reta ao soltar) e a flecha encaixada. A flecha sai da empunhadura para o ponto no centro da tela.
   - Depois do tiro, `RELOAD_TIME` (0,75 s): a mão vai até a aljava (`GoblinAnimator.reload`) e só então a próxima flecha aparece na corda, com o som de encaixe.
 - **Grama no relevo:** `Terrain.publish_height_texture()` publica as alturas como global `terrain_height`. Com `follow_ground = 1` (grama e samambaia), o `foliage.gdshader` sobe ou desce cada vértice com o chão embaixo dele.
 - **Lobos:** `WolfPack` (filho de Animals) traz `Tuning.WOLF_COUNT` lobos a partir do dia 3: às 20h30 eles aparecem na borda do vale esperando (`Wolf.waiting`: rondam ali sem seguir o rastro do goblin) e um deles uiva o aviso; chegada às 21h, saída às 5h30, e somem se o goblin dorme. `Wolf extends Animal` reaproveita os sentidos e troca a reação: ronda (a área de caça escorrega para o goblin), espreita a 9 m rosnando, caça e morde. Não chega a menos de 6 m de fogo aceso e, ao contrário dos outros bichos, pode entrar na caverna. Uma flechada o faz fugir e ir embora; duas matam.
-- **Pegadas (`Tracks`):** bicho com `track_size` deixa uma pegada a cada `Tuning.TRACK_SPACING` andados (alternando os lados da fila com `track_side`). O MultiMesh tem um pool de `Tuning.TRACK_POOL` e o shader (`track_print.gdshader`) desenha casco, pata de coelho ou de lobo e apaga pela idade. `Tracks.nearest(espécie, ponto, raio)` acha a pegada fresca mais perto (o laço usa). Dormir envelhece todas.
+- **Pegadas (`Tracks`):** bicho com `track_size` deixa uma pegada a cada `Tuning.TRACK_SPACING` andados (alternando os lados da fila com `track_side`). O MultiMesh tem um pool de `Tuning.TRACK_POOL` (1600: as cinco manadas e os coelhos carimbam ~10 por segundo, e com 200 o rastro sumia em 20 s) e o shader (`track_print.gdshader`) desenha casco, pata de coelho ou de lobo e apaga pela idade. `Tracks.nearest(espécie, ponto, raio)` acha a pegada fresca mais perto (o laço usa). Dormir envelhece todas.
 - **Farejar (`SniffAbility`, X):** agachado e parado, até `Tuning.SNIFF_MAX_SECONDS`. Fecha o som com `Game.close_ears`, mostra riscos de vento e uma trilha de cheiro (partículas por cima de tudo, a 1 m do chão) de cada bicho até `Tuning.SNIFF_RANGE` cujo cheiro o vento traz.
 - **Fôlego (`BreathControl`, Q):** prendendo o ar, parado não faz barulho (a respiração ofegante depois de correr faz) e o arco puxado não treme; o coração bate cada vez mais rápido. Passando do limite, bufa (`noise_made`) e fica ofegante.
 - **Pedras e susto:** G joga uma `ThrownStone` (`StoneThrow`); onde ela bate faz `noise_made` de `Tuning.STONE_NOISE`. O `Animal` guarda o susto (`_startle`, 3 s): o perigo fica sendo o lugar do barulho (ou de onde a manada se assustou) até ele ver o goblin com clareza. É o que deixa tocar a manada.
@@ -328,6 +338,19 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
   - `AmbienceMuffled` e `WorldMuffled`: passa-baixa, para sons atrás de rocha (OccludedAudio troca sozinho).
 - **ForestLayout** é a fonte única dos pontos do mapa. Terreno, vegetação, bichos e som leem dali.
 - **Regra de comunicação:** pai → filho por chamada; filho → pai por sinal; sistemas distantes pelo `Events`.
+
+## F10: polimento e orientação
+
+- **Subir degraus (`StepClimber`):** depois do `move_and_slide`, andando contra uma parede, três `body_test_motion` (sobe `Tuning.STEP_HEIGHT`, anda `STEP_PROBE`, desce até chão não íngreme) dizem se cabe um degrau; cabendo, o corpo sobe e `offset` (≤ 0) desce o `Visual` e o pivô da câmera, voltando a 0 em `STEP_SMOOTH`. Degrau acima de 30 cm continua sendo parede.
+- **Marcos na neblina:**
+  - **Marco de pedras** (receita `&"cairn"`, 3 pedras): a `CraftAbility` chama `CairnField.build_at` 0,7 m à frente do goblin; torre de `CAIRN_STONES` pedras (`ThrownStone.stone_mesh`), com colisão, no máximo `CAIRN_MAX`, salva (persist).
+  - **Tronco riscado:** a parte `TreeMarker` (como a `SnareSetter`) vai para o pinheiro vivo a até `TREE_MARK_REACH`; "Riscar o tronco" faz a ação `scratch` e `TreeMarks.mark` desenha a casca raspada (`tree_blaze.png`) dos dois lados do tronco. Salvo por id de árvore (`forest.tree_base`, `tree_radius`, `tree_standing`).
+  - **Fumaça da toca (`CaveSmoke`):** partículas acima da boca da caverna, só com a fogueira acesa (`amount_ratio` pela lenha; reaplicar `emitting`/`amount_ratio` reinicia as partículas, então só muda quando muda). Fica fora da neblina (`disable_fog`) e some pela distância (`CAVE_SMOKE_FADE`), sem turbulência; o vento deita a coluna (`CAVE_SMOKE_WIND`, aceleração constante).
+  - **O sino da ruína (`RuinBell`):** pende da espadana (`Ruin._build_bell_gable`) e balança com `Wind.aloft_at` (clima × rajada, sem o abrigo do chão). Acima de `BELL_WIND_THRESHOLD`, o badalo bate (`bell_clank_1/2`, sintético) no fim de cada ida, com `BELL_COOLDOWN`. Pista de duas leituras: é o sino da cidade do Final 2.
+- **Dicas progressivas:** o contador automático `stuck_sleeps` soma a cada sono e zera quando liga um flag de `StoryBeats.PROGRESS_FLAGS` ou o ato muda. Os beats `hint_*` (`on: slept`) põem anotações de Ari apontando o próximo passo (porta, ritual, R1–R4, sala de controle, gravações, o `ciclo_346.sav`) depois de alguns dias parado. O Ato I não tem dica.
+- **Aviso de anotação:** o HUD emite "Anotação nova. [Esc] Dicas" em cada `Story.note_added`; no escuro (sono, flash, Abrigo, cena) espera e sai `NOTE_NOTICE_DELAY` s depois de acordar.
+- **Sair sem salvar:** o `SaveSystem` conta os segundos de jogo desde o último salvar/carregar/começo (`unsaved_seconds`, `can_lose_progress`). "Menu principal" e "Sair do jogo" do pause passam por `PauseMenu.ask_leave(ação)`, que pergunta ("Salvar e sair", "Sair sem salvar", "Voltar") depois de `UNSAVED_WARN_SECONDS`. O X da janela também (`Game._notification`, `set_auto_accept_quit(false)`).
+- **Controle:** o `Settings` guarda o último aparelho (`using_gamepad`, emite `changed(&"input_device")`). `key_label`/`key_labels` mostram os botões do controle (`PAD_NAMES`: A, B, X, Y, LB, RB, LT, RT, Menu, L3, Cruz ↓...; `{move}` vira LS); a tela de teclas usa `keyboard_label`. Ari olha com o analógico direito (`ARI_GAMEPAD_LOOK_SPEED`). O console do Zelador tem comandos rápidos navegáveis e fecha com B.
 
 ## Convenções
 
@@ -405,4 +428,4 @@ tools/               geradores Python de texturas e sons (numpy + Pillow)
 ## Ainda não existe
 
 - Combate corpo a corpo de verdade, diálogos, missões, atributos.
-- Subir degraus (step-up), água.
+- Água.

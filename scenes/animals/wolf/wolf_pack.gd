@@ -192,6 +192,10 @@ func _clear() -> void:
 		if is_instance_valid(wolf) and (wolf as Wolf).state != Animal.State.DEAD:
 			(wolf as Wolf).queue_free()
 	_wolves.clear()
+	# Os distantes também: o timer deles não corre no sono, e um uivo da véspera sobrava de manhã.
+	for child in get_children():
+		if child is Wolf and (child as Wolf).distant and not child.is_queued_for_deletion():
+			child.queue_free()
 
 
 ## Para testes: a matilha chega agora, perto de `origin`.

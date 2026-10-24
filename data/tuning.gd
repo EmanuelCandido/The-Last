@@ -168,9 +168,11 @@ const WOLF_HOME_DRIFT_SECONDS := 25.0
 # --- Rastros (§4.8) --------------------------------------------------------------------
 
 ## Distância (m) entre duas pegadas, quanto tempo ficam no chão e quantas existem ao mesmo tempo.
+## Medido (F10): as cinco manadas e os coelhos carimbam ~10 pegadas por segundo de dia. Com 200,
+## a mais velha era reaproveitada em ~20 s, e o rastro de um bicho ferido sumia antes dos 120 s.
 const TRACK_SPACING := 0.9
 const TRACK_SECONDS := 120.0
-const TRACK_POOL := 200
+const TRACK_POOL := 1600
 
 # --- Farejar (§4.8) ---------------------------------------------------------------------
 
@@ -505,6 +507,9 @@ const HERD_HOME_HOUR := 18.0
 const HERD_SLEEP_HOUR := 20.0
 ## Longe assim do centro da manada (m), o cervo volta a andar até ela.
 const HERD_REJOIN_DISTANCE := 25.0
+## Na chuva (abrigo), o cervo a mais de HERD_SHELTER_REJOIN m além do espalhamento volta para debaixo
+## da copa (F10).
+const HERD_SHELTER_REJOIN := 2.0
 ## Dormindo, o bicho enxerga e ouve esta fração do normal.
 const SLEEP_SIGHT := 0.1
 const SLEEP_HEARING := 0.6
@@ -651,3 +656,74 @@ const DISTANT_WOLF_SECONDS := 60.0
 const HOWL_ANSWER := 0.45
 ## Chance de uma matilha distante responder ao uivo de aviso da matilha do vale.
 const DISTANT_HOWL_REPLY := 0.35
+
+# --- F10: polimento e orientação ----------------------------------------------------------
+
+## Câmera mirando (Player): distância atrás do ombro, deslocamento para o lado e quanto o pivô
+## sobe. Com 1,5 m e 0,6 a cabeça e as orelhas do goblin tapavam um quarto da tela.
+const AIM_CAMERA_DISTANCE := 1.8
+const AIM_SHOULDER := 0.8
+const AIM_PIVOT_RISE := 0.08
+
+## O olho se acostuma com o escuro: de noite, esta fração da luz ambiente deixa de vir do céu e
+## vira NIGHT_AMBIENT_COLOR (DayNight). Dentro da toca, um holofote fraco sem sombra apontado
+## para o chão (Cave, sem alcançar a pintura do teto) acende com CAVE_NIGHT_FILL × noite.
+const NIGHT_AMBIENT_FLOOR := 0.35
+const NIGHT_AMBIENT_COLOR := Color(0.09, 0.1, 0.13)
+const CAVE_NIGHT_FILL := 0.9
+const CAVE_NIGHT_FILL_COLOR := Color(0.62, 0.68, 0.85)
+
+## Sair sem salvar (PauseMenu, fechar a janela): passa a perguntar depois de tantos segundos
+## desde o último salvar ou carregar.
+const UNSAVED_WARN_SECONDS := 30.0
+
+## Ari olhando com o analógico direito (rad/s no máximo), como o goblin.
+const ARI_GAMEPAD_LOOK_SPEED := 2.4
+
+## Anotação nova que entrou no escuro (sono, flash): o aviso sai tantos segundos depois de
+## acordar, com o goblin já de pé.
+const NOTE_NOTICE_DELAY := 7.0
+
+## Diário de playtest (Playtest): a posição do goblin entra a cada tantos segundos de jogo.
+const PLAYTEST_POSITION_SECONDS := 120.0
+
+## Subir degraus (StepClimber): o degrau mais alto (m, pouco mais que a perna de 28 cm), o
+## mais baixo que conta como degrau, quanto o teste anda para a frente e em quanto tempo (s)
+## o corpo visível alcança o físico depois de subir.
+const STEP_HEIGHT := 0.3
+const STEP_MIN := 0.02
+const STEP_PROBE := 0.2
+const STEP_SMOOTH := 0.06
+
+## Marco de pedras (CairnField): quantos ficam no mapa, quantas pedras e o raio da de baixo.
+const CAIRN_MAX := 12
+const CAIRN_STONES := 7
+const CAIRN_BASE_RADIUS := 0.16
+
+## Riscar o tronco (TreeMarker): até que distância da casca dá para riscar e quanto dura.
+const TREE_MARK_REACH := 1.0
+const TREE_MARK_TIME := 2.4
+
+## A fumaça da toca (CaveSmoke): quantos bolos, quanto vive cada um (s), velocidade de subida
+## (m/s), empuxo (m/s²), quanto o vento deita a coluna (vira aceleração constante: 0,12 deita uns
+## 15 m no alto; 0,9 jogava a fumaça a 100 m para o lado), tamanho do bolo (m) e a cor.
+const CAVE_SMOKE_AMOUNT := 72
+const CAVE_SMOKE_LIFETIME := 22.0
+const CAVE_SMOKE_RISE := 2.0
+const CAVE_SMOKE_BUOYANCY := 0.12
+const CAVE_SMOKE_WIND := 0.12
+const CAVE_SMOKE_SIZE := 6.5
+const CAVE_SMOKE_COLOR := Color(0.52, 0.5, 0.48)
+## A fumaça fica fora da neblina e some sozinha com a distância: inteira até .x m, nada em .y m.
+const CAVE_SMOKE_FADE := Vector2(25.0, 150.0)
+
+## O sino da ruína (RuinBell): vento no alto (Wind.aloft_at, 0..1,25) a partir do qual ele bate, balanço máximo (rad), período
+## do balanço (s), balanço mínimo para o badalo bater, intervalo mínimo entre batidas (s),
+## volume (dB) e alcance (unit_size do som 3D).
+const BELL_WIND_THRESHOLD := 0.6
+const BELL_MAX_SWING := 0.5
+const BELL_PERIOD := 2.2
+const BELL_HIT_SWING := 0.22
+const BELL_COOLDOWN := 6.0
+const BELL_DB := -2.0
+const BELL_UNIT_SIZE := 30.0
