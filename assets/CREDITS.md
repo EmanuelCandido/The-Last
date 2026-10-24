@@ -3,7 +3,7 @@
 Feito para o projeto:
 
 - texturas: `tools/generate_textures.py`;
-- sons sintéticos (vento, caverna, insetos, grilo e gafanhoto sozinhos, pássaros, pio de alarme, corvo 2, pica-pau, uivo de reserva do lobo, gotas, guincho do coelho, carne chiando, musgo caindo, grilos, coruja, mordida do lobo, coração, pedra caindo, lama, laço fechando, bipe do monitor, porta de pedra, disco de pedra, ar de sala fechada, servo, roda e bipe de passo do Zelador, voz sintética do Zelador, áudio travado, pedra riscando a rocha, multidão, chuva, grunhido do javali): `tools/generate_sounds.py`;
+- sons sintéticos (vento, caverna, insetos, grilo e gafanhoto sozinhos, pássaros, pio de alarme, corvo 2, pica-pau, uivo de reserva do lobo, gotas, guincho do coelho, carne chiando, musgo caindo, grilos, coruja, coração, pedra caindo, lama, laço fechando, bipe do monitor, porta de pedra, disco de pedra, ar de sala fechada, servo, roda e bipe de passo do Zelador, voz sintética do Zelador, áudio travado, pedra riscando a rocha, multidão, chuva, grunhido do javali): `tools/generate_sounds.py`;
 - cortes e tratamento das gravações que substituíram sintéticos (tabela "Freesound e Wikimedia" abaixo): `tools/process_real_sounds.py`.
 - goblin: `models/goblin/source/` (blender-agent + polimento procedural no Blender).
 
@@ -49,3 +49,4 @@ Todas CC0 ou domínio público. Usada a prévia OGG de alta qualidade do Freesou
 | `sniff.ogg` | farejar (duas fungadas) | [Freesound #446826](https://freesound.org/people/mateozugi19/sounds/446826/) "sniffing" | mateozugi19 | CC0 |
 | `chew_1.ogg` | mastigar (uma mordida) | [Freesound #382673](https://freesound.org/people/bbrocer/sounds/382673/) "Wet Sloppy Eating" | bbrocer | CC0 |
 | `teeth_chatter.ogg` | dentes batendo de frio: montado com um estalo de dente repetido ~11 vezes por segundo, com volume e ritmo variando | [Freesound #691908](https://freesound.org/people/hollandm/sounds/691908/) "Teeth clack 1" | hollandm | CC0 |
+| `wolf_bite.ogg` | mordida do lobo e javali acertando: montado com o rosnado do `wolf_growl_2`, a mandíbula fechando, a pancada na carne da flecha (Kenney) e um esmagar | [Freesound #27476](https://freesound.org/people/EcoDTR/sounds/27476/) "jawsingle2.wav", [Freesound #816237](https://freesound.org/people/qubodup/sounds/816237/) "Crunch", #342204 e Kenney (acima) | EcoDTR, qubodup, Christopherderp, Kenney | CC0 |

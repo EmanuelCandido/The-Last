@@ -16,7 +16,7 @@ extends Animal
 enum Mode { PROWL, STALK, HUNT }
 
 const GROWLS := [preload("res://assets/audio/real/wolf_growl_1.ogg"), preload("res://assets/audio/real/wolf_growl_2.ogg")]
-const BITE := preload("res://assets/audio/animals/wolf_bite.wav")
+const BITE := preload("res://assets/audio/real/wolf_bite.ogg")
 const YELP := preload("res://assets/audio/real/wolf_yelp.ogg")
 const MODEL := preload("res://assets/models/animals/wolf.glb")
 ## Na espreita, para a esta distância do goblin.

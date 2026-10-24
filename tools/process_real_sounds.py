@@ -29,6 +29,7 @@ LEVELS = {
     "stomach_growl_2": -13.3, "chew_2": -18.0, "tree_fall": -10.8, "stone_throw": -15.7, "blind_rattle": -22.1,
     "glitch": -11.6, "blast_door": -13.4,
     "wolf_yelp": -6.2, "gasp": -15.5, "sniff": -14.3, "chew_1": -18.5, "teeth_chatter": -27.0,
+    "wolf_bite": -18.3,
 }
 
 # saída: (bruto, sintético substituído, início s, fim s, loop, rampa de entrada s, rampa de saída s)
@@ -61,6 +62,9 @@ CUTS = {
     "chew_1": ("chew_1.ogg", "chew_1", None, None, False, 0.01, 0.1),
     # Montado: estalos reais de dente (Freesound #691908) repetidos ~11 vezes por segundo.
     "teeth_chatter": ("teeth_chatter.wav", "teeth_chatter", 0.0, 1.35, False, 0.003, 0.1),
+    # Montado: o rosnado do wolf_growl_2, a mandíbula fechando (Freesound #27476), a pancada na carne
+    # (Kenney, a da flecha) e um esmagar (Freesound #816237), juntos no fim do rosnado.
+    "wolf_bite": ("wolf_bite.wav", "wolf_bite", 0.0, 0.85, False, 0.01, 0.08),
 }
 XFADE = 2.0
 PEAK_LIMIT = 0.97

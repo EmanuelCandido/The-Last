@@ -8,7 +8,7 @@ extends Animal
 
 const GRUNTS := [preload("res://assets/audio/animals/boar_grunt_1.wav"), preload("res://assets/audio/animals/boar_grunt_2.wav")]
 const SQUEAL := preload("res://assets/audio/real/boar_squeal.ogg")
-const HIT_SOUND := preload("res://assets/audio/animals/wolf_bite.wav")
+const HIT_SOUND := preload("res://assets/audio/real/wolf_bite.ogg")
 const HIT_RANGE := 1.1
 const RUN_SECONDS := 3.5
 const PAST_SECONDS := 1.0

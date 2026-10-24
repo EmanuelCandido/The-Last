@@ -363,28 +363,6 @@ def owl(variant):
 
 
 
-def wolf_bite():
-    """Mordida: o estalo dos dentes fechando e um rosnado curto."""
-    rng = np.random.default_rng(210)
-    n = int(0.6 * SR)
-    t = np.arange(n) / SR
-    snap = band_oneshot(burst(rng, 0.03, 0.004, 0.0003), 1200, 7000)
-    snarl_f = 160 * (1 + 0.3 * np.sin(TAU * 7 * t))
-    snarl = formants(tone(snarl_f, ((1, 1.0), (2, 0.7), (3, 0.5), (4, 0.3))), [(600, 200, 1.0)])
-    snarl *= smoothstep(0.0, 0.03, t) * np.exp(-t / 0.18)
-    out = 0.6 * peak_norm(snarl)
-    out[: len(snap)] += peak_norm(snap)
-    return out
-
-
-
-
-
-
-
-
-
-
 def stone_hit(variant):
     """Pedra caindo: o estalo seco no chão e um rolar curto de cascalho."""
     rng = np.random.default_rng(280 + variant)
@@ -400,16 +378,158 @@ def stone_hit(variant):
     return out
 
 
-def mud_rub():
-    """Esfregar lama na pele: chapinhadas moles e o deslizar úmido das mãos."""
-    rng = np.random.default_rng(290)
-    n = int(2.6 * SR)
+# Lama por modelo físico. A bolha é uma senoide amortecida que sobe de tom (bolha de Minnaert, van den Doel),
+# mais amortecida quanto mais grossa a lama (thick). wet: quanta água (bolhas, faixa do escoar);
+# sticky: crepitar no esfregar; smacks: chance de desgrudar na volta da mão; top: corte dos agudos.
+MUD_LENGTH = 3.3
+MUD = {"wet": 0.95, "thick": 1.5, "bubble_f": 620, "sticky": 0.5, "smacks": 0.4, "pop": 1.0, "thud": 0.7, "top": 5200}
+
+
+def mud_env(n, attack, decay):
+    """Ataque linear e queda exponencial."""
     t = np.arange(n) / SR
-    slide = band_oneshot(rng.standard_normal(n), 150, 1500) * (0.4 + 0.6 * np.abs(np.sin(TAU * 1.6 * t))) ** 2
-    squelch = lambda: band_oneshot(burst(rng, 0.1, 0.03, 0.005), 200, 1800) * (1 + 0.5 * np.sin(TAU * rng.uniform(30, 60) * np.arange(int(0.1 * SR)) / SR))
-    squelches = place_events(n, rng.uniform(0, n - 0.12 * SR, 9), squelch)
-    env = smoothstep(0.0, 0.2, t) * (1 - smoothstep(2.3, 2.6, t))
-    return (0.4 * peak_norm(slide) + peak_norm(squelches)) * env
+    return np.minimum(t / max(attack, 1e-4), 1.0) * np.exp(-np.maximum(t - attack, 0) / decay)
+
+
+def mud_bubble(f0, thick, amp=1.0):
+    """Bolha de ar saindo da lama: senoide amortecida que sobe de tom."""
+    d = (0.043 * f0 + 0.0014 * f0 ** 1.5) * thick
+    n = int(min(0.3, 7.0 / d) * SR)
+    t = np.arange(n) / SR
+    f = f0 * (1.0 + 0.12 * d * t)
+    return amp * np.sin(TAU * np.cumsum(f) / SR) * np.exp(-d * t) * np.minimum(t / 0.0006, 1.0)
+
+
+def mud_gurgle(rng, n, rate_lo, rate_hi):
+    """Modulação rápida e irregular, o borbulhar do barro escoando."""
+    m = band_oneshot(rng.standard_normal(n), rate_lo, rate_hi, 0.3)
+    m = m / (np.max(np.abs(m)) + 1e-9)
+    return np.clip(0.5 + 0.9 * m, 0.0, None) ** 1.5
+
+
+def mud_add(y, x, at, gain=1.0):
+    """Soma x em y a partir de `at` segundos, cortando no fim."""
+    a = int(at * SR)
+    b = min(len(y), a + len(x))
+    if b > a:
+        y[a:b] += x[: b - a] * gain
+
+
+def mud_sink(rng, p, size=1.0):
+    """A mão entrando na lama."""
+    n = int((0.22 + 0.12 * size) * SR)
+    t = np.arange(n) / SR
+    ooze = band_oneshot(rng.standard_normal(n), 120, 900 + 900 * p["wet"]) * mud_gurgle(rng, n, 15, 60)
+    ooze *= smoothstep(0.0, 0.012, t) * np.exp(-t / (0.05 + 0.06 * size))
+    body = band_oneshot(rng.standard_normal(n), 40, 260) * mud_env(n, 0.004, 0.03 * size)
+    thud = np.sin(TAU * (95 + 30 * rng.random()) * t) * mud_env(n, 0.002, 0.025)
+    y = 0.8 * ooze / (np.max(np.abs(ooze)) + 1e-9) + 0.55 * body / (np.max(np.abs(body)) + 1e-9) + 0.35 * thud * p["thud"]
+    for _ in range(int(3 + 9 * p["wet"] * size)):
+        at = rng.exponential(0.04 * size)
+        f0 = rng.lognormal(np.log(p["bubble_f"]), 0.35)
+        mud_add(y, mud_bubble(f0, p["thick"], rng.lognormal(-1.0, 0.5)), at)
+    return y * size
+
+
+def mud_suction(rng, p, size=1.0):
+    """A mão saindo: a cavidade fecha subindo de tom e corta com um estalo."""
+    rise = 0.05 + 0.04 * size
+    n = int((rise + 0.12) * SR)
+    t = np.arange(n) / SR
+    f = 130 * (4.2 ** np.minimum(t / rise, 1.0)) * (1 + 0.05 * rng.standard_normal())
+    amp = (np.minimum(t / rise, 1.0) ** 2) * (1.0 - smoothstep(rise, rise + 0.006, t))
+    cavity = np.sin(TAU * np.cumsum(f) / SR) * amp
+    cavity += 0.6 * band_oneshot(rng.standard_normal(n), 200, 1200) * amp * mud_gurgle(rng, n, 30, 90)
+    pop = band_oneshot(rng.standard_normal(n), 500, 3000) * mud_env(n, 0.0005, 0.006)
+    y = 0.7 * cavity / (np.max(np.abs(cavity)) + 1e-9)
+    mud_add(y, pop / (np.max(np.abs(pop)) + 1e-9), rise, 0.5 * p["pop"])
+    for _ in range(int(1 + 3 * p["wet"])):
+        mud_add(y, mud_bubble(rng.lognormal(np.log(p["bubble_f"] * 1.6), 0.3), p["thick"], rng.lognormal(-1.2, 0.4)),
+                rise + rng.exponential(0.02))
+    return y * size
+
+
+def mud_drop(rng, p, near=1.0):
+    """Gota de lama caindo de volta na poça."""
+    n = int(0.12 * SR)
+    hit = band_oneshot(rng.standard_normal(n), 300, 2500) * mud_env(n, 0.0005, 0.008)
+    y = 0.6 * hit / (np.max(np.abs(hit)) + 1e-9)
+    mud_add(y, mud_bubble(rng.uniform(900, 1700) * (0.8 + 0.4 * p["wet"]), p["thick"] * 0.8, 0.5), 0.004)
+    return y * near * rng.uniform(0.5, 1.0)
+
+
+def mud_smear(rng, p, speed):
+    """Atrito molhado na pele: segue a velocidade da mão (0..1)."""
+    n = len(speed)
+    fric = band_oneshot(rng.standard_normal(n), 150, 1100) * mud_gurgle(rng, n, 20, 70)
+    fric = fric / (np.sqrt(np.mean(fric ** 2)) + 1e-9) * speed ** 1.6
+    y = 0.035 * fric
+    # Gruda e solta: o barro faz um crepitar molhado de bolhas minúsculas, mais com a mão rápida e pegajosa.
+    rate = 380 * p["sticky"] * speed
+    starts = np.nonzero(rng.random(n) < rate / SR)[0]
+    for s in starts:
+        f = rng.lognormal(np.log(1100), 0.4)
+        mud_add(y, mud_bubble(f, p["thick"] * 1.6), s / SR, 0.06 * rng.lognormal(0, 0.5) * speed[s])
+    # A cada passada a mão empurra o bolo de barro: um escoar curto no meio do movimento.
+    v = np.gradient(speed)
+    peaks = np.nonzero((v[:-1] > 0) & (v[1:] <= 0) & (speed[:-1] > 0.4))[0]
+    for s in peaks:
+        mud_add(y, mud_sink(rng, p, 0.3), s / SR - 0.03, 0.4 * speed[s])
+    # Bolhinhas de ar presas entre a mão e a pele.
+    starts = np.nonzero(rng.random(n) < 28 * p["wet"] * speed / SR)[0]
+    for s in starts:
+        mud_add(y, mud_bubble(rng.lognormal(np.log(p["bubble_f"] * 1.8), 0.35), p["thick"], 0.12 * rng.lognormal(0, 0.4)), s / SR)
+    # Onde a mão vira, ela desgruda um pouco: um chupão pequeno.
+    turns = np.nonzero((v[:-1] < 0) & (v[1:] >= 0) & (speed[:-1] > 0.05))[0]
+    for s in turns:
+        if rng.random() < p["smacks"]:
+            mud_add(y, mud_suction(rng, p, 0.35), s / SR - 0.04, 0.35)
+    return y
+
+
+def mud_flick(rng, p, at, y):
+    """Uma sacudida da mão: o ar e as gotas que caem na poça logo depois."""
+    n = int(0.08 * SR)
+    swish = band_oneshot(rng.standard_normal(n), 250, 1400) * np.sin(np.pi * np.arange(n) / n) ** 2
+    mud_add(y, swish / (np.max(np.abs(swish)) + 1e-9), at, 0.12)
+    for _ in range(rng.integers(3, 7)):
+        mud_add(y, mud_drop(rng, p, 0.35), at + rng.uniform(0.12, 0.3))
+
+
+def mud_rub():
+    """Esfregar lama, no tempo da animação rub_mud (3 s): pega a lama (as mãos entram 0,42 s, apertam
+    0,56 s, saem 0,64 s), esfrega no braço e no peito (0,8-1,85 s), no rosto e na coxa (1,75-2,75 s) e sacode
+    as mãos (2,64 s), com os respingos caindo na poça."""
+    p = MUD
+    rng = np.random.default_rng(347)
+    n = int(MUD_LENGTH * SR)
+    t = np.arange(n) / SR
+    y = np.zeros(n)
+    # Pegar a lama com as duas mãos.
+    mud_add(y, mud_sink(rng, p, 1.0), 0.42)
+    mud_add(y, mud_sink(rng, p, 0.85), 0.475, 0.9)
+    mud_add(y, mud_sink(rng, p, 0.6), 0.56, 0.7)  # os dedos fechando: a lama escapa entre eles
+    mud_add(y, mud_suction(rng, p, 1.0), 0.64, 0.8)
+    mud_add(y, mud_suction(rng, p, 0.8), 0.67, 0.7)
+    for at in rng.uniform(0.78, 1.0, 3):
+        mud_add(y, mud_drop(rng, p, 0.6), at)
+    # Esfregar: a mão bate cheia de lama, depois vai e volta (stroke = sin(11 t) na animação).
+    mud_add(y, mud_sink(rng, p, 0.45), 0.86, 0.6)
+    mud_add(y, mud_sink(rng, p, 0.4), 1.84, 0.55)
+    rub_a = smoothstep(0.8, 1.0, t) * (1.0 - smoothstep(1.65, 1.85, t))
+    rub_b = smoothstep(1.75, 1.95, t) * (1.0 - smoothstep(2.55, 2.75, t))
+    stroke = np.abs(np.cos(t * 11.0))
+    y += mud_smear(rng, p, np.clip(rub_a, 0, 1) * (0.2 + 0.8 * stroke))
+    y += mud_smear(rng, p, np.clip(rub_b, 0, 1) * (0.2 + 0.8 * np.abs(np.cos(t * 11.0 + 0.4))))
+    # Sacudir as mãos: cada sacudida joga gotas na poça.
+    for at in (2.64, 2.75, 2.86):
+        mud_flick(rng, p, at, y)
+    # A lama abafa os agudos.
+    y = band_oneshot(y, 35, p["top"], 0.25)
+    y *= 1.0 - smoothstep(MUD_LENGTH - 0.15, MUD_LENGTH, t)
+    y = y / (np.max(np.abs(y)) + 1e-9)
+    # Compressão leve: o esfregar não some atrás das chapinhadas.
+    return np.tanh(2.2 * y) / np.tanh(2.2)
 
 
 def snare_snap():
@@ -715,11 +835,11 @@ def main():
     write_wav(ROOT / "ambience" / "crickets_loop.wav", crickets_loop(), loop=True)
     for v in range(1, 3):
         write_wav(ROOT / "animals" / f"owl_{v}.wav", owl(v))
-    write_wav(ROOT / "animals" / "wolf_bite.wav", wolf_bite())
     write_wav(ROOT / "sfx" / "heartbeat.wav", heartbeat())
     for v in range(1, 3):
         write_wav(ROOT / "sfx" / f"stone_hit_{v}.wav", stone_hit(v))
-    write_wav(ROOT / "sfx" / "mud_rub.wav", mud_rub())
+    # Pico mais baixo: o som é comprimido, e assim a média fica em -20 dB, o nível da mixagem.
+    write_wav(ROOT / "sfx" / "mud_rub.wav", mud_rub(), peak=0.72)
     write_wav(ROOT / "sfx" / "snare_snap.wav", snare_snap())
     write_wav(ROOT / "sfx" / "monitor_beep.wav", monitor_beep())
     write_wav(ROOT / "sfx" / "stone_door.wav", stone_door())
