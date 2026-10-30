@@ -403,6 +403,20 @@ func _sense(dt: float) -> void:
 		# Assustado com um barulho, só olha para o goblin se o vir com clareza (cheiro e
 		# passos não dizem de onde vem o perigo).
 		_threat = Vector2(player.global_position.x, player.global_position.z)
+	# F12: o orc também é perigo (sem isto, um cervo pastava ao lado dele). Ele é grande e faz
+	# barulho: os bichos o veem e ouvem de mais longe que o goblin. O lobo não foge dele.
+	if kind != &"wolf":
+		var orc := Orc.nearest(get_tree(), global_position, maxf(sight_range, hearing_range) * 1.2)
+		if orc != null:
+			var orc_distance := orc.global_position.distance_to(global_position)
+			var orc_stimulus := 0.0
+			if orc_distance < hearing_range * 1.2:
+				orc_stimulus += orc.noise_level() * (1.0 - orc_distance / (hearing_range * 1.2)) * 2.0
+			if orc_distance < sight_range * 1.2 and _line_of_sight(eye, orc.global_position + Vector3.UP * 1.4):
+				orc_stimulus += pow(1.0 - orc_distance / (sight_range * 1.2), 1.5) * (0.35 if state == State.GRAZE else 1.0) * 2.0
+			if orc_stimulus > maxf(stimulus, 0.05):
+				_threat = Vector2(orc.global_position.x, orc.global_position.z)
+			stimulus += orc_stimulus
 	# A atenção sobe até o teto do estímulo de agora e, acima dele, volta a cair devagar.
 	var ceiling := stimulus * Tuning.ANIMAL_AWARENESS_CEILING if stimulus > 0.05 else 0.0
 	if awareness < ceiling:

@@ -314,7 +314,7 @@ tests/               roteiros --run de cada fase e o run_all.ps1
     a pose final.
 
   O jogador expõe `noise_level()` e `visibility()` (agachado, parado e coberto por capim ou mata).
-- **Física, camadas:** 1 `world` (terreno, caverna, pedras, troncos caídos), 2 `trees`, 3 `player`, 4 `animals` (Area3D de acerto). Raios de som só testam a camada 1. Visão dos bichos: 1 e 2. Flechas: 1, 2 e 4.
+- **Física, camadas:** 1 `world` (terreno, caverna, pedras, troncos caídos), 2 `trees`, 3 `player`, 4 `animals` (Area3D de acerto), 5 `combat` (áreas de acerto do goblin e dos orcs, F12), 6 `monsters` (corpo dos orcs; o goblin esbarra). Raios de som só testam a camada 1. Visão dos bichos: 1 e 2. Flechas: 1, 2, 4 e 5.
 - **Bichos do ambiente:** regra: **todo som de bicho sai de um bicho de verdade**, no ponto onde ele está (nada de
   loop no ouvido nem chamado de ponto sorteado). Números em `Tuning` (bloco "Bichos do ambiente").
   - **Insetos (`InsectField`, filho do `Ambience`, montado por `Ambience.build_life`):** `CRICKET_COUNT` grilos
@@ -369,6 +369,7 @@ Plano completo em `docs/plano_combate.md` (F11 a F14). Feito até agora:
 - **Corpo:** poses de luta em `GoblinActions` medidas por `GoblinAnimator.strike_window`; `weapon_style` e `guarding` no animador (`_weapon_overlay`). O `PlayerGear` põe a arma na mão a cada quadro (uma mão: o cabo sai `ONE_HAND_TILT` acima do antebraço; a lança vai da mão direita para a esquerda) e o arco nas costas.
 - **Cura:** `Vitals.bleeding` e `herb`; F põe a bandagem sangrando e come a erva ferido. Musgo no tronco das árvores secas (some quando a árvore cai), erva na mata fechada.
 - **Bancada (`Workbench`, filha da Cave):** receita `&"bench"` só dentro da toca; receitas com `"station": &"bench"` e o conserto (`&"repair"`) só perto dela.
+- **Orcs (F12, `scenes/monsters/orc/`):** o modelo sai do goblin (`assets/models/orc/source/build_orc.py`, mesmo esqueleto) e usa o `GoblinAnimator` com o nó escalado (`ORC_MODEL_SCALE`). `Orc` (CharacterBody3D, camada 6; área de acerto na 5): estados, sentidos pelo `Senses`, golpe pelo `WeaponTrace` curvando o corpo (`strike_bend`), zonas e ferro (`Orc.strike(dano, tipo, ponto, direção, postura)`), ajoelha aparado, foge com a moral baixa, revistar. `OrcBand` (filho da floresta, grupo `orc_band`): chegada por dia, rotas, grito, vez de atacar; desligado no Bem-vindo, depois de Ficar e com `orcs_off` (`ameaca off` no console). Nos testes, só com `--orcs` ou `--spawn=orc:x,z[:warrior]`. O goblin tem `Hitbox` (camada 5) e `take_hit`; os bichos (menos o lobo) fogem do orc.
 
 ## Convenções
 

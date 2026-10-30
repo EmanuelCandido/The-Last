@@ -40,12 +40,17 @@ const NAMES := {
 	&"moss": "Musgo",
 	&"herb": "Erva-de-sangue",
 	&"bandage": "Bandagens",
+	# F12: o saque dos orcs.
+	&"orc_axe": "Machado orc",
+	&"orc_sword": "Espada orc",
+	&"iron_scrap": "Sucata de ferro",
+	&"orc_ration": "Carne seca dos orcs",
 }
 ## Ordem dos itens na linha do HUD (o que não está aqui não aparece: arco e roupa se veem no goblin).
 const HUD_ORDER: Array[StringName] = [
 	&"arrow", &"feathered_arrow", &"bone_arrow", &"stone", &"wood", &"meat", &"cooked_meat", &"smoked_meat",
 	&"rotten_meat", &"berries", &"mushroom", &"white_meat", &"hide", &"bone", &"feather", &"snare",
-	&"sinew", &"moss", &"herb", &"bandage",
+	&"sinew", &"moss", &"herb", &"bandage", &"iron_scrap", &"orc_ration",
 ]
 ## O que a carne vira quando estraga.
 const SPOILS_INTO := &"rotten_meat"

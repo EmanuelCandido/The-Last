@@ -85,6 +85,9 @@ var quiver_top := Vector3(-0.08, 0.8, -0.15)
 var weapon_style := &""
 var guarding := false
 var strike_window := Vector2(0.2, 0.35)
+## Quanto o corpo se curva para golpear algo menor que ele (rad; F12: o orc contra o goblin, que tem
+## metade da altura: sem isto o golpe de lado passava por cima da cabeça dele).
+var strike_bend := 0.0
 var weapon_grip := Vector3(0.0, 0.036, 0.008)
 
 ## Quanto o pé desce abaixo da base do corpo procurando chão (m).
@@ -1128,6 +1131,12 @@ func forearm_direction(left: bool) -> Vector3:
 	var elbow := skeleton.get_bone_global_pose(_bones["antebraco_" + side]).origin
 	var wrist := skeleton.get_bone_global_pose(_bones["mao_" + side]).origin
 	return (skeleton.global_basis * (wrist - elbow)).normalized()
+
+
+## Posição global da junta de um osso qualquer (o orc mede a zona do golpe pela cabeça).
+func bone_position(bone_name: String) -> Vector3:
+	var index := skeleton.find_bone(bone_name)
+	return skeleton.global_transform * skeleton.get_bone_global_pose(index).origin if index != -1 else skeleton.global_position
 
 
 ## Posição global do punho (osso da mão), já com a pose deste frame.

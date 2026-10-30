@@ -76,6 +76,7 @@ const LINES := {
 const CONSOLE_HELP := """comandos:
   status                 o paciente e a simulação
   neblina off | on       a neblina da floresta
+  ameaca off | on        os orcs da floresta
   teleport <lugar>       onde o goblin acorda (caverna, clareira, trilha, ruina, norte)
   give <item> [n]        cria itens no inventário do goblin
   ficar                  volta para a floresta. Ele para de apagar.

@@ -152,6 +152,8 @@ func run(text: String) -> void:
 			_status()
 		"neblina":
 			_fog(args)
+		"ameaca", "ameaça":
+			_threat(args)
 		"teleport":
 			_teleport(args)
 		"give":
@@ -185,6 +187,10 @@ func _status() -> void:
 	_print("PACIENTE: ARI, 41 · LEITO 2714 · NUTRIÇÃO %d%%" % roundi(Vitals.satiety))
 	_print("SIMULAÇÃO 'A TOCA' · CICLO %d · DIA %d · %02d:%02d" % [Story.cycle, Clock.day, int(Clock.hour), int(fmod(Clock.hour, 1.0) * 60.0)])
 	_print("VIGILÂNCIA %d%% · NEBLINA %s" % [roundi(Story.vigilance), "DESLIGADA" if Story.has_flag(&"fog_off") else "LIGADA"])
+	# F12: a ameaça (os orcs). Na segunda leitura, o medo de quem vem de fora.
+	var band := get_tree().get_first_node_in_group(OrcBand.GROUP) as OrcBand
+	var threat := "DESLIGADA" if Story.has_flag(&"orcs_off") else "DIA %d DE %d" % [Clock.day, Tuning.ORC_FIRST_DAY] if Clock.day < Tuning.ORC_FIRST_DAY else "ATIVA"
+	_print("AMEAÇA EXTERNA: %s · %d NA SIMULAÇÃO · ABATIDOS %d" % [threat, band.orcs().size() if band != null else 0, Story.count(&"orc_killed")])
 	_print("ALERTAS DESTE CICLO: %s" % (", ".join(done) if not done.is_empty() else "nenhuma"))
 	_print("ÚLTIMO CONTATO DE RÁDIO: 11/04/2038 · RESPOSTA: SEM SOBREVIVENTES")
 
@@ -196,6 +202,15 @@ func _fog(args: PackedStringArray) -> void:
 	var off := args[0] == "off"
 	Story.set_flag(&"fog_off", off)
 	_print("neblina %s no setor da toca." % ("desligada" if off else "ligada"))
+
+
+func _threat(args: PackedStringArray) -> void:
+	if args.is_empty() or args[0] not in ["off", "on"]:
+		_print("uso: ameaca off | on")
+		return
+	var off := args[0] == "off"
+	Story.set_flag(&"orcs_off", off)
+	_print("ameaça externa %s." % ("desligada" if off else "ligada"))
 
 
 func _teleport(args: PackedStringArray) -> void:

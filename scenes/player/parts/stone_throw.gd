@@ -41,7 +41,7 @@ func _release_spear() -> void:
 	spear.item = item
 	spear.worn = worn
 	Game.current_level.add_child(spear)
-	spear.launch(from, direction, Tuning.SPEAR_THROW_POWER, [_player.get_rid()])
+	spear.launch(from, direction, Tuning.SPEAR_THROW_POWER, [_player.get_rid(), _player.hitbox_rid()])
 	OccludedAudio.play_at(_player, THROW_SOUND, from, &"World", -5.0, 2.0, randf_range(0.75, 0.85))
 	Events.noise_made.emit(_player.global_position, 6.0)
 

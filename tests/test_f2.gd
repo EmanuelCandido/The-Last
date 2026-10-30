@@ -75,6 +75,8 @@ func run() -> void:
 	pack._clear()
 	await _wait(0.2)
 	Vitals.health = 100.0
+	# A mordida pode ter aberto uma ferida (F11): sem estancar, a vida cairia junto do fogo também.
+	Vitals.bleeding = 0.0
 
 	# Junto do fogo: o lobo ronda mas não morde.
 	var near_fire := Vector2(fire.global_position.x + 0.8, fire.global_position.z + 0.5)

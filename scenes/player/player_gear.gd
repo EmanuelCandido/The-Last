@@ -13,9 +13,6 @@ const CARRY_RISE := 0.45
 const CARRY_SWING := 0.4
 ## Mirando, o arco deita um pouco (topo para a direita), como o de um arqueiro destro.
 const BOW_CANT := 0.15
-## Arma de uma mão: o cabo sai do punho este ângulo (rad) acima do antebraço, como com o pulso
-## dobrado de quem segura a faca para a frente (a 90°, punho reto, a faca apontava para o rosto).
-const ONE_HAND_TILT := 0.65
 
 var bow: Node3D
 var quiver: Node3D
@@ -79,39 +76,18 @@ func set_weapon(item: StringName, animator: GoblinAnimator) -> void:
 	update(animator)
 
 
-## A arma segue a mão no mesmo frame da pose (como o arco). Com uma mão, o cabo sai do punho
-## ONE_HAND_TILT acima do antebraço; com duas (a lança), vai da mão de trás para a da frente.
+## A arma segue a mão no mesmo frame da pose (como o arco): ver WeaponMesh.hold.
 func orient_weapon(animator: GoblinAnimator) -> void:
 	if weapon == null or animator == null:
 		return
-	var grip := animator.weapon_grip_position()
-	var side := _visual.global_basis.x
-	var axis: Vector3
-	if Weapons.two_handed(weapon_item):
-		axis = animator.hand_position(true) - grip
-		if axis.length() < 0.06:
-			axis = _visual.global_basis.z
-	else:
-		axis = animator.forearm_direction(false).rotated(side, -ONE_HAND_TILT)
-	axis = axis.normalized()
-	var x := side - axis * side.dot(axis)
-	if x.length_squared() < 0.0001:
-		x = _visual.global_basis.z.cross(axis)
-	x = x.normalized()
-	_weapon_axis = axis
-	weapon.global_transform = Transform3D(Basis(x, axis, x.cross(axis).normalized()), grip)
+	_weapon_axis = WeaponMesh.hold(weapon, weapon_item, animator, _visual)
 
 
 ## Por onde a lâmina passa agora: [começo, ponta] no mundo (vazio sem arma).
 func weapon_segment() -> Array[Vector3]:
 	if weapon == null:
 		return []
-	var length: float = Weapons.spec(weapon_item).get("length", 0.3)
-	var grip := weapon.global_position
-	if Weapons.two_handed(weapon_item):
-		var ahead := length * (1.0 - WeaponMesh.SPEAR_GRIP)
-		return [grip + _weapon_axis * ahead * 0.35, grip + _weapon_axis * ahead]
-	return [grip + _weapon_axis * 0.04, grip + _weapon_axis * length]
+	return WeaponMesh.blade(weapon_item, weapon.global_position, _weapon_axis)
 
 
 func orient(animator: GoblinAnimator, draw: float, nocked: bool) -> void:

@@ -14,6 +14,8 @@ extends Node
 ##   --camera=<yaw>,<pitch>  ângulos da câmera em graus (yaw 0 = olhando para -Z)
 ##   --give=<item>:<n>,...  põe itens no inventário (ex.: bow:1,arrow:6,wood:2)
 ##   --equip=<arma>       põe a arma na mão (F11: stone_knife, bone_knife, club, spear); dá uma se faltar
+##   --orcs               deixa os orcs chegarem sozinhos (nos testes eles não vêm sem isto)
+##   --spawn=orc:<x>,<z>[:warrior]  põe um orc nesse ponto (F12)
 ##   --press=<ações>      aperta e solta ações uma vez depois das --hold (ex.: interact)
 ##   --tips               com --pause, abre a tela de Dicas
 ##   --set=<a.b:v>,...    muda o estado global (ex.: story.act:2,story.flag:moss_fell,
@@ -40,6 +42,8 @@ var scripted := false
 var automated := false
 ## O jogo começa pelo menu principal (sempre, menos nos testes; --menu força).
 var show_menu := true
+## Nos testes automáticos os orcs só chegam sozinhos com --orcs (F12).
+var orcs := false
 
 
 func _ready() -> void:
@@ -48,6 +52,7 @@ func _ready() -> void:
 	scripted = args.has("run")
 	automated = scripted or args.has("frames") or args.has("screenshot")
 	show_menu = args.has("menu") or not (args.has("frames") or args.has("screenshot"))
+	orcs = args.has("orcs")
 	if args.has("frames") or args.has("screenshot"):
 		_run(args)
 
@@ -64,6 +69,12 @@ func _run(args: Dictionary) -> void:
 		print("[DevTools] Carregar save: %s" % ("ok" if SaveSystem.load_game() else "falhou"))
 	if args.has("teleport"):
 		_teleport(String(args["teleport"]).split_floats(","))
+	if args.has("spawn"):
+		var parts := String(args["spawn"]).split(":")
+		var band := get_tree().get_first_node_in_group(OrcBand.GROUP) as OrcBand
+		if parts.size() >= 2 and band != null:
+			var xz := parts[1].split_floats(",")
+			band.spawn(StringName(parts[2]) if parts.size() > 2 else &"scout", Vector3(xz[0], 0.0, xz[1]))
 	if args.has("camera") and Game.player != null:
 		var angles := String(args["camera"]).split_floats(",")
 		Game.player.set_camera_angles(angles[0], angles[1] if angles.size() > 1 else -15.0)

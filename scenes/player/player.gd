@@ -19,8 +19,8 @@ const BOW_RELEASE_SOUNDS := [
 	preload("res://assets/audio/real/bow_release_3.wav"), preload("res://assets/audio/real/bow_release_4.wav"),
 	preload("res://assets/audio/real/bow_release_5.wav"),
 ]
-## Camadas que a mira e as flechas enxergam: mundo, árvores e bichos.
-const AIM_MASK := 1 | 2 | 8
+## Camadas que a mira e as flechas enxergam: mundo, árvores, bichos e os corpos de luta (orcs).
+const AIM_MASK := 1 | 2 | 8 | 16
 ## Segundos para tirar outra flecha da aljava e encaixar na corda depois de atirar.
 const RELOAD_TIME := 0.75
 ## Ação padrão para interagir com algo que não diz a sua (interaction_action): abaixar e pegar.
@@ -115,6 +115,8 @@ var _steps: StepClimber
 var _gear: PlayerGear
 ## A luta de mão (F11), se a parte existir: recebe os golpes dos bichos antes da vida.
 var _melee: MeleeAbility
+## Área de acerto do goblin (camada 5, F12): a lâmina do orc e as flechas dos orcs acham ela.
+var _hitbox: Area3D
 ## Segundos em que a velocidade é do empurrão (esquiva, tranco, investida) e não do controle.
 var _shove := 0.0
 
@@ -158,6 +160,7 @@ func _ready() -> void:
 	_gear.update(_animator)
 	_on_inventory_changed(&"yew_bow", Inventory.count(&"yew_bow"))
 	_melee = get_node_or_null(^"MeleeAbility") as MeleeAbility
+	_build_hitbox()
 	Inventory.held_changed.connect(_on_held_changed)
 	_on_held_changed(Inventory.held())
 	# Limpa a dica de ação deixada por um jogador anterior (troca de fase).
@@ -416,6 +419,41 @@ func receive_attack(attack: Dictionary) -> StringName:
 	return &"hit"
 
 
+## Uma flechada ou um golpe sem ficha (o WeaponTrace e as flechas chamam `take_hit` em quem acertam):
+## vira um golpe de perfuração.
+func take_hit(power: float, _point: Vector3, direction: Vector3, damage := 1.0) -> void:
+	receive_attack({
+		"damage": lerpf(10.0, 20.0, power) * damage, "kind": &"pierce", "from": global_position - direction,
+		"poise": 0.4, "cause": &"arrow", "push": direction * 1.2,
+	})
+
+
+## A área de acerto (para quem lança raios e esferas e não deve pegar no próprio goblin).
+func hitbox_rid() -> RID:
+	return _hitbox.get_rid() if _hitbox != null else RID()
+
+
+## Onde a flecha fica presa (Arrow.reparent), se algum dia o goblin levar uma.
+func body_node() -> Node3D:
+	return _visual
+
+
+func _build_hitbox() -> void:
+	_hitbox = Area3D.new()
+	_hitbox.name = "Hitbox"
+	_hitbox.collision_layer = 16
+	_hitbox.collision_mask = 0
+	_hitbox.monitoring = false
+	var shape := CollisionShape3D.new()
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.24
+	capsule.height = 0.95
+	shape.shape = capsule
+	shape.position = Vector3.UP * 0.48
+	_hitbox.add_child(shape)
+	add_child(_hitbox)
+
+
 ## Empurra o corpo com `push` (m/s) por `seconds`: o controle não segura nesse tempo.
 func shove(push: Vector3, seconds: float) -> void:
 	velocity.x = push.x
@@ -576,7 +614,7 @@ func _shoot() -> void:
 	arrow.item = item
 	arrow.speed_scale = bow_speed()
 	Game.current_level.add_child(arrow)
-	arrow.launch(origin, _aim_point() - origin, draw, [get_rid()])
+	arrow.launch(origin, _aim_point() - origin, draw, [get_rid(), hitbox_rid()])
 	OccludedAudio.play_at(self, BOW_RELEASE_SOUNDS.pick_random(), origin, &"World", lerpf(-8.0, -1.0, draw), 4.0, randf_range(0.96, 1.04))
 	Events.noise_made.emit(global_position, 10.0)
 
@@ -603,7 +641,7 @@ func aim_point() -> Vector3:
 func _aim_point() -> Vector3:
 	var from := _camera.global_position
 	var to := from - _camera.global_basis.z * 300.0
-	var query := PhysicsRayQueryParameters3D.create(from, to, AIM_MASK, [get_rid()])
+	var query := PhysicsRayQueryParameters3D.create(from, to, AIM_MASK, [get_rid(), hitbox_rid()])
 	query.collide_with_areas = true
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	return hit.position if not hit.is_empty() else to

@@ -52,6 +52,14 @@ const TIPS := """[b]CONTROLES[/b]
 • As armas gastam e racham. A bancada (4 madeiras e 2 pedras, dentro da toca) conserta a arma na mão e faz a faca de osso.
 • Caça coletada dá tendões: o cervo dá dois.
 
+[b]ORCS[/b]
+• Depois de alguns dias, orcs entram no vale de dia e vão embora no fim da tarde. Eles veem e ouvem bem, mas farejam mal: capim, escuro, lama e ficar agachado valem mais que o vento.
+• Uma pedra jogada ({throw}) faz o orc ir ver onde ela caiu. Pego desprevenido, agachado e por trás, ele leva o golpe inteiro.
+• Antes de golpear, o orc grunhe e arma o braço: é a hora de esquivar ou de erguer a defesa. Bem na hora, ele perde o equilíbrio e ajoelha, e a cabeça fica ao seu alcance.
+• De pé, você só alcança as pernas dele: acertadas, ele manca. O guerreiro usa elmo e peitoral de ferro; o porrete passa quase inteiro pelo ferro, o corte não.
+• Um orc grita e chama os outros. Só dois atacam de cada vez. Quando um cai, os outros perdem a coragem, e o orc ferido foge.
+• Eles não entram na toca. Morto, o orc pode ser revistado ({interact}): a arma dele (gasta), sucata de ferro e carne seca.
+
 [b]RASTROS, CHEIRO E SILÊNCIO[/b]
 • Cervos, coelhos e lobos deixam pegadas no chão. Elas somem em uns dois minutos: as mais escuras são as mais frescas.
 • Segure {sniff} para farejar: o goblin agacha, o mundo abafa e o vento aparece. Bicho de onde o vento vem solta uma trilha de cheiro até você. Dura poucos segundos.

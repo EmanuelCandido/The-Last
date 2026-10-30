@@ -45,10 +45,24 @@ const LIST := {
 		"speed": 0.9, "wear": 70, "stealth": 3.0, "repair": {&"wood": 1},
 		"brace": 3.0, "throw": true,
 	},
+	# F12: as armas dos orcs. Revistando o orc, o goblin fica com elas (gastas): para ele, o machado
+	# é arma e ferramenta (derruba pinheiro vivo) e a espada, que para o orc é curta, pede as duas mãos.
+	&"orc_axe": {
+		"name": "Machado orc", "called": "o machado orc", "hands": 1, "kind": &"cut", "style": &"club",
+		"light": 1.0, "heavy": 1.6, "reach": 0.4, "length": 0.55,
+		"stamina": 0.18, "heavy_stamina": 0.34, "poise": 0.4, "heavy_poise": 0.8,
+		"speed": 0.85, "wear": 70, "stealth": 3.0, "repair": {&"iron_scrap": 1}, "chop": true,
+	},
+	&"orc_sword": {
+		"name": "Espada orc", "called": "a espada orc", "hands": 2, "kind": &"cut", "style": &"club",
+		"light": 1.2, "heavy": 2.0, "reach": 0.6, "length": 0.72,
+		"stamina": 0.24, "heavy_stamina": 0.42, "poise": 0.5, "heavy_poise": 1.0,
+		"speed": 0.72, "wear": 90, "stealth": 3.0, "repair": {&"iron_scrap": 1},
+	},
 }
 
 ## Ordem em que a troca de arma (Tab) passa pelas armas; &"" é o arco (ou as mãos vazias).
-const CYCLE: Array[StringName] = [&"", &"stone_knife", &"bone_knife", &"club", &"spear"]
+const CYCLE: Array[StringName] = [&"", &"stone_knife", &"bone_knife", &"club", &"spear", &"orc_axe", &"orc_sword"]
 
 
 static func is_weapon(item: StringName) -> bool:

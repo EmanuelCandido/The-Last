@@ -50,6 +50,12 @@ var _trace := WeaponTrace.new()
 @onready var _player: Player = get_parent()
 
 
+func _ready() -> void:
+	# A lâmina do goblin não pega na área de acerto dele mesmo (F12).
+	await get_tree().process_frame
+	_trace.exclude = [_player.hitbox_rid()]
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not _player.controls_on():
 		return
@@ -216,9 +222,18 @@ func _land(hit: Dictionary) -> void:
 	if _swing.tired:
 		damage *= Tuning.STAMINA_WEAK
 	# Quem não viu o goblin chegar (agachado, por trás) leva o golpe inteiro (§3.9).
-	if target is Animal and (target as Animal).awareness < Animal.SUSPICIOUS and _player.is_crouching():
+	var unaware := false
+	if target is Animal:
+		unaware = (target as Animal).awareness < Animal.SUSPICIOUS
+	elif target is Orc:
+		unaware = (target as Orc).unaware()
+	if unaware and _player.is_crouching():
 		damage *= float(spec.get("stealth", 1.0))
-	target.take_hit(0.5, hit.point, hit.direction, damage)
+	if target is Orc:
+		# O orc sabe o tipo do golpe (armadura) e a postura (ajoelha).
+		(target as Orc).strike(damage, spec.kind, hit.point, hit.direction, float(spec.heavy_poise if _swing.heavy else spec.poise))
+	else:
+		target.take_hit(0.5, hit.point, hit.direction, damage)
 	OccludedAudio.play_at(Game.current_level if Game.current_level != null else _player, HIT_SOUNDS.pick_random(), hit.point, &"World", -2.0, 4.0, randf_range(0.85, 1.05))
 	Events.noise_made.emit(hit.point, Tuning.MELEE_HIT_NOISE)
 	_wear(item, 1.0)

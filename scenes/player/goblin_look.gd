@@ -15,15 +15,20 @@ const SHADER := preload("res://assets/shaders/goblin_skin.gdshader")
 const SKIN := preload("res://assets/textures/goblin_skin.png")
 const CLOTH := preload("res://assets/textures/goblin_cloth.png")
 const LEATHER := preload("res://assets/textures/leather.png")
+const METAL := preload("res://assets/textures/metal.png")
 
 
-static func apply(model: Node) -> void:
+## `tints` troca a tinta de uma parte da paleta (o orc, F12: {"pele": cor, ...}); `span` é o
+## tamanho de uma repetição da textura no espaço do modelo (o orc é escalado no nó: menor aqui).
+static func apply(model: Node, tints := {}, span := TEXEL_SPAN) -> void:
 	var materials := {
-		"pele": _textured(SKIN, Color(1.0, 1.0, 1.0)),
-		"pele_escura": _textured(SKIN, Color(0.68, 0.7, 0.62)),
-		"trapo": _textured(CLOTH, Color(1.0, 1.0, 1.0)),
-		"trapo_escuro": _textured(CLOTH, Color(0.62, 0.6, 0.58)),
-		"couro": _textured(LEATHER, Color(1.0, 1.0, 1.0)),
+		"pele": _textured(SKIN, tints.get("pele", Color(1.0, 1.0, 1.0)), span),
+		"pele_escura": _textured(SKIN, tints.get("pele_escura", Color(0.68, 0.7, 0.62)), span),
+		"trapo": _textured(CLOTH, tints.get("trapo", Color(1.0, 1.0, 1.0)), span),
+		"trapo_escuro": _textured(CLOTH, tints.get("trapo_escuro", Color(0.62, 0.6, 0.58)), span),
+		"couro": _textured(LEATHER, tints.get("couro", Color(1.0, 1.0, 1.0)), span),
+		# O ferro: a fivela do goblin e, no orc (F12), o elmo e o peitoral.
+		"metal": _textured(METAL, tints.get("metal", Color(0.7, 0.68, 0.66)), span),
 		"dente": _flat(Color(0.68, 0.64, 0.52)),
 		"boca": _flat(Color(0.09, 0.05, 0.04)),
 		"olho": _eye(),
@@ -66,12 +71,12 @@ static func _with_rest_attributes(source: ArrayMesh, materials: Dictionary) -> A
 	return mesh
 
 
-static func _textured(texture: Texture2D, tint: Color) -> ShaderMaterial:
+static func _textured(texture: Texture2D, tint: Color, span := TEXEL_SPAN) -> ShaderMaterial:
 	var material := ShaderMaterial.new()
 	material.shader = SHADER
 	material.set_shader_parameter(&"albedo_texture", texture)
 	material.set_shader_parameter(&"tint", tint)
-	material.set_shader_parameter(&"texel_span", TEXEL_SPAN)
+	material.set_shader_parameter(&"texel_span", span)
 	return material
 
 

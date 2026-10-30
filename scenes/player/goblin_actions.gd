@@ -364,6 +364,32 @@ static func pose(a: GoblinAnimator, action: StringName, t: float, base: Dictiona
 			else:
 				var up := (t - fall) / maxf(a._action_duration - fall, 0.01)
 				p = pose(a, &"wake", lerpf(3.45, 5.8, up), base)
+		&"kneel":
+			# Perdeu o equilíbrio (F12, o orc aparado ou com a postura quebrada): cai sobre um joelho,
+			# o tronco dobra e a cabeça desce, ao alcance de quem é pequeno. As medidas seguem o
+			# tamanho do corpo (o orc tem o quadril mais alto que o goblin).
+			var d := a._action_duration
+			var size := a._hip_height / 0.36
+			var k := GoblinAnimator._curve(t, [[0.0, 0.0], [0.25, 1.0], [d - 0.4, 1.0], [d, 0.0]])
+			p.pelvis_y = lerpf(base.pelvis_y, base.pelvis_y * 0.52, k)
+			p.foot_l_z = base.foot_l_z + 0.13 * size * k
+			p.foot_r_z = base.foot_r_z - 0.12 * size * k
+			p.torso_pitch = base.torso_pitch + 0.55 * k
+			p.spine_arch = base.spine_arch + 0.2 * k
+			p.neck_fwd = base.neck_fwd + 0.15 * k
+			p.head_pitch = base.head_pitch + 0.3 * k
+			p.arm_l_fwd = lerpf(base.arm_l_fwd, 0.7, k)
+			p.elbow_l = lerpf(base.elbow_l, 0.5, k)
+			p.arm_r_fwd = lerpf(base.arm_r_fwd, 0.3, k)
+			p.elbow_r = lerpf(base.elbow_r, 0.4, k)
+			p.ear_l = base.ear_l - 0.3 * k
+			p.ear_r = base.ear_r - 0.3 * k
+		&"die":
+			# Morto: os joelhos cedem, o corpo tomba e fica deitado (a pose do começo do `wake`).
+			var lying := pose(a, &"wake", 0.0, base)
+			var w := smoothstep(0.0, a._action_duration, t)
+			for key: String in p:
+				p[key] = lerpf(float(base[key]), float(lying[key]), w)
 		&"equip":
 			# A mão vai ao quadril e às costas, pega (ou guarda) a arma e volta para a frente.
 			var d := a._action_duration
@@ -445,7 +471,21 @@ static func _slash(a: GoblinAnimator, t: float, base: Dictionary, side: float, s
 	p.head_yaw = base.head_yaw - (p.pelvis_yaw - base.pelvis_yaw + p.torso_yaw - base.torso_yaw) * 0.75
 	p.ear_l = base.ear_l + _phase(a, t, [0.0, -0.2, 0.2, 0.3, 0.1, 0.0])
 	p.ear_r = base.ear_r + _phase(a, t, [0.0, -0.2, 0.2, 0.3, 0.1, 0.0])
+	_bend(a, t, p)
 	return p
+
+
+## Quem é grande, golpeando algo pequeno (`a.strike_bend`): dobra no quadril, afunda e baixa o braço
+## no golpe, e a cabeça segue olhando o alvo.
+static func _bend(a: GoblinAnimator, t: float, p: Dictionary) -> void:
+	if a.strike_bend <= 0.0:
+		return
+	var bend := _phase(a, t, [0.0, 0.35, 0.85, 1.0, 0.6, 0.0]) * a.strike_bend
+	p.torso_pitch += bend
+	p.spine_arch += bend * 0.3
+	p.pelvis_y -= bend * a._hip_height * 0.18
+	p.arm_r_fwd -= bend * 0.7
+	p.head_pitch -= bend * 0.6
 
 
 ## Golpe forte de cima (faca e porrete): os dois braços sobem, o corpo estica para trás e desce
@@ -468,6 +508,7 @@ static func _overhead(a: GoblinAnimator, t: float, base: Dictionary) -> Dictiona
 	p.head_pitch = base.head_pitch + _phase(a, t, [0.0, -0.18, 0.05, 0.2, 0.1, 0.0])
 	p.ear_l = base.ear_l + _phase(a, t, [0.0, -0.3, 0.2, 0.35, 0.1, 0.0])
 	p.ear_r = base.ear_r + _phase(a, t, [0.0, -0.3, 0.2, 0.35, 0.1, 0.0])
+	_bend(a, t, p)
 	return p
 
 

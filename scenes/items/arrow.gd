@@ -10,8 +10,8 @@ extends Node3D
 const SPEED_MIN := 16.0
 const SPEED_MAX := 52.0
 const GRAVITY := 9.8
-## Mundo, árvores e bichos (as áreas de acerto dos bichos ficam na camada 4).
-const HIT_MASK := 1 | 2 | 8
+## Mundo, árvores, bichos (camada 4) e os corpos de luta (camada 5: orcs e o goblin, F12).
+const HIT_MASK := 1 | 2 | 8 | 16
 const TREES_LAYER := 2
 ## Quanto da flecha entra no alvo.
 const PENETRATION := 0.12

@@ -39,6 +39,10 @@ func _ready() -> void:
 	var trophies := Trophies.new()
 	trophies.name = "Trophies"
 	_cave.add_child(trophies)
+	# F12: os orcs (chegam pelo dia do ciclo).
+	var band := OrcBand.new()
+	band.name = "Orcs"
+	add_child(band)
 	# F11: a bancada, desmontada até o goblin fabricá-la.
 	var bench := Workbench.new()
 	bench.name = "Workbench"

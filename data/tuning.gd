@@ -74,9 +74,11 @@ const FOODS := {
 	&"berries": {"satiety": 6.0, "nausea_chance": 0.0},
 	&"mushroom": {"satiety": 8.0, "nausea_chance": 0.15},
 	&"rotten_meat": {"satiety": 6.0, "nausea_chance": 0.9},
+	# F12: a carne seca que os orcs carregam (não estraga).
+	&"orc_ration": {"satiety": 22.0, "nausea_chance": 0.0},
 }
 ## Ordem em que o goblin escolhe o que comer.
-const FOOD_PREFERENCE: Array[StringName] = [&"cooked_meat", &"smoked_meat", &"berries", &"mushroom", &"meat", &"rotten_meat", &"white_meat"]
+const FOOD_PREFERENCE: Array[StringName] = [&"cooked_meat", &"smoked_meat", &"orc_ration", &"berries", &"mushroom", &"meat", &"rotten_meat", &"white_meat"]
 ## Enjoo de carne crua: dano na hora e segundos sem regenerar.
 const NAUSEA_DAMAGE := 5.0
 const NAUSEA_SECONDS := 60.0
@@ -771,7 +773,7 @@ const COMBO_MAX := 3
 const BLOCK_ARC_DEG := 120.0
 const BLOCK_LEAK := 0.45
 const BLOCK_STAMINA_PER_DAMAGE := 0.025
-const PARRY_WINDOW := 0.18
+const PARRY_WINDOW := 0.25
 const PARRY_STAGGER := 1.4
 ## Esquiva: distância (m), duração, invulnerabilidade do começo e fôlego.
 const DODGE_DISTANCE := 1.6
@@ -814,3 +816,75 @@ const BENCH_RADIUS := 2.5
 ## Erva-de-sangue: cura por segundo e por quantos segundos depois de comer.
 const HERB_HEAL := 0.8
 const HERB_SECONDS := 30.0
+
+# --- F12: os orcs (docs/plano_combate.md §7; experimental) ------------------------------------
+
+## Escala do modelo (o orc é montado a partir do goblin: 1,21 m sem ela) e a altura dos olhos (m).
+const ORC_MODEL_SCALE := 1.5
+const ORC_EYE_HEIGHT := 1.6
+## Vida (unidade da flechada), velocidades (m/s) e o giro (rad/s).
+const ORC_HEALTH := {&"scout": 3.0, &"warrior": 4.5}
+const ORC_WALK_SPEED := 1.35
+const ORC_RUN_SPEED := 3.9
+const ORC_TURN_SPEED := 6.0
+## Sentidos: visão (m e graus), audição e faro (m). O orc vê e ouve bem e fareja mal: o vento importa
+## menos contra ele que contra o cervo; o capim, o escuro e a lama importam mais.
+const ORC_SIGHT := 28.0
+const ORC_FOV := 140.0
+const ORC_HEARING := 20.0
+const ORC_SMELL := 8.0
+## Atenção: desconfiado (vai olhar), alerta (grita e luta), quanto cai por segundo sem estímulo.
+const ORC_SUSPICIOUS := 0.35
+const ORC_ALERT := 0.85
+const ORC_AWARENESS_DECAY := 0.07
+## Barulho do orc que os bichos ouvem (0..1): andando e correndo.
+const ORC_WALK_NOISE := 0.45
+const ORC_RUN_NOISE := 1.0
+## Luta: alcance do golpe (m), quantos atacam juntos, pausa entre golpes (s), chance do forte, a
+## distância em que os outros rodeiam esperando a vez e quanto mais lento que a arma do goblin.
+const ORC_ATTACK_RANGE := 1.55
+## Mais perto que isto ele recua antes de golpear; e a esta distância ele não perde o goblin de vista.
+const ORC_ATTACK_MIN := 0.95
+const ORC_CLOSE_TRACK := 4.0
+const ORC_ATTACKERS_AT_ONCE := 2
+const ORC_ATTACK_PAUSE := Vector2(0.9, 1.8)
+const ORC_HEAVY_CHANCE := 0.3
+const ORC_CIRCLE_DISTANCE := 3.2
+const ORC_SWING_SLOW := 1.25
+## O orc se curva no golpe (rad) para alcançar o goblin, que tem metade da altura dele.
+const ORC_STRIKE_BEND := 0.55
+## Dano no goblin (vida) e postura de cada golpe do orc.
+const ORC_LIGHT_DAMAGE := 16.0
+const ORC_HEAVY_DAMAGE := 28.0
+const ORC_LIGHT_POISE := 0.4
+const ORC_HEAVY_POISE := 1.0
+## Postura do orc: passando disto ele ajoelha (a cabeça fica ao alcance do goblin) por ORC_KNEEL s.
+const ORC_POISE_MAX := 1.0
+const ORC_POISE_DECAY := 0.25
+const ORC_KNEEL := 2.0
+## Zonas: a cabeça vale ORC_HEAD_DAMAGE (o elmo divide por ORC_HELMET), as pernas ORC_LEG_DAMAGE e
+## deixam o orc mancando (velocidade vezes ORC_LIMP_SPEED) por ORC_LIMP_SECONDS.
+const ORC_HEAD_DAMAGE := 2.0
+const ORC_HELMET := 1.6
+const ORC_LEG_DAMAGE := 0.6
+const ORC_LIMP_SPEED := 0.65
+const ORC_LIMP_SECONDS := 30.0
+## O peitoral de ferro do guerreiro: quanto passa de cada tipo de golpe no tronco (§3.6).
+const ORC_IRON := {&"cut": 0.4, &"pierce": 0.6, &"blunt": 0.9}
+## Perdeu o goblin de vista: procura por tanto tempo (s); o grito chama quem está até tanto (m).
+const ORC_SEARCH_SECONDS := 25.0
+const ORC_SHOUT_RANGE := 40.0
+## Moral: abaixo disto foge; cai com o companheiro morto e com a vida baixa.
+const ORC_FLEE_MORALE := 0.3
+## A chegada: do dia ORC_FIRST_DAY um batedor por dia; do ORC_PATROL_DAY uma patrulha de dois.
+## Entram às ORC_ARRIVE_HOUR, vão embora às ORC_LEAVE_HOUR (a noite ainda é dos lobos), nascem a
+## mais de ORC_SPAWN_MIN_DISTANCE m do goblin e não chegam a menos de ORC_CAVE_KEEP_OUT m da toca
+## nem de ORC_RUIN_KEEP_OUT m da ruína (o ritual não pode ser cortado por uma patrulha).
+const ORC_FIRST_DAY := 3
+const ORC_PATROL_DAY := 5
+const ORC_ARRIVE_HOUR := 8.0
+const ORC_LEAVE_HOUR := 19.0
+const ORC_SPAWN_MIN_DISTANCE := 60.0
+const ORC_CAVE_KEEP_OUT := 14.0
+const ORC_RUIN_KEEP_OUT := 12.0
+
