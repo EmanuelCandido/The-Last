@@ -39,6 +39,8 @@ var power := 1.0
 var item := &"arrow"
 ## Multiplica a velocidade de saída (o arco de teixo atira mais rápido).
 var speed_scale := 1.0
+## Comprimento (m): quanto do projétil fica para fora ao fincar (a lança arremessada é maior).
+var length := BowMesh.ARROW_LENGTH
 
 var _flying := true
 var _age := 0.0
@@ -67,6 +69,8 @@ static func damage_of(arrow_item: StringName) -> float:
 			return Tuning.FEATHERED_DAMAGE
 		&"bone_arrow":
 			return Tuning.BONE_ARROW_DAMAGE
+		&"spear":
+			return Tuning.SPEAR_THROW_DAMAGE
 	return 1.0
 
 
@@ -80,7 +84,7 @@ static func collect_from(body: Node) -> int:
 	var count := 0
 	for child in body.find_children("*", "", true, false):
 		if child is Arrow:
-			Inventory.add((child as Arrow).item)
+			Inventory.add((child as Arrow).item, 1, (child as Arrow).worn_value())
 			count += 1
 	return count
 
@@ -128,7 +132,7 @@ func _stick(hit: Dictionary) -> void:
 	_flying = false
 	var direction := velocity.normalized()
 	# A ponta fica em -Z, meia flecha à frente do centro.
-	global_position = hit.position - direction * (BowMesh.ARROW_LENGTH * 0.5 - PENETRATION)
+	global_position = hit.position - direction * (length * 0.5 - PENETRATION)
 	var collider: Object = hit.collider
 	var target: Node3D = null
 	if collider is Area3D and (collider as Area3D).get_parent().has_method("take_hit"):
@@ -143,8 +147,23 @@ func _stick(hit: Dictionary) -> void:
 		var wood: bool = collider is CollisionObject3D and (collider as CollisionObject3D).collision_layer & TREES_LAYER
 		var sounds: Array = HIT_WOOD if wood else HIT_GROUND
 		OccludedAudio.play_at(get_parent(), sounds.pick_random(), hit.position, &"World", 0.0, 5.0, randf_range(0.92, 1.08))
+		# F11: no chão duro a flecha às vezes quebra (a lança não).
+		if not wood and breakable() and randf() < Tuning.ARROW_BREAK_CHANCE:
+			Events.noise_made.emit(hit.position, 14.0)
+			queue_free()
+			return
 		add_to_group(&"interactable")
 	Events.noise_made.emit(hit.position, 14.0)
+
+
+## O desgaste com que volta ao inventário (-1 = novo, como as flechas).
+func worn_value() -> float:
+	return -1.0
+
+
+## Pode quebrar ao bater no chão (as flechas; a lança arremessada não).
+func breakable() -> bool:
+	return true
 
 
 func _face(direction: Vector3) -> void:

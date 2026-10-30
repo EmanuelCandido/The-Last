@@ -36,6 +36,7 @@ func _init() -> void:
 	max_health = 0.5
 	meat = 1
 	hide = 1
+	sinew = 0
 	dead_height = 0.08
 	track_size = Vector2(0.2, 0.34)
 

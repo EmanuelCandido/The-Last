@@ -12,9 +12,10 @@ const TIPS := """[b]CONTROLES[/b]
 {move} — andar  ·  {sprint} — correr  ·  {crouch} — agachar  ·  {jump} — pular
 {interact} — pegar, coletar, usar a fogueira, dormir  ·  {eat} — comer  ·  {craft} — lista de fabricar
 {sniff} (segurar) — farejar  ·  {hold_breath} (segurar) — prender o ar  ·  {throw} — jogar pedra
-{aim} — mirar com o arco
+{aim} — mirar com o arco (com uma arma de mão: defender)
 {attack}, mirando — segure para puxar a corda, solte para atirar
 {attack} sem mirar — golpear (quebra árvores secas)
+{weapon_swap} — trocar o arco por uma arma de mão  ·  {dodge} — esquivar
 {pause} — pausar  ·  F3 — desempenho  ·  as teclas mudam em Configurações
 
 [b]PRIMEIROS PASSOS[/b]
@@ -37,6 +38,19 @@ const TIPS := """[b]CONTROLES[/b]
 • Às vezes, depois de alguns dias, um cervo enorme e esperto anda sozinho pelo vale.
 • Com a prática o goblin melhora: andar agachado ensina a pisar leve, e acertar flechas firma o braço.
 • Chegue perto do bicho abatido e aperte {interact} para coletar carne e couro (e as flechas presas nele).
+
+[b]LUTA[/b]
+• Faca de pedra (1 pedra e 1 madeira), porrete (2 madeiras e 1 pedra) e lança (2 madeiras, 1 pedra e 1 tendão) saem da lista de fabricar. {weapon_swap} passa do arco para elas.
+• Toque {attack} para o golpe leve; toques seguidos encadeiam golpes. Segure para o golpe forte: lento, mas fere e derruba mais.
+• Segure {aim} para defender de frente. Erguida bem na hora em que o golpe chega, a defesa apara: quem bateu perde o equilíbrio.
+• Com a lança, a defesa é a lança firmada: a investida do javali bate na ponta, e quem se fere é ele.
+• {dodge} pula de lado (ou para trás, parado): no começo do pulo nada pega.
+• Golpes, defesa e esquiva cansam. Sem fôlego, o golpe sai lento e fraco e a defesa cede. Levando muitos golpes seguidos, o goblin cambaleia ou cai.
+• Agachado, por trás de um bicho que não viu você, o golpe fere muito mais.
+• Com a lança na mão, {throw} arremessa a lança. Ela finca: pegue de volta com {interact}.
+• Golpes de corte e mordidas abrem feridas que sangram. Bandagem de musgo (2 musgos): sangrando, {eat} amarra na ferida. O musgo cresce no tronco das árvores secas. A erva-de-sangue, rara na mata fechada, cura devagar ({eat} quando ferido).
+• As armas gastam e racham. A bancada (4 madeiras e 2 pedras, dentro da toca) conserta a arma na mão e faz a faca de osso.
+• Caça coletada dá tendões: o cervo dá dois.
 
 [b]RASTROS, CHEIRO E SILÊNCIO[/b]
 • Cervos, coelhos e lobos deixam pegadas no chão. Elas somem em uns dois minutos: as mais escuras são as mais frescas.

@@ -22,10 +22,12 @@ func _process(_delta: float) -> void:
 	if not is_instance_valid(torch) or not torch.is_lit():
 		_let_go()
 		return
-	if _player.aiming:
+	# Mirando, ou com uma arma de duas mãos, a tocha vai para o chão; com uma arma de uma mão, vai
+	# para a outra mão (F11).
+	if _player.aiming or Weapons.two_handed(Inventory.held()):
 		_plant()
 		return
-	var socket := _player.hand_socket()
+	var socket := _player.hand_socket(Inventory.held() == &"")
 	var forward := _player.facing()
 	var up := Vector3.UP.rotated(forward.cross(Vector3.UP).normalized(), -TILT) if forward.length_squared() > 0.0 else Vector3.UP
 	torch.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, up)), socket.global_position)

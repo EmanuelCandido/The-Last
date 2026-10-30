@@ -122,8 +122,9 @@ func _think_charge(delta: float, here: Vector2) -> void:
 	match charge:
 		Charge.RUN:
 			var close := here.distance_to(target) < HIT_RANGE and absf(player.global_position.y - global_position.y) < 1.2
-			if close:
-				_hit(player)
+			# Na lança firmada a investida acaba ali (F11).
+			if close and _hit(player):
+				return
 			if close or _charge_timer <= 0.0:
 				charge = Charge.PAST
 				_charge_timer = PAST_SECONDS
@@ -144,14 +145,24 @@ func _think_charge(delta: float, here: Vector2) -> void:
 					_enter(State.FLEE)
 
 
-func _hit(player: Player) -> void:
+## Bate no goblin. Devolve true se bateu na lança firmada (a investida acabou).
+func _hit(player: Player) -> bool:
 	OccludedAudio.play_at(get_parent(), HIT_SOUND, global_position + Vector3.UP * 0.5, &"World", -1.0, 4.0, _rng.randf_range(0.7, 0.85))
 	var push := Vector3(sin(_yaw), 0.0, cos(_yaw))
-	player.velocity += push * 4.0 + Vector3.UP * 2.0
-	Vitals.damage(Tuning.BOAR_DAMAGE, &"boar")
-	if _warned_day != Clock.day:
+	# F11: a investida passa pela luta do goblin: esquivar, segurar com a defesa, ou receber na
+	# lança firmada (aí quem se fere é ele, e a investida acaba).
+	var result := player.receive_attack({
+		"damage": Tuning.BOAR_DAMAGE, "kind": &"pierce", "from": global_position, "poise": 1.1,
+		"cause": &"boar", "attacker": self, "push": push * 4.0 + Vector3.UP * 2.0, "charge": true,
+	})
+	if result == &"braced":
+		charge = Charge.NONE
+		charges_left = 0
+		return true
+	if result == &"hit" and _warned_day != Clock.day:
 		_warned_day = Clock.day
 		Events.notification_shown.emit("Javali! Saia da frente dele.")
+	return false
 
 
 # --- Movimento -------------------------------------------------------------------

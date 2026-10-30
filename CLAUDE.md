@@ -37,6 +37,7 @@ powershell -ExecutionPolicy Bypass -File tests\run_all.ps1              # todos 
   - `--set=story.act:2,story.flag:moss_fell,vitals.satiety:10,clock.hour:19,weather.rain:3` (põe o estado global em qualquer ponto; `weather.rain:n` chove n horas, 0 para);
   - `--shelter` (acorda Ari no Abrigo, já de pé) e `--flash=n` (começa o flash n, para prints);
   - `--menu` (abre o menu principal; sem `--frames` nem `--screenshot` ele já abre sozinho) e `--welcome` (começa o Bem-vindo de volta);
+  - `--equip=<arma>` (F11: põe a arma na mão, dando uma se faltar);
   - `--run=roteiro.gd`.
 - **`--run`:** recebe um `RefCounted` com `func run() -> void` (pode usar `await`). É o jeito de testar mecânicas de ponta a ponta: pegar o arco, quebrar árvore, caçar, furtividade, assar, dormir, farejar, jogar pedra, fabricar. Roteiro que não existe ou não compila fecha o jogo na hora (código 1).
 - **`tests/`:** os roteiros de cada fase (`test_f1` a `test_f9`, `test_life`, `test_melhorias`), versionados. Imprimem `[T] ok`/`[T] FALHOU` e terminam com `[T] FIM: TUDO OK`. O `run_all.ps1` guarda e devolve os arquivos do jogador (`save.json`, `settings.cfg`, `toca.cfg`, a carta, o `ciclo_346.sav`, `playtest/`), roda um por um com limite de tempo (`-Timeout`, 300 s) e grava a saída em `%TEMP%\toca_tests`. Roteiro novo `tests/test_*.gd` entra sozinho. A exportação deixa `tests/` de fora.
@@ -358,6 +359,17 @@ tests/               roteiros --run de cada fase e o run_all.ps1
 - **Sair sem salvar:** o `SaveSystem` conta os segundos de jogo desde o último salvar/carregar/começo (`unsaved_seconds`, `can_lose_progress`). "Menu principal" e "Sair do jogo" do pause passam por `PauseMenu.ask_leave(ação)`, que pergunta ("Salvar e sair", "Sair sem salvar", "Voltar") depois de `UNSAVED_WARN_SECONDS`. O X da janela também (`Game._notification`, `set_auto_accept_quit(false)`).
 - **Controle:** o `Settings` guarda o último aparelho (`using_gamepad`, emite `changed(&"input_device")`). `key_label`/`key_labels` mostram os botões do controle (`PAD_NAMES`: A, B, X, Y, LB, RB, LT, RT, Menu, L3, Cruz ↓...; `{move}` vira LS); a tela de teclas usa `keyboard_label`. Ari olha com o analógico direito (`ARI_GAMEPAD_LOOK_SPEED`). O console do Zelador tem comandos rápidos navegáveis e fecha com B.
 
+## F11: luta (experimental, branch `experimento/combate`)
+
+Plano completo em `docs/plano_combate.md` (F11 a F14). Feito até agora:
+
+- **Armas (`Weapons`, `data/weapons.gd`):** faca de pedra, faca de osso, porrete e lança (dano na unidade da flechada, tipo, alcance, fôlego, postura, velocidade, desgaste, furtivo, conserto). `Inventory.held()`/`hold()` é a arma na mão (&"" = o arco); desgaste por unidade (`wear`, `wear_down`, `repair`, chave `__wear`; `add(item, n, worn)`).
+- **`MeleeAbility` (parte do Player):** golpe leve (encadeia até `COMBO_MAX`), forte segurando `HEAVY_HOLD`, defesa (o botão de mirar com arma de mão; com a lança, firmada), aparo nos primeiros `PARRY_WINDOW` s, esquiva (`dodge`) com invulnerabilidade, fôlego e postura sem barra. A lâmina acerta pelo `WeaponTrace` (`components/`): esferas no caminho dela entre dois quadros, contra as camadas 4 e 5. Tab (`weapon_swap`) passa pelas armas.
+- **Golpes no goblin:** sempre por `Player.receive_attack(attack)` (dano, tipo, de onde, postura, causa, quem bateu, tranco, investida), que passa pela `MeleeAbility.defend` e devolve `hit`, `blocked`, `parried`, `dodged` ou `braced`. O lobo e o javali usam; quem pode ser aparado implementa `stagger(segundos)`. `Player.shove(v, s)` é o tranco (a velocidade é do empurrão por `s`).
+- **Corpo:** poses de luta em `GoblinActions` medidas por `GoblinAnimator.strike_window`; `weapon_style` e `guarding` no animador (`_weapon_overlay`). O `PlayerGear` põe a arma na mão a cada quadro (uma mão: o cabo sai `ONE_HAND_TILT` acima do antebraço; a lança vai da mão direita para a esquerda) e o arco nas costas.
+- **Cura:** `Vitals.bleeding` e `herb`; F põe a bandagem sangrando e come a erva ferido. Musgo no tronco das árvores secas (some quando a árvore cai), erva na mata fechada.
+- **Bancada (`Workbench`, filha da Cave):** receita `&"bench"` só dentro da toca; receitas com `"station": &"bench"` e o conserto (`&"repair"`) só perto dela.
+
 ## Convenções
 
 - GDScript com tipagem estática. Valores tirados de `Array`/`Dictionary` ou de chamadas dinâmicas precisam de tipo explícito (`var x: Vector3 = arr[0]`, `var ok: bool = a and b.f()`), senão dá *Parse Error*.
@@ -433,5 +445,5 @@ tests/               roteiros --run de cada fase e o run_all.ps1
 
 ## Ainda não existe
 
-- Combate corpo a corpo de verdade, diálogos, missões, atributos.
+- Diálogos, missões, atributos (a luta corpo a corpo está entrando na branch `experimento/combate`).
 - Água.

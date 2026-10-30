@@ -78,6 +78,14 @@ var nock_depth := 0.08
 var bow_grip := Vector3(0.0, 0.036, -0.008)
 ## Topo da aljava (penas das flechas), no espaço do esqueleto: aonde a mão vai recarregar.
 var quiver_top := Vector3(-0.08, 0.8, -0.15)
+## Luta (F11): a família da arma na mão (&"knife", &"club", &"spear"; &"" = sem arma de mão),
+## defendendo (segurando a defesa; com a lança, firmada), a janela do golpe em andamento (segundos,
+## começo e fim: as poses dos golpes se medem por ela) e onde a arma fica na mão direita (espaço do
+## osso da mão, como o `bow_grip`).
+var weapon_style := &""
+var guarding := false
+var strike_window := Vector2(0.2, 0.35)
+var weapon_grip := Vector3(0.0, 0.036, 0.008)
 
 ## Quanto o pé desce abaixo da base do corpo procurando chão (m).
 const FOOT_REACH := 0.3
@@ -110,7 +118,7 @@ var _time := 0.0
 var _phase := 0.0
 ## Marcha (0 = andar, 1 = disparar), suavizada: muda o desenho do passo, não só o ritmo.
 var _gait := 0.0
-var _weights := {"move": 0.0, "run": 0.0, "crouch": 0.0, "aim": 0.0, "air": 0.0, "sniff": 0.0, "breath": 0.0, "torch": 0.0}
+var _weights := {"move": 0.0, "run": 0.0, "crouch": 0.0, "aim": 0.0, "air": 0.0, "sniff": 0.0, "breath": 0.0, "torch": 0.0, "weapon": 0.0, "guard": 0.0}
 var _planted := [true, true]
 var _land := 0.0
 var _land_eased := 0.0
@@ -256,6 +264,7 @@ func update(delta: float) -> void:
 	_cold_overlay(pose)
 	_sniff_overlay(pose)
 	_torch_overlay(pose)
+	_weapon_overlay(pose)
 	_aim_overlay(pose)
 	if lying and _action == &"":
 		pose = GoblinActions.pose(self, &"wake", 0.0, pose)
@@ -669,6 +678,55 @@ func _torch_overlay(pose: Dictionary) -> void:
 	pose.head_roll -= 0.04 * w
 
 
+## Arma de mão (F11): com a faca ou o porrete, o braço direito fica dobrado à frente da barriga,
+## a ponta da arma para a frente; com a lança, a mão de trás no quadril e a da frente estendida, a
+## lança na diagonal. Defendendo, os antebraços sobem cruzados à frente do rosto (faca e porrete) ou,
+## com a lança, o corpo afunda, o pé da frente avança e a ponta desce para a altura do peito de um bicho.
+func _weapon_overlay(pose: Dictionary) -> void:
+	var w: float = _weights.weapon * (1.0 - float(_weights.aim))
+	if w < 0.001:
+		return
+	var guard: float = _weights.guard
+	var sway := _wave(41, 0.9) * 0.04
+	if weapon_style == &"spear":
+		pose.arm_r_fwd = lerpf(pose.arm_r_fwd, lerpf(0.35, 0.25, guard) + sway, w)
+		pose.arm_r_out = lerpf(pose.arm_r_out, 0.18, w)
+		pose.arm_r_twist = lerpf(pose.arm_r_twist, 0.6, w)
+		pose.elbow_r = lerpf(pose.elbow_r, lerpf(1.35, 1.05, guard), w)
+		pose.hand_r = lerpf(pose.hand_r, 0.2, w)
+		pose.arm_l_fwd = lerpf(pose.arm_l_fwd, lerpf(0.95, 0.85, guard) - sway, w)
+		pose.arm_l_out = lerpf(pose.arm_l_out, -0.12, w)
+		pose.arm_l_twist = lerpf(pose.arm_l_twist, -0.5, w)
+		pose.elbow_l = lerpf(pose.elbow_l, lerpf(0.75, 0.35, guard), w)
+		pose.hand_l = lerpf(pose.hand_l, 0.1, w)
+		pose.torso_yaw -= 0.25 * w
+		pose.pelvis_yaw -= 0.15 * w
+		# Firmada: afunda, abre a base e joga o peso para a frente, como quem espera a investida.
+		pose.pelvis_y -= 0.05 * guard * w
+		pose.foot_l_z += 0.1 * guard * w
+		pose.foot_r_z -= 0.08 * guard * w
+		pose.torso_pitch += 0.15 * guard * w
+		pose.head_pitch -= 0.1 * guard * w
+		return
+	pose.arm_r_fwd = lerpf(pose.arm_r_fwd, lerpf(0.45, 1.3, guard) + sway, w)
+	pose.arm_r_out = lerpf(pose.arm_r_out, lerpf(0.15, 0.0, guard), w)
+	pose.arm_r_yaw = lerpf(pose.arm_r_yaw, lerpf(0.0, -0.45, guard), w)
+	pose.arm_r_twist = lerpf(pose.arm_r_twist, lerpf(0.2, 0.9, guard), w)
+	pose.elbow_r = lerpf(pose.elbow_r, lerpf(1.1, 1.0, guard), w)
+	pose.hand_r = lerpf(pose.hand_r, 0.35, w)
+	# A outra mão: solta e meio aberta, à frente para equilibrar; defendendo, sobe e cruza.
+	pose.arm_l_fwd = lerpf(pose.arm_l_fwd, lerpf(0.3, 1.15, guard), w)
+	pose.arm_l_yaw = lerpf(pose.arm_l_yaw, lerpf(0.0, 0.3, guard), w)
+	pose.arm_l_twist = lerpf(pose.arm_l_twist, lerpf(0.0, -0.8, guard), w)
+	pose.elbow_l = lerpf(pose.elbow_l, lerpf(0.7, 1.8, guard), w)
+	pose.pelvis_y -= 0.03 * guard * w
+	pose.torso_pitch += 0.12 * guard * w
+	pose.spine_arch += 0.06 * guard * w
+	pose.head_pitch += 0.12 * guard * w
+	pose.ear_l -= 0.25 * guard * w
+	pose.ear_r -= 0.25 * guard * w
+
+
 ## Mecânica do corpo, por cima de qualquer pose (andar, ação, mania, mira): o tronco reage
 ## ao que o resto do corpo faz, em vez de ser um bloco duro entre pernas e braços.
 ## - Dobradiça: inclinar para a frente dobra no quadril, que recua para o peso ficar sobre
@@ -888,6 +946,8 @@ func _update_weights(delta: float) -> void:
 	_approach("sniff", 1.0 if sniffing else 0.0, 7.0, delta)
 	_approach("breath", 1.0 if breath_held else 0.0, 9.0, delta)
 	_approach("torch", 1.0 if holding_torch else 0.0, 6.0, delta)
+	_approach("weapon", 1.0 if weapon_style != &"" else 0.0, 8.0, delta)
+	_approach("guard", 1.0 if guarding and weapon_style != &"" else 0.0, 14.0, delta)
 
 
 func _approach(key: String, target: float, rate: float, delta: float) -> void:
@@ -1068,6 +1128,16 @@ func forearm_direction(left: bool) -> Vector3:
 	var elbow := skeleton.get_bone_global_pose(_bones["antebraco_" + side]).origin
 	var wrist := skeleton.get_bone_global_pose(_bones["mao_" + side]).origin
 	return (skeleton.global_basis * (wrist - elbow)).normalized()
+
+
+## Posição global do punho (osso da mão), já com a pose deste frame.
+func hand_position(left: bool) -> Vector3:
+	return skeleton.global_transform * skeleton.get_bone_global_pose(_bones["mao_E" if left else "mao_D"]).origin
+
+
+## Posição global de onde a mão direita segura a arma, já com a pose deste frame.
+func weapon_grip_position() -> Vector3:
+	return skeleton.global_transform * (skeleton.get_bone_global_pose(_bones.mao_D) * weapon_grip)
 
 
 ## Posição global da empunhadura do arco na mão esquerda, já com a pose deste frame.

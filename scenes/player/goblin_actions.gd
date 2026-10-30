@@ -309,6 +309,73 @@ static func pose(a: GoblinAnimator, action: StringName, t: float, base: Dictiona
 			p.hand_r = base.hand_r + sin(t * 30.0 + 1.0) * 0.5 * shake
 			p.ear_l = base.ear_l + 0.25 * rub_b - 0.1 * rub_a
 			p.ear_r = base.ear_r + 0.2 * low
+		&"knife_1", &"club_1":
+			p = _slash(a, t, base, 1.0, 1.0 if action == &"knife_1" else 1.15)
+		&"knife_2", &"club_2":
+			p = _slash(a, t, base, -1.0, 1.0 if action == &"knife_2" else 1.15)
+		&"knife_heavy", &"club_heavy":
+			p = _overhead(a, t, base)
+		&"spear_1", &"spear_2":
+			p = _thrust(a, t, base, 1.0)
+		&"spear_heavy":
+			p = _thrust(a, t, base, 1.35)
+		&"dodge":
+			# Pulo curto e baixo para o lado: afunda, sai do chão quase sem subir e cai abaixado,
+			# os braços abertos para equilibrar e as orelhas para trás.
+			var d := a._action_duration
+			p.pelvis_y = base.pelvis_y + GoblinAnimator._curve(t, [[0.0, 0.0], [d * 0.15, -0.06], [d * 0.45, 0.015], [d * 0.75, -0.045], [d, 0.0]])
+			p.torso_pitch = base.torso_pitch + GoblinAnimator._curve(t, [[0.0, 0.0], [d * 0.15, 0.25], [d * 0.5, 0.1], [d * 0.8, 0.3], [d, 0.0]])
+			p.spine_arch = base.spine_arch + GoblinAnimator._curve(t, [[0.0, 0.0], [d * 0.3, 0.12], [d, 0.0]])
+			p.arm_l_out = GoblinAnimator._curve(t, [[0.0, base.arm_l_out], [d * 0.35, 0.65], [d * 0.8, 0.4], [d, base.arm_l_out]])
+			p.arm_r_out = GoblinAnimator._curve(t, [[0.0, base.arm_r_out], [d * 0.35, 0.55], [d * 0.8, 0.35], [d, base.arm_r_out]])
+			p.elbow_l = GoblinAnimator._curve(t, [[0.0, base.elbow_l], [d * 0.35, 0.5], [d, base.elbow_l]])
+			p.foot_l_z = base.foot_l_z + GoblinAnimator._curve(t, [[0.0, 0.0], [d * 0.4, 0.08], [d * 0.75, 0.04], [d, 0.0]])
+			p.foot_r_z = base.foot_r_z + GoblinAnimator._curve(t, [[0.0, 0.0], [d * 0.4, -0.06], [d * 0.75, -0.04], [d, 0.0]])
+			p.head_pitch = base.head_pitch + GoblinAnimator._curve(t, [[0.0, 0.0], [d * 0.3, -0.12], [d, 0.0]])
+			p.ear_l = base.ear_l - 0.4 * sin(PI * clampf(t / d, 0.0, 1.0))
+			p.ear_r = base.ear_r - 0.4 * sin(PI * clampf(t / d, 0.0, 1.0))
+		&"stagger":
+			# Levou o golpe: o tronco vai para trás, a cabeça tomba, os braços sobem para se proteger
+			# e um pé recua para não cair.
+			var d := a._action_duration
+			var hit := GoblinAnimator._curve(t, [[0.0, 0.0], [d * 0.18, 1.0], [d * 0.55, 0.6], [d, 0.0]])
+			p.torso_pitch = base.torso_pitch - 0.3 * hit
+			p.spine_arch = base.spine_arch - 0.12 * hit
+			p.torso_roll = base.torso_roll + 0.12 * hit * a._action_var
+			p.pelvis_z = base.pelvis_z - 0.04 * hit
+			p.head_pitch = base.head_pitch - 0.35 * hit
+			p.head_roll = base.head_roll + 0.2 * hit * a._action_var
+			p.arm_l_fwd = lerpf(base.arm_l_fwd, 0.95, hit)
+			p.arm_r_fwd = lerpf(base.arm_r_fwd, 0.85, hit)
+			p.elbow_l = lerpf(base.elbow_l, 1.6, hit)
+			p.elbow_r = lerpf(base.elbow_r, 1.5, hit)
+			p.foot_r_z = base.foot_r_z - 0.09 * hit
+			p.ear_l = base.ear_l - 0.5 * hit
+			p.ear_r = base.ear_r - 0.5 * hit
+		&"knockdown":
+			# Derrubado: cai sentado (o começo é a queda até a pose de sentado do `wake`) e levanta
+			# depressa pelo resto do `wake`, empurrando o chão.
+			var fall := Tuning.KNOCKDOWN_FALL
+			if t < fall:
+				var sat := pose(a, &"wake", 3.45, base)
+				var w := smoothstep(0.0, fall, t)
+				for key: String in p:
+					p[key] = lerpf(float(base[key]), float(sat[key]), w)
+			else:
+				var up := (t - fall) / maxf(a._action_duration - fall, 0.01)
+				p = pose(a, &"wake", lerpf(3.45, 5.8, up), base)
+		&"equip":
+			# A mão vai ao quadril e às costas, pega (ou guarda) a arma e volta para a frente.
+			var d := a._action_duration
+			var reach := GoblinAnimator._curve(t, [[0.0, 0.0], [d * 0.45, 1.0], [d, 0.0]])
+			p.arm_r_fwd = lerpf(base.arm_r_fwd, -0.55, reach)
+			p.arm_r_out = lerpf(base.arm_r_out, 0.35, reach)
+			p.elbow_r = lerpf(base.elbow_r, 1.4, reach)
+			p.arm_r_twist = lerpf(base.arm_r_twist, -0.4, reach)
+			p.torso_yaw = base.torso_yaw + 0.25 * reach
+			p.torso_roll = base.torso_roll - 0.08 * reach
+			p.head_yaw = base.head_yaw - 0.35 * reach
+			p.head_pitch = base.head_pitch + 0.15 * reach
 		&"lie_down":
 			# Ajoelha, apoia as mãos no chão e vai se deitando (a tela já está escurecendo).
 			var kneel := smoothstep(0.0, 0.9, t)
@@ -330,3 +397,99 @@ static func pose(a: GoblinAnimator, action: StringName, t: float, base: Dictiona
 
 ## Parado: o peso troca de perna de tempos em tempos e, depois de um tempo sem fazer
 ## nada, o goblin tem uma mania. Qualquer movimento corta a mania.
+
+
+# --- Luta (F11) ------------------------------------------------------------------
+# Os golpes se medem pela janela do golpe (`a.strike_window`): até o começo dela o corpo arma, no
+# meio dela a arma passa pelo alvo, no fim termina o arco, e depois volta para a pose base. Cada
+# chave é [base, armado, meio do golpe, fim do golpe, voltando, base].
+
+static func _phase(a: GoblinAnimator, t: float, values: Array) -> float:
+	var s := a.strike_window.x
+	var e := a.strike_window.y
+	var d := maxf(a._action_duration, e + 0.05)
+	return GoblinAnimator._curve(t, [[0.0, values[0]], [s, values[1]], [(s + e) * 0.5, values[2]], [e, values[3]],
+		[e + (d - e) * 0.45, values[4]], [d, values[5]]])
+
+
+## Corte de lado (faca, porrete): `side` 1 = de fora para dentro, da direita para a esquerda, com
+## o quadril e o ombro girando atrás do braço; -1 = o revés, do ombro esquerdo para fora. `size`
+## abre o arco (o porrete é mais largo e mais pesado).
+static func _slash(a: GoblinAnimator, t: float, base: Dictionary, side: float, size: float) -> Dictionary:
+	var p := base.duplicate()
+	var force := 1.0 + 0.15 * a._action_var
+	if side > 0.0:
+		p.arm_r_fwd = _phase(a, t, [base.arm_r_fwd, 1.9 * size, 1.5, 1.05, 0.8, base.arm_r_fwd])
+		p.arm_r_yaw = _phase(a, t, [base.arm_r_yaw, 0.9 * size, 0.1, -0.6 * force, -0.3, base.arm_r_yaw])
+		p.arm_r_out = _phase(a, t, [base.arm_r_out, 0.35, 0.1, -0.05, 0.05, base.arm_r_out])
+		p.elbow_r = _phase(a, t, [base.elbow_r, 1.9, 0.6, 0.35, 0.8, base.elbow_r])
+		p.arm_r_twist = _phase(a, t, [base.arm_r_twist, 0.3, 0.6, 0.9, 0.5, base.arm_r_twist])
+		p.torso_yaw = base.torso_yaw + _phase(a, t, [0.0, -0.45 * size, 0.1, 0.45 * force, 0.2, 0.0])
+		p.pelvis_yaw = base.pelvis_yaw + _phase(a, t, [0.0, -0.2, 0.05, 0.25 * force, 0.1, 0.0])
+		p.arm_l_fwd = _phase(a, t, [base.arm_l_fwd, 0.7, 0.2, -0.2, 0.1, base.arm_l_fwd])
+	else:
+		p.arm_r_fwd = _phase(a, t, [base.arm_r_fwd, 1.6 * size, 1.4, 1.1, 0.8, base.arm_r_fwd])
+		p.arm_r_yaw = _phase(a, t, [base.arm_r_yaw, -0.7, 0.0, 0.8 * force * size, 0.4, base.arm_r_yaw])
+		p.arm_r_out = _phase(a, t, [base.arm_r_out, -0.1, 0.05, 0.25, 0.15, base.arm_r_out])
+		p.elbow_r = _phase(a, t, [base.elbow_r, 2.0, 0.7, 0.3, 0.8, base.elbow_r])
+		p.arm_r_twist = _phase(a, t, [base.arm_r_twist, 1.1, 0.6, 0.2, 0.3, base.arm_r_twist])
+		p.torso_yaw = base.torso_yaw + _phase(a, t, [0.0, 0.35, 0.05, -0.35 * force, -0.15, 0.0])
+		p.pelvis_yaw = base.pelvis_yaw + _phase(a, t, [0.0, 0.15, 0.0, -0.18, -0.08, 0.0])
+		p.arm_l_fwd = _phase(a, t, [base.arm_l_fwd, 0.2, 0.4, 0.6, 0.4, base.arm_l_fwd])
+	p.elbow_l = _phase(a, t, [base.elbow_l, 1.2, 1.0, 0.8, 1.0, base.elbow_l])
+	p.torso_pitch = base.torso_pitch + _phase(a, t, [0.0, -0.05, 0.12, 0.22, 0.1, 0.0])
+	p.spine_bend = base.spine_bend + _phase(a, t, [0.0, -0.05 * side, 0.0, 0.06 * side, 0.02, 0.0])
+	p.pelvis_y = base.pelvis_y + _phase(a, t, [0.0, -0.015, -0.03, -0.035, -0.02, 0.0])
+	p.foot_l_z = base.foot_l_z + _phase(a, t, [0.0, 0.03, 0.1, 0.12, 0.08, 0.0])
+	p.foot_r_toe = base.foot_r_toe + _phase(a, t, [0.0, 0.0, 0.2, 0.3, 0.15, 0.0])
+	p.head_yaw = base.head_yaw - (p.pelvis_yaw - base.pelvis_yaw + p.torso_yaw - base.torso_yaw) * 0.75
+	p.ear_l = base.ear_l + _phase(a, t, [0.0, -0.2, 0.2, 0.3, 0.1, 0.0])
+	p.ear_r = base.ear_r + _phase(a, t, [0.0, -0.2, 0.2, 0.3, 0.1, 0.0])
+	return p
+
+
+## Golpe forte de cima (faca e porrete): os dois braços sobem, o corpo estica para trás e desce
+## inteiro com a arma, dobrando no quadril, com o pé da frente avançando.
+static func _overhead(a: GoblinAnimator, t: float, base: Dictionary) -> Dictionary:
+	var p := base.duplicate()
+	p.arm_r_fwd = _phase(a, t, [base.arm_r_fwd, 2.9, 2.0, 0.9, 0.7, base.arm_r_fwd])
+	p.arm_r_yaw = _phase(a, t, [base.arm_r_yaw, 0.2, 0.1, 0.0, 0.0, base.arm_r_yaw])
+	p.arm_r_out = _phase(a, t, [base.arm_r_out, 0.1, 0.05, 0.0, 0.05, base.arm_r_out])
+	p.elbow_r = _phase(a, t, [base.elbow_r, 2.2, 0.8, 0.25, 0.6, base.elbow_r])
+	p.arm_r_twist = _phase(a, t, [base.arm_r_twist, 0.5, 0.6, 0.6, 0.4, base.arm_r_twist])
+	p.arm_l_fwd = _phase(a, t, [base.arm_l_fwd, 1.6, 1.0, 0.3, 0.3, base.arm_l_fwd])
+	p.elbow_l = _phase(a, t, [base.elbow_l, 1.4, 1.0, 0.6, 0.8, base.elbow_l])
+	p.torso_pitch = base.torso_pitch + _phase(a, t, [0.0, -0.22, 0.15, 0.45, 0.25, 0.0])
+	p.spine_arch = base.spine_arch + _phase(a, t, [0.0, -0.12, 0.05, 0.16, 0.1, 0.0])
+	p.torso_yaw = base.torso_yaw + _phase(a, t, [0.0, -0.25, 0.0, 0.15, 0.05, 0.0])
+	p.pelvis_y = base.pelvis_y + _phase(a, t, [0.0, 0.01, -0.03, -0.06, -0.04, 0.0])
+	p.pelvis_z = base.pelvis_z + _phase(a, t, [0.0, -0.02, 0.02, 0.04, 0.02, 0.0])
+	p.foot_l_z = base.foot_l_z + _phase(a, t, [0.0, 0.02, 0.12, 0.15, 0.1, 0.0])
+	p.head_pitch = base.head_pitch + _phase(a, t, [0.0, -0.18, 0.05, 0.2, 0.1, 0.0])
+	p.ear_l = base.ear_l + _phase(a, t, [0.0, -0.3, 0.2, 0.35, 0.1, 0.0])
+	p.ear_r = base.ear_r + _phase(a, t, [0.0, -0.3, 0.2, 0.35, 0.1, 0.0])
+	return p
+
+
+## Estocada da lança: as duas mãos puxam a lança para trás junto ao quadril, e o corpo inteiro vai
+## para a frente atrás da ponta (o pé da frente avança, o quadril e o peito vão junto). `depth` é
+## o tamanho da estocada (a forte arma mais e avança mais).
+static func _thrust(a: GoblinAnimator, t: float, base: Dictionary, depth: float) -> Dictionary:
+	var p := base.duplicate()
+	p.arm_r_fwd = _phase(a, t, [base.arm_r_fwd, -0.1 * depth, 0.8, 1.25, 0.8, base.arm_r_fwd])
+	p.elbow_r = _phase(a, t, [base.elbow_r, 1.65, 0.7, 0.2, 0.7, base.elbow_r])
+	p.arm_r_out = _phase(a, t, [base.arm_r_out, 0.25, 0.1, 0.0, 0.1, base.arm_r_out])
+	p.arm_l_fwd = _phase(a, t, [base.arm_l_fwd, 0.75, 1.2, 1.45, 1.1, base.arm_l_fwd])
+	p.elbow_l = _phase(a, t, [base.elbow_l, 1.2, 0.5, 0.12, 0.5, base.elbow_l])
+	p.arm_l_out = _phase(a, t, [base.arm_l_out, -0.05, -0.12, -0.15, -0.12, base.arm_l_out])
+	p.torso_pitch = base.torso_pitch + _phase(a, t, [0.0, -0.08, 0.15, 0.3 * depth, 0.15, 0.0])
+	p.torso_yaw = base.torso_yaw + _phase(a, t, [0.0, -0.3 * depth, -0.05, 0.12, 0.0, 0.0])
+	p.pelvis_yaw = base.pelvis_yaw + _phase(a, t, [0.0, -0.15, 0.0, 0.1, 0.0, 0.0])
+	p.pelvis_z = base.pelvis_z + _phase(a, t, [0.0, -0.03, 0.03, 0.06 * depth, 0.03, 0.0])
+	p.pelvis_y = base.pelvis_y + _phase(a, t, [0.0, -0.01, -0.025, -0.04 * depth, -0.02, 0.0])
+	p.foot_l_z = base.foot_l_z + _phase(a, t, [0.0, 0.0, 0.1, 0.16 * depth, 0.1, 0.0])
+	p.foot_r_toe = base.foot_r_toe + _phase(a, t, [0.0, 0.0, 0.2, 0.3, 0.15, 0.0])
+	p.head_yaw = base.head_yaw - (p.pelvis_yaw - base.pelvis_yaw + p.torso_yaw - base.torso_yaw) * 0.8
+	p.head_pitch = base.head_pitch + _phase(a, t, [0.0, 0.05, -0.05, -0.1, 0.0, 0.0])
+	return p
+

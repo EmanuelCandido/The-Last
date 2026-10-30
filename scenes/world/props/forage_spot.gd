@@ -6,10 +6,12 @@ extends Node3D
 
 const PICK_SOUND := preload("res://assets/audio/real/pickup_2.ogg")
 
-## &"mushroom" ou &"berries".
+## &"mushroom", &"berries", &"moss" ou &"herb" (F11).
 var kind := &"mushroom"
 ## Dia em que foi colhido (-1 = pronto para colher).
 var picked_day := -1
+## O musgo cresce no tronco desta árvore seca (-1 = no chão); derrubada, ele vai junto.
+var tree_id := -1
 
 var _fruit: Node3D
 
@@ -25,6 +27,17 @@ func build(spot_kind: StringName, rng: RandomNumberGenerator) -> void:
 	if kind == &"mushroom":
 		# Todo o tufo é "fruta": colhido, não sobra nada até voltar.
 		fruit.mesh = _mushrooms(rng)
+	elif kind == &"moss":
+		fruit.mesh = _moss(rng)
+	elif kind == &"herb":
+		# Uma moita baixa de folhas escuras com as flores vermelhas: arrancada inteira.
+		var meshes := _bush(rng)
+		fruit.mesh = meshes[0]
+		var flowers := MeshInstance3D.new()
+		flowers.mesh = meshes[1]
+		fruit.add_child(flowers)
+		fruit.scale = Vector3(0.75, 0.7, 0.75)
+		fruit.material_override = _herb_leaves()
 	else:
 		var meshes := _bush(rng)
 		plant.mesh = meshes[0]
@@ -140,8 +153,61 @@ func _cluster(st: SurfaceTool, rng: RandomNumberGenerator, center: Vector3, size
 		TreeBuilder.add_card(st, corners, [Vector2(0, 0), Vector2(0, 1), Vector2(1, 1), Vector2(1, 0)], sway, normals)
 
 
+## Tufos de musgo colados no tronco: almofadas achatadas contra a casca (a frente é +Z), de 10 a
+## 55 cm do chão, acima do capim.
+func _moss(rng: RandomNumberGenerator) -> ArrayMesh:
+	var mesh := ArrayMesh.new()
+	var material := StandardMaterial3D.new()
+	material.albedo_texture = preload("res://assets/textures/ground_grass.png")
+	material.albedo_color = Color(0.78, 0.98, 0.48)
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+	material.uv1_triplanar = true
+	material.uv1_scale = Vector3.ONE * 4.0
+	material.roughness = 1.0
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in rng.randi_range(5, 7):
+		var sphere := SphereMesh.new()
+		sphere.radius = rng.randf_range(0.07, 0.11)
+		sphere.height = sphere.radius * 2.0
+		sphere.radial_segments = 8
+		sphere.rings = 4
+		var center := Vector3(rng.randf_range(-0.16, 0.16), rng.randf_range(0.12, 0.5), 0.0)
+		# Achatada contra o tronco e um pouco mais comprida na vertical.
+		st.append_from(sphere, 0, Transform3D(Basis.from_scale(Vector3(1.1, 1.4, 0.45)), center))
+	st.set_material(material)
+	return st.commit(mesh)
+
+
+static var _herb_material: ShaderMaterial
+
+
+## As folhas da erva: as do arbusto, mais escuras e avermelhadas (uma cópia só para todas).
+static func _herb_leaves() -> Material:
+	if _herb_material == null:
+		_herb_material = PropLook.bush().duplicate() as ShaderMaterial
+		_herb_material.set_shader_parameter(&"tint", Color(0.62, 0.42, 0.36))
+	return _herb_material
+
+
 func ready_to_pick() -> bool:
+	if tree_id >= 0 and _tree_fell():
+		return false
 	return picked_day < 0 or Clock.day - picked_day >= Tuning.FORAGE_REGROW_DAYS
+
+
+func _process(_delta: float) -> void:
+	if tree_id < 0:
+		set_process(false)
+		return
+	# O musgo do tronco some quando a árvore cai (não fica flutuando no ar).
+	if _fruit.visible and _tree_fell():
+		_fruit.visible = false
+
+
+func _tree_fell() -> bool:
+	var level := Game.current_level
+	return level != null and level.has_method("tree_standing") and not level.tree_standing(tree_id)
 
 
 func refresh() -> void:
@@ -153,13 +219,20 @@ func refresh() -> void:
 func interaction_prompt() -> String:
 	if not ready_to_pick():
 		return ""
-	return "Colher cogumelos" if kind == &"mushroom" else "Colher frutinhas"
+	match kind:
+		&"mushroom":
+			return "Colher cogumelos"
+		&"moss":
+			return "Arrancar musgo"
+		&"herb":
+			return "Colher erva-de-sangue"
+	return "Colher frutinhas"
 
 
 func interact(_player: Node) -> void:
 	if not ready_to_pick():
 		return
-	var amount := 2 if kind == &"mushroom" else 3
+	var amount := 2 if kind == &"mushroom" or kind == &"moss" else 1 if kind == &"herb" else 3
 	Inventory.add(kind, amount)
 	picked_day = Clock.day
 	refresh()

@@ -533,6 +533,10 @@ const BLIND_VISIBILITY := 0.2
 ## Comida (§8b-D): quantos lugares de coleta e em quantos dias voltam a dar.
 const FORAGE_MUSHROOMS := 28
 const FORAGE_BERRIES := 14
+## F11: tufos de musgo (bandagem) ao pé das árvores secas e nos montes de pedra, e erva-de-sangue,
+## rara, na mata fechada.
+const FORAGE_MOSS := 16
+const FORAGE_HERBS := 6
 const FORAGE_REGROW_DAYS := 2
 ## Horas até a carne estragar (crua e assada). A defumada não estraga.
 const MEAT_SPOIL_HOURS := 36.0
@@ -747,3 +751,66 @@ const RETRO_VIGNETTE := 0.3
 const RETRO_VIGNETTE_RANGE := Vector2(0.45, 1.15)
 const RETRO_GRAIN := 0.02
 const RETRO_GRAIN_FPS := 24.0
+
+# --- F11: fundação da luta (docs/plano_combate.md; experimental) ------------------------------
+
+## Fôlego (0..1, sem barra): volta por segundo, espera depois de gastar antes de voltar e, abaixo de
+## LOW_STAMINA, o golpe sai mais lento (STAMINA_SLOW) e fraco (STAMINA_WEAK) e o goblin ofega.
+const STAMINA_REGEN := 0.32
+const STAMINA_REGEN_DELAY := 0.6
+const LOW_STAMINA := 0.25
+const STAMINA_SLOW := 1.35
+const STAMINA_WEAK := 0.6
+## Segurando o ataque este tempo, sai o golpe forte em vez do leve.
+const HEAVY_HOLD := 0.35
+## Depois de um golpe leve, apertar de novo até este tempo do fim encadeia o próximo (até COMBO_MAX).
+const COMBO_WINDOW := 0.25
+const COMBO_MAX := 3
+## Defesa: arco de frente que ela cobre (graus), quanto do dano passa (sem escudo, com arma), fôlego
+## por ponto de dano segurado, aparo (segundos antes do golpe chegar) e quanto o aparo atordoa.
+const BLOCK_ARC_DEG := 120.0
+const BLOCK_LEAK := 0.45
+const BLOCK_STAMINA_PER_DAMAGE := 0.025
+const PARRY_WINDOW := 0.18
+const PARRY_STAGGER := 1.4
+## Esquiva: distância (m), duração, invulnerabilidade do começo e fôlego.
+const DODGE_DISTANCE := 1.6
+const DODGE_TIME := 0.38
+const DODGE_IFRAMES := 0.22
+const DODGE_STAMINA := 0.22
+## Postura do goblin: passando de POISE_MAX ele cambaleia; de POISE_KNOCKDOWN, cai. Desce por segundo.
+const POISE_MAX := 0.6
+const POISE_KNOCKDOWN := 1.0
+const POISE_DECAY := 0.35
+const STAGGER_TIME := 0.5
+const KNOCKDOWN_TIME := 1.7
+## Da queda até sentado no chão (o resto do KNOCKDOWN_TIME é levantar).
+const KNOCKDOWN_FALL := 0.35
+## O golpe empurra o goblin para a frente (m/s) quando acerta a janela; e faz barulho (raio, m).
+const SWING_LUNGE := 1.6
+const SWING_NOISE := 5.0
+const MELEE_HIT_NOISE := 9.0
+## Sangramento: chance num golpe de corte ou mordida, segundos que dura e vida por segundo.
+const BLEED_CHANCE := 0.45
+const BLEED_SECONDS := 60.0
+const BLEED_RATE := 0.25
+## Bandagem de musgo: tempo da ação e a vida que devolve.
+const BANDAGE_TIME := 2.0
+const BANDAGE_AT := 1.6
+const BANDAGE_HEAL := 10.0
+## Lança firmada (segurar a defesa com a lança): a investida que bate nela fere o bicho com este dano
+## (vezes o "brace" da arma) e não fere o goblin.
+const SPEAR_BRACE_DAMAGE := 1.2
+## Lança arremessada: dano do acerto e quanto a corda "puxada" equivale (velocidade de saída, 0..1).
+const SPEAR_THROW_DAMAGE := 1.6
+const SPEAR_THROW_POWER := 0.45
+## Desgaste: com esta fração restante, a arma avisa que está rachando; bater em árvore gasta mais.
+const WEAR_WARN := 0.2
+const WEAR_TREE := 2.0
+## Flecha que acerta pedra (o chão) quebra com esta chance.
+const ARROW_BREAK_CHANCE := 0.15
+## Bancada: a CraftAbility só mostra as receitas de bancada a menos desta distância dela.
+const BENCH_RADIUS := 2.5
+## Erva-de-sangue: cura por segundo e por quantos segundos depois de comer.
+const HERB_HEAL := 0.8
+const HERB_SECONDS := 30.0

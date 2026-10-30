@@ -102,8 +102,9 @@ func craft(recipe: Dictionary) -> void:
 func _finish(recipe: Dictionary) -> void:
 	if Recipes.missing(recipe) != "":
 		return
-	for item: StringName in recipe.cost:
-		Inventory.remove(item, int(recipe.cost[item]))
+	var cost := Recipes.cost_of(recipe)
+	for item: StringName in cost:
+		Inventory.remove(item, int(cost[item]))
 	for item: StringName in recipe.gives:
 		Inventory.add(item, int(recipe.gives[item]))
 	match recipe.get("special", &""):
@@ -122,8 +123,15 @@ func _finish(recipe: Dictionary) -> void:
 			if cairns != null:
 				# Um passo à frente: o marco não nasce dentro do goblin.
 				cairns.build_at(_player.global_position + _player.facing() * 0.7)
+		&"bench":
+			for node in get_tree().get_nodes_in_group(Workbench.GROUP):
+				if not (node as Workbench).built:
+					(node as Workbench).build_now()
+					break
+		&"repair":
+			Inventory.repair(Inventory.held())
 	OccludedAudio.play_at(_player, CRAFT_SOUNDS.pick_random(), _player.global_position + Vector3.UP * 0.6, &"World", -4.0, 3.0)
-	Events.notification_shown.emit(String(recipe.get("message", recipe.name)))
+	Events.notification_shown.emit(String(recipe.get("message", recipe.name)).format(Settings.key_labels()))
 	Events.crafted.emit(recipe.id)
 	_idle = 0.0
 

@@ -41,6 +41,7 @@ func _init() -> void:
 	meat = 3
 	hide = 1
 	bones = 2
+	sinew = 2
 	dead_height = 0.22
 	gallop_stride = 1.7
 	track_size = Vector2(0.2, 0.25)

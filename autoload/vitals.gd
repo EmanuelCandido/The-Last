@@ -16,6 +16,10 @@ var cold := 0.0
 var nausea := 0.0
 ## Lama na pele (0..1): camufla. Quem passa e tira é o MudCamouflage.
 var mud := 0.0
+## Segundos de sangramento que faltam (F11): a ferida aberta tira vida até parar ou ter bandagem.
+var bleeding := 0.0
+## Segundos que a erva-de-sangue ainda cura (F11).
+var herb := 0.0
 
 var _dead := false
 
@@ -25,6 +29,12 @@ func _process(delta: float) -> void:
 		return
 	satiety = maxf(satiety - Tuning.SATIETY_DECAY * delta, 0.0)
 	nausea = maxf(nausea - delta, 0.0)
+	if bleeding > 0.0:
+		bleeding = maxf(bleeding - delta, 0.0)
+		damage(Tuning.BLEED_RATE * delta, &"bleeding")
+	if herb > 0.0:
+		herb = maxf(herb - delta, 0.0)
+		health = minf(health + Tuning.HERB_HEAL * delta, 100.0)
 	if cold >= 100.0:
 		damage(Tuning.COLD_DAMAGE * delta, &"cold")
 	if satiety <= 0.0:
@@ -57,6 +67,25 @@ func damage(amount: float, cause: StringName) -> void:
 	if health <= 0.0:
 		_dead = true
 		Events.player_died.emit(cause)
+
+
+## Abre (ou alarga) uma ferida que sangra por `seconds`.
+func bleed(seconds: float) -> void:
+	bleeding = maxf(bleeding, seconds)
+	changed.emit()
+
+
+## A bandagem de musgo: para o sangramento e devolve um pouco de vida.
+func bandage() -> void:
+	bleeding = 0.0
+	health = minf(health + Tuning.BANDAGE_HEAL, 100.0)
+	changed.emit()
+
+
+## A erva-de-sangue: cura devagar por Tuning.HERB_SECONDS.
+func take_herb() -> void:
+	herb = Tuning.HERB_SECONDS
+	changed.emit()
 
 
 ## Come `food` (chave de Tuning.FOODS). Devolve true se a comida fez mal (enjoo).
@@ -92,6 +121,8 @@ func reset() -> void:
 	nausea = 0.0
 	cold = 0.0
 	mud = 0.0
+	bleeding = 0.0
+	herb = 0.0
 	changed.emit()
 
 
@@ -102,6 +133,8 @@ func revive() -> void:
 	satiety = maxf(satiety, Tuning.DEATH_SATIETY)
 	nausea = 0.0
 	cold = 0.0
+	bleeding = 0.0
+	herb = 0.0
 	changed.emit()
 
 
@@ -122,13 +155,15 @@ func status_words() -> PackedStringArray:
 		words.append("Com frio")
 	if nausea > 0.0:
 		words.append("Enjoado")
+	if bleeding > 0.0:
+		words.append("Sangrando")
 	if mud > 0.3:
 		words.append("Coberto de lama")
 	return words
 
 
 func save_data() -> Dictionary:
-	return {"satiety": satiety, "health": health, "nausea": nausea, "cold": cold, "mud": mud}
+	return {"satiety": satiety, "health": health, "nausea": nausea, "cold": cold, "mud": mud, "bleeding": bleeding, "herb": herb}
 
 
 func load_data(data: Dictionary) -> void:
@@ -137,6 +172,8 @@ func load_data(data: Dictionary) -> void:
 	nausea = float(data.get("nausea", 0.0))
 	cold = float(data.get("cold", 0.0))
 	mud = float(data.get("mud", 0.0))
+	bleeding = float(data.get("bleeding", 0.0))
+	herb = float(data.get("herb", 0.0))
 	_dead = health <= 0.0
 	changed.emit()
 

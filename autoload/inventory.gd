@@ -6,6 +6,8 @@ extends Node
 ## correm com o relógio e o sono pula de uma vez (Clock.skipped).
 
 signal changed(item: StringName, amount: int)
+## A arma na mão mudou (&"" = o arco, ou as mãos vazias).
+signal held_changed(item: StringName)
 
 ## Nome de cada item na tela.
 const NAMES := {
@@ -29,11 +31,21 @@ const NAMES := {
 	&"rotten_meat": "Carne estragada",
 	&"yew_bow": "Arco de teixo",
 	&"fur_bed": "Cama de peles",
+	# F11 (plano_combate.md): armas de mão, materiais e cura.
+	&"stone_knife": "Faca de pedra",
+	&"bone_knife": "Faca de osso",
+	&"club": "Porrete",
+	&"spear": "Lança",
+	&"sinew": "Tendões",
+	&"moss": "Musgo",
+	&"herb": "Erva-de-sangue",
+	&"bandage": "Bandagens",
 }
 ## Ordem dos itens na linha do HUD (o que não está aqui não aparece: arco e roupa se veem no goblin).
 const HUD_ORDER: Array[StringName] = [
 	&"arrow", &"feathered_arrow", &"bone_arrow", &"stone", &"wood", &"meat", &"cooked_meat", &"smoked_meat",
 	&"rotten_meat", &"berries", &"mushroom", &"white_meat", &"hide", &"bone", &"feather", &"snare",
+	&"sinew", &"moss", &"herb", &"bandage",
 ]
 ## O que a carne vira quando estraga.
 const SPOILS_INTO := &"rotten_meat"
@@ -42,6 +54,10 @@ var _items := {}
 ## Idade (horas de jogo) de cada pedaço dos itens que estragam, o mais velho primeiro.
 var _ages := {}
 var _last_hour := -1.0
+## Armas (F11): o que resta de cada unidade (1 = nova, 0 = quebra), a que está em uso primeiro,
+## e a arma na mão (&"" = o arco ou as mãos vazias).
+var _wear := {}
+var _held := &""
 
 
 func _ready() -> void:
@@ -114,13 +130,19 @@ func has(item: StringName, amount := 1) -> bool:
 	return count(item) >= amount
 
 
-func add(item: StringName, amount := 1) -> void:
+## `worn` (0..1) é o desgaste das unidades que entram (uma lança arremessada volta como saiu).
+func add(item: StringName, amount := 1, worn := -1.0) -> void:
 	_items[item] = count(item) + amount
 	if spoil_hours(item) > 0.0:
 		var ages: Array = _ages.get(item, [])
 		for i in amount:
 			ages.append(0.0)
 		_ages[item] = ages
+	if Weapons.is_weapon(item):
+		var units: Array = _wear.get(item, [])
+		for i in amount:
+			units.append(1.0 if worn < 0.0 else worn)
+		_wear[item] = units
 	changed.emit(item, _items[item])
 
 
@@ -134,7 +156,13 @@ func remove(item: StringName, amount := 1) -> bool:
 		var ages: Array = _ages[item]
 		for i in mini(amount, ages.size()):
 			ages.pop_front()
+	if _wear.has(item):
+		var units: Array = _wear[item]
+		for i in mini(amount, units.size()):
+			units.pop_front()
 	changed.emit(item, _items[item])
+	if item == _held and count(item) <= 0:
+		hold(&"")
 	return true
 
 
@@ -143,8 +171,63 @@ func clear() -> void:
 	var held := _items.keys()
 	_items.clear()
 	_ages.clear()
+	_wear.clear()
+	hold(&"")
 	for item: StringName in held:
 		changed.emit(item, 0)
+
+
+# --- Armas (F11) -------------------------------------------------------------------
+
+## A arma na mão (&"" = o arco, ou as mãos vazias).
+func held() -> StringName:
+	return _held
+
+
+## Põe `item` na mão (&"" guarda a arma e volta ao arco).
+func hold(item: StringName) -> void:
+	if item != &"" and not has(item):
+		item = &""
+	if item == _held:
+		return
+	_held = item
+	held_changed.emit(item)
+
+
+## O que resta da unidade em uso de `item` (1 = nova; 0 sem nenhuma).
+func wear(item: StringName) -> float:
+	var units: Array = _wear.get(item, [])
+	return float(units[0]) if not units.is_empty() else 0.0
+
+
+## Gasta `amount` (fração) da unidade em uso. Devolve true se ela quebrou (e sai do inventário).
+func wear_down(item: StringName, amount: float) -> bool:
+	_sync_wear(item)
+	var units: Array = _wear.get(item, [])
+	if units.is_empty():
+		return false
+	units[0] = float(units[0]) - amount
+	if float(units[0]) > 0.0:
+		return false
+	remove(item)
+	return true
+
+
+## Conserta a unidade em uso.
+func repair(item: StringName) -> void:
+	_sync_wear(item)
+	var units: Array = _wear.get(item, [])
+	if not units.is_empty():
+		units[0] = 1.0
+
+
+func _sync_wear(item: StringName) -> void:
+	var units: Array = _wear.get(item, [])
+	while units.size() < count(item):
+		units.append(1.0)
+	while units.size() > count(item):
+		units.pop_back()
+	_wear[item] = units
 
 
 func items() -> Dictionary:
@@ -159,6 +242,11 @@ func save_data() -> Dictionary:
 	for item: StringName in _ages:
 		ages[String(item)] = (_ages[item] as Array).duplicate()
 	data["__ages"] = ages
+	var units := {}
+	for item: StringName in _wear:
+		units[String(item)] = (_wear[item] as Array).duplicate()
+	data["__wear"] = units
+	data["__held"] = String(_held)
 	return data
 
 
@@ -175,5 +263,14 @@ func load_data(data: Dictionary) -> void:
 	for item: StringName in _items:
 		if spoil_hours(item) > 0.0:
 			_sync(item)
+	_wear.clear()
+	var units: Dictionary = data.get("__wear", {})
+	for item: String in units:
+		_wear[StringName(item)] = (units[item] as Array).map(func(value: Variant) -> float: return float(value))
+	for item: StringName in _items:
+		if Weapons.is_weapon(item):
+			_sync_wear(item)
 	for item: StringName in _items:
 		changed.emit(item, _items[item])
+	var in_hand := StringName(data.get("__held", ""))
+	hold(in_hand if has(in_hand) else &"")

@@ -17,6 +17,7 @@
 [ext_resource type="Script" path="res://scenes/player/parts/aim_guide.gd" id="15_aim"]
 [ext_resource type="Script" path="res://scenes/player/parts/practice.gd" id="16_practice"]
 [ext_resource type="Script" path="res://scenes/player/parts/tree_marker.gd" id="17_tree_marker"]
+[ext_resource type="Script" path="res://scenes/player/parts/melee_ability.gd" id="18_melee"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.26
@@ -98,3 +99,6 @@ script = ExtResource("16_practice")
 
 [node name="TreeMarker" type="Node3D" parent="."]
 script = ExtResource("17_tree_marker")
+
+[node name="MeleeAbility" type="Node" parent="."]
+script = ExtResource("18_melee")

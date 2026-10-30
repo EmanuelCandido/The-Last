@@ -39,6 +39,12 @@ func _ready() -> void:
 	var trophies := Trophies.new()
 	trophies.name = "Trophies"
 	_cave.add_child(trophies)
+	# F11: a bancada, desmontada até o goblin fabricá-la.
+	var bench := Workbench.new()
+	bench.name = "Workbench"
+	_cave.add_child(bench)
+	bench.position = Vector3(-2.3, 0.0, 1.5)
+	bench.rotation.y = PI * 0.5 + 0.15
 	var ruin := Ruin.new()
 	ruin.name = "Ruin"
 	add_child(ruin)

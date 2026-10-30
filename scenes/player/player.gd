@@ -80,6 +80,8 @@ var noise_factors := {}
 ## Multiplicadores do tremor do braço do arco, por nome (o arco de teixo, a prática).
 var tremor_factors := {}
 var scent_factors := {}
+## Multiplicadores da velocidade, por nome (F11: defendendo anda devagar).
+var speed_factors := {}
 
 var _spawn_transform: Transform3D
 var _controls_enabled := true
@@ -111,6 +113,10 @@ var _cam: PlayerCamera
 var _edge: EdgeBalance
 var _steps: StepClimber
 var _gear: PlayerGear
+## A luta de mão (F11), se a parte existir: recebe os golpes dos bichos antes da vida.
+var _melee: MeleeAbility
+## Segundos em que a velocidade é do empurrão (esquiva, tranco, investida) e não do controle.
+var _shove := 0.0
 
 @onready var _visual: Node3D = $Visual
 @onready var _model: Node3D = $Visual/Goblin
@@ -151,6 +157,9 @@ func _ready() -> void:
 	Inventory.changed.connect(_on_inventory_changed)
 	_gear.update(_animator)
 	_on_inventory_changed(&"yew_bow", Inventory.count(&"yew_bow"))
+	_melee = get_node_or_null(^"MeleeAbility") as MeleeAbility
+	Inventory.held_changed.connect(_on_held_changed)
+	_on_held_changed(Inventory.held())
 	# Limpa a dica de ação deixada por um jogador anterior (troca de fase).
 	Events.prompt_changed.emit("")
 
@@ -165,7 +174,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("interact") and _interaction != null and _interaction_ready:
 		_start_interaction(_interaction)
-	elif event.is_action_pressed("attack") and not aiming:
+	elif event.is_action_pressed("attack") and not aiming and Inventory.held() == &"":
 		_punch()
 
 
@@ -181,7 +190,7 @@ func _physics_process(delta: float) -> void:
 
 	var free := _can_act()
 	_crouching = free and (Input.is_action_pressed("crouch") or sniffing)
-	aiming = free and not sniffing and Inventory.has(&"bow") and Input.is_action_pressed("aim")
+	aiming = free and not sniffing and Inventory.has(&"bow") and Inventory.held() == &"" and Input.is_action_pressed("aim")
 
 	if is_on_floor():
 		# O pulo não sai na hora: o corpo agacha (Tuning.JUMP_PREP) e só então empurra o chão.
@@ -211,6 +220,11 @@ func _physics_process(delta: float) -> void:
 		direction = Vector3.ZERO
 	var accel := acceleration if is_on_floor() else acceleration * air_control
 	var weight := 1.0 - exp(-accel * delta)
+	if _shove > 0.0:
+		# Empurrado (esquiva, tranco): a velocidade é do empurrão e só vai morrendo.
+		_shove -= delta
+		target = Vector3(velocity.x, 0.0, velocity.z) * 0.6
+		weight = 1.0 - exp(-2.5 * delta)
 	velocity.x = lerpf(velocity.x, target.x, weight)
 	velocity.z = lerpf(velocity.z, target.z, weight)
 
@@ -258,7 +272,9 @@ func _process(delta: float) -> void:
 		_animator.sniffing = sniffing
 		_animator.breath_held = breath_held
 		_animator.tremor_scale = _product(tremor_factors)
-		_animator.holding_torch = torch_held
+		_animator.holding_torch = torch_held and Inventory.held() == &""
+		_animator.weapon_style = Weapons.style_of(Inventory.held())
+		_animator.guarding = _melee != null and _melee.guarding
 		_animator.lying = lying
 		_animator.draw = draw
 		_animator.reload = clampf(_reload / RELOAD_TIME, 0.0, 1.0)
@@ -271,6 +287,7 @@ func _process(delta: float) -> void:
 		_last_yaw = _visual.rotation.y
 		_animator.update(delta)
 	_gear.orient(_animator, draw, aiming and _arrow_nocked())
+	_gear.orient_weapon(_animator)
 
 
 ## Cena de despertar: começa deitado, senta, esfrega os olhos e levanta.
@@ -382,6 +399,51 @@ func is_crouching() -> bool:
 	return _crouching
 
 
+# --- Luta (F11) --------------------------------------------------------------------
+
+## Um golpe de alguém no goblin (mordida, investida, arma). `attack`:
+##   "damage": vida que tira; "kind": &"cut", &"pierce", &"blunt" ou &"bite";
+##   "from": de onde veio (posição de quem bate); "poise": quanto soma na postura;
+##   "cause": a causa da morte (&"wolf", &"boar"); "attacker": quem bateu (pode ser atordoado);
+##   "push": o tranco (m/s); "charge": true numa investida (a lança firmada segura).
+## Devolve o que aconteceu: &"hit", &"blocked", &"parried", &"dodged" ou &"braced".
+func receive_attack(attack: Dictionary) -> StringName:
+	if _melee != null:
+		return _melee.defend(attack)
+	var push: Vector3 = attack.get("push", Vector3.ZERO)
+	velocity += push
+	Vitals.damage(float(attack.get("damage", 0.0)), attack.get("cause", &"hit"))
+	return &"hit"
+
+
+## Empurra o corpo com `push` (m/s) por `seconds`: o controle não segura nesse tempo.
+func shove(push: Vector3, seconds: float) -> void:
+	velocity.x = push.x
+	velocity.z = push.z
+	velocity.y = maxf(velocity.y, push.y)
+	_shove = maxf(_shove, seconds)
+
+
+## Controles ligados (não está dormindo, numa cena ou acordando), mesmo no meio de uma ação.
+func controls_on() -> bool:
+	return _controls_enabled and not lying
+
+
+## Para onde o jogador está mandando andar agora (no chão, relativo à câmera; zero parado).
+func move_direction() -> Vector3:
+	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	return _camera_pivot.global_basis * Vector3(input.x, 0.0, input.y)
+
+
+## Por onde a lâmina da arma na mão passa agora: [começo, ponta] (vazio sem arma).
+func weapon_segment() -> Array[Vector3]:
+	return _gear.weapon_segment()
+
+
+func animator() -> GoblinAnimator:
+	return _animator
+
+
 ## Barulho que o goblin faz agora (0 parado .. 1 correndo). Os bichos ouvem isso.
 ## Parado e ofegante, a respiração se ouve; prendendo o ar, não.
 func noise_level() -> float:
@@ -452,9 +514,10 @@ func _current_speed() -> float:
 		return 0.0
 	if aiming:
 		return aim_speed
+	var factor := _product(speed_factors)
 	if _crouching:
-		return crouch_speed
-	return sprint_speed if Input.is_action_pressed("sprint") else walk_speed
+		return crouch_speed * factor
+	return (sprint_speed if Input.is_action_pressed("sprint") else walk_speed) * factor
 
 
 # --- Arco ------------------------------------------------------------------------
@@ -546,6 +609,11 @@ func _aim_point() -> Vector3:
 	return hit.position if not hit.is_empty() else to
 
 
+func _on_held_changed(item: StringName) -> void:
+	# A arma é filha do Visual: a PlayerCamera já a apaga em dither colada na lente.
+	_gear.set_weapon(item, _animator)
+
+
 func _on_inventory_changed(item: StringName, _amount: int) -> void:
 	if item == &"bow" or item == &"arrow":
 		_gear.update(_animator)
@@ -629,22 +697,29 @@ func _punch() -> void:
 
 
 func _land_punch() -> void:
+	strike_tree(1.0)
+
+
+## Golpeia a árvore a até `reach` m (o soco, ou a arma que não pegou em ninguém). Devolve true se
+## havia árvore.
+func strike_tree(reach: float) -> bool:
 	var level := Game.current_level
 	if level == null or not level.has_method("tree_near"):
-		return
-	var tree: int = level.tree_near(global_position, 1.0)
+		return false
+	var tree: int = level.tree_near(global_position, reach)
 	if tree == -1:
-		return
+		return false
 	if not level.is_tree_dead(tree):
 		level.hit_tree(tree, global_position)
 		if _pine_warning_cooldown <= 0.0:
 			_pine_warning_cooldown = 4.0
 			Events.notification_shown.emit("Pinheiro vivo é duro demais. Procure árvores secas, sem folhas.")
-		return
+		return true
 	if level.hit_tree(tree, global_position):
 		var wood := randi_range(2, 4)
 		Inventory.add(&"wood", wood)
 		Events.notification_shown.emit("A árvore caiu! +%d madeira" % wood)
+	return true
 
 
 ## A câmera só gira aqui; o resto (ombro, colisão, dither) está na PlayerCamera.

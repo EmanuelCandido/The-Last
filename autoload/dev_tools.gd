@@ -13,6 +13,7 @@ extends Node
 ##   --teleport=<x>,<z>   coloca o jogador nesse ponto do chão antes de apertar as ações
 ##   --camera=<yaw>,<pitch>  ângulos da câmera em graus (yaw 0 = olhando para -Z)
 ##   --give=<item>:<n>,...  põe itens no inventário (ex.: bow:1,arrow:6,wood:2)
+##   --equip=<arma>       põe a arma na mão (F11: stone_knife, bone_knife, club, spear); dá uma se faltar
 ##   --press=<ações>      aperta e solta ações uma vez depois das --hold (ex.: interact)
 ##   --tips               com --pause, abre a tela de Dicas
 ##   --set=<a.b:v>,...    muda o estado global (ex.: story.act:2,story.flag:moss_fell,
@@ -70,6 +71,11 @@ func _run(args: Dictionary) -> void:
 		for entry in String(args["give"]).split(",", false):
 			var parts := entry.split(":")
 			Inventory.add(StringName(parts[0]), int(parts[1]) if parts.size() > 1 else 1)
+	if args.has("equip"):
+		var weapon := StringName(args["equip"])
+		if not Inventory.has(weapon):
+			Inventory.add(weapon)
+		Inventory.hold(weapon)
 	if args.has("set"):
 		for entry in String(args["set"]).split(",", false):
 			_set_value(entry)

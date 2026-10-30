@@ -199,11 +199,21 @@ func _bite(player: Player) -> void:
 	_lunge = 1.0
 	OccludedAudio.play_at(get_parent(), BITE, global_position + Vector3.UP * 0.5, &"World", -1.0, 4.0, _rng.randf_range(0.9, 1.1))
 	var push := (player.global_position - global_position) * Vector3(1.0, 0.0, 1.0)
-	player.velocity += push.normalized() * 2.5 + Vector3.UP * 1.2
-	Vitals.damage(Tuning.WOLF_BITE, &"wolf")
-	if _warned_day != Clock.day:
+	# F11: a mordida passa pela luta do goblin (esquiva, defesa, aparo) antes de chegar à vida.
+	var result := player.receive_attack({
+		"damage": Tuning.WOLF_BITE, "kind": &"bite", "from": global_position, "poise": 0.35,
+		"cause": &"wolf", "attacker": self, "push": push.normalized() * 2.5 + Vector3.UP * 1.2,
+	})
+	if result == &"hit" and _warned_day != Clock.day:
 		_warned_day = Clock.day
 		Events.notification_shown.emit("Lobo! Corra para o fogo.")
+
+
+## Aparado (F11): recua, gane e leva um tempo para morder de novo.
+func stagger(seconds: float) -> void:
+	_bite_timer = maxf(_bite_timer, seconds + Tuning.WOLF_BITE_INTERVAL * 0.5)
+	_lunge = 0.0
+	_play_voice(_hurt_sound())
 
 
 # --- Movimento -------------------------------------------------------------------
