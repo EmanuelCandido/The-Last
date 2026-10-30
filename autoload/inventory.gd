@@ -45,12 +45,24 @@ const NAMES := {
 	&"orc_sword": "Espada orc",
 	&"iron_scrap": "Sucata de ferro",
 	&"orc_ration": "Carne seca dos orcs",
+	# F13: equipamento de guerra.
+	&"hide_shield": "Escudo de galhos",
+	&"leather_hood": "Capuz de couro",
+	&"skull_helm": "Elmo de crânio",
+	&"fitted_helmet": "Elmo orc",
+	&"leather_vest": "Gibão de couro",
+	&"fitted_chest": "Peitoral orc",
+	&"orc_helmet": "Elmo orc (grande)",
+	&"orc_chest": "Peitoral orc (grande)",
+	&"tanned_hide": "Couro curtido",
+	&"boar_skull": "Crânio de javali",
+	&"iron_arrow": "Flechas de ferro",
 }
 ## Ordem dos itens na linha do HUD (o que não está aqui não aparece: arco e roupa se veem no goblin).
 const HUD_ORDER: Array[StringName] = [
 	&"arrow", &"feathered_arrow", &"bone_arrow", &"stone", &"wood", &"meat", &"cooked_meat", &"smoked_meat",
 	&"rotten_meat", &"berries", &"mushroom", &"white_meat", &"hide", &"bone", &"feather", &"snare",
-	&"sinew", &"moss", &"herb", &"bandage", &"iron_scrap", &"orc_ration",
+	&"sinew", &"moss", &"herb", &"bandage", &"iron_scrap", &"orc_ration", &"iron_arrow", &"tanned_hide",
 ]
 ## O que a carne vira quando estraga.
 const SPOILS_INTO := &"rotten_meat"
@@ -143,7 +155,7 @@ func add(item: StringName, amount := 1, worn := -1.0) -> void:
 		for i in amount:
 			ages.append(0.0)
 		_ages[item] = ages
-	if Weapons.is_weapon(item):
+	if Weapons.is_weapon(item) or item == Armor.SHIELD:
 		var units: Array = _wear.get(item, [])
 		for i in amount:
 			units.append(1.0 if worn < 0.0 else worn)
@@ -273,7 +285,7 @@ func load_data(data: Dictionary) -> void:
 	for item: String in units:
 		_wear[StringName(item)] = (units[item] as Array).map(func(value: Variant) -> float: return float(value))
 	for item: StringName in _items:
-		if Weapons.is_weapon(item):
+		if Weapons.is_weapon(item) or item == Armor.SHIELD:
 			_sync_wear(item)
 	for item: StringName in _items:
 		changed.emit(item, _items[item])

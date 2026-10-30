@@ -101,8 +101,8 @@ func _fight() -> void:
 	melee.stamina = 1.0
 	melee.poise = 0.0
 	# Ergue a defesa quando a arma começa a descer (a janela abre). Às vezes o golpe passa longe:
-	# tenta até três golpes.
-	for attempt in 3:
+	# tenta até seis golpes.
+	for attempt in 6:
 		await _until(func() -> bool: return Game.player.can_act() and not orc.is_attacking(), 4.0)
 		Input.action_release("aim")
 		await _until(func() -> bool: return bool(orc._attack.get("active", false)), 8.0)

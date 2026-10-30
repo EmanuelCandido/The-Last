@@ -68,6 +68,8 @@ const PICKUP_SOUND := preload("res://assets/audio/real/pickup_5.ogg")
 @export var bones := 1
 ## Tendões ao coletar (F11): viram corda para a lança, a faca de osso e as armadilhas.
 @export var sinew := 1
+## Outras partes ao coletar (F13: o crânio do javali vira elmo), {item: quantidade}.
+var extra_items := {}
 ## Altura do corpo deitado, quando morre.
 @export var dead_height := 0.22
 ## Grupo da manada ("" = vive sozinho).
@@ -344,6 +346,8 @@ func interact(_player: Node) -> void:
 		Inventory.add(&"bone", bones)
 	if sinew > 0:
 		Inventory.add(&"sinew", sinew)
+	for item: StringName in extra_items:
+		Inventory.add(item, int(extra_items[item]))
 	var message := "+%d %s, +%d couro" % [meat, String(Inventory.NAMES.get(meat_item, "carne")).to_lower(), hide]
 	if bones > 0:
 		message += ", +%d osso%s" % [bones, "s" if bones > 1 else ""]

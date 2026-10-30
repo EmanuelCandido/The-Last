@@ -160,6 +160,8 @@ func _ready() -> void:
 	_gear.update(_animator)
 	_on_inventory_changed(&"yew_bow", Inventory.count(&"yew_bow"))
 	_melee = get_node_or_null(^"MeleeAbility") as MeleeAbility
+	for item: StringName in Armor.LIST:
+		_on_inventory_changed(item, Inventory.count(item))
 	_build_hitbox()
 	Inventory.held_changed.connect(_on_held_changed)
 	_on_held_changed(Inventory.held())
@@ -597,7 +599,7 @@ func _arrow_nocked() -> bool:
 
 ## A flecha que vai na corda: a de osso primeiro, depois a emplumada e a comum; vazio = nenhuma.
 func _arrow_item() -> StringName:
-	for item: StringName in [&"bone_arrow", &"feathered_arrow", &"arrow"]:
+	for item: StringName in [&"iron_arrow", &"bone_arrow", &"feathered_arrow", &"arrow"]:
 		if Inventory.has(item):
 			return item
 	return &""
@@ -653,6 +655,18 @@ func _on_held_changed(item: StringName) -> void:
 
 
 func _on_inventory_changed(item: StringName, _amount: int) -> void:
+	# F13: o que a armadura vestida custa (ferro faz barulho e pesa).
+	if Armor.LIST.has(item):
+		var noise := Armor.factor("noise")
+		var speed := Armor.factor("speed")
+		if noise != 1.0:
+			noise_factors[&"armor"] = noise
+		else:
+			noise_factors.erase(&"armor")
+		if speed != 1.0:
+			speed_factors[&"armor"] = speed
+		else:
+			speed_factors.erase(&"armor")
 	if item == &"bow" or item == &"arrow":
 		_gear.update(_animator)
 	if item == &"yew_bow":
@@ -739,14 +753,21 @@ func _land_punch() -> void:
 
 
 ## Golpeia a árvore a até `reach` m (o soco, ou a arma que não pegou em ninguém). Devolve true se
-## havia árvore.
+## havia árvore. Com o machado (`chop`, F13), pinheiro vivo também cai.
 func strike_tree(reach: float) -> bool:
+	var chop: bool = Weapons.spec(Inventory.held()).get("chop", false)
 	var level := Game.current_level
 	if level == null or not level.has_method("tree_near"):
 		return false
 	var tree: int = level.tree_near(global_position, reach)
 	if tree == -1:
 		return false
+	if not level.is_tree_dead(tree) and chop:
+		if level.hit_tree(tree, global_position, true):
+			var logs := randi_range(4, 6)
+			Inventory.add(&"wood", logs)
+			Events.notification_shown.emit("O pinheiro caiu! +%d madeira" % logs)
+		return true
 	if not level.is_tree_dead(tree):
 		level.hit_tree(tree, global_position)
 		if _pine_warning_cooldown <= 0.0:

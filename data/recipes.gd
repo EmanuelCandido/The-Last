@@ -100,6 +100,42 @@ const LIST: Array[Dictionary] = [
 		"cost": {&"bone": 2, &"sinew": 1}, "gives": {&"bone_knife": 1}, "station": &"bench",
 		"message": "Faca de osso pronta: corta mais e dura mais.",
 	},
+	# F13: equipamento de guerra (bancada).
+	{
+		"id": &"hide_shield", "name": "Escudo de galhos",
+		"cost": {&"wood": 3, &"hide": 1}, "gives": {&"hide_shield": 1}, "station": &"bench", "once": true,
+		"message": "Escudo pronto: no braço esquerdo, com uma arma de uma mão. Defende melhor e segura flecha.",
+	},
+	{
+		"id": &"leather_hood", "name": "Capuz de couro",
+		"cost": {&"tanned_hide": 1}, "gives": {&"leather_hood": 1}, "station": &"bench", "once": true,
+		"message": "Capuz de couro: a cabeça protegida, sem barulho.",
+	},
+	{
+		"id": &"skull_helm", "name": "Elmo de crânio",
+		"cost": {&"boar_skull": 1, &"sinew": 2}, "gives": {&"skull_helm": 1}, "station": &"bench", "once": true,
+		"message": "Elmo de crânio de javali.",
+	},
+	{
+		"id": &"leather_vest", "name": "Gibão de couro curtido",
+		"cost": {&"tanned_hide": 2, &"sinew": 2}, "gives": {&"leather_vest": 1}, "station": &"bench", "once": true,
+		"message": "Gibão de couro curtido: corte e mordida entram menos.",
+	},
+	{
+		"id": &"fit_helmet", "name": "Ajustar o elmo orc",
+		"cost": {&"orc_helmet": 1, &"hide": 1}, "gives": {&"fitted_helmet": 1}, "station": &"bench", "once": true,
+		"message": "Elmo orc ajustado à cabeça do goblin. Ferro faz barulho.",
+	},
+	{
+		"id": &"fit_chest", "name": "Ajustar o peitoral orc",
+		"cost": {&"orc_chest": 1, &"sinew": 2}, "gives": {&"fitted_chest": 1}, "station": &"bench", "once": true,
+		"message": "Peitoral orc ajustado. Protege muito, pesa, faz barulho e gela à noite.",
+	},
+	{
+		"id": &"iron_arrows", "name": "Flechas de ferro (3)",
+		"cost": {&"iron_scrap": 1, &"wood": 1}, "gives": {&"iron_arrow": 3}, "station": &"bench",
+		"message": "+3 flechas de ferro: furam o ferro dos orcs.",
+	},
 	{
 		"id": &"repair", "name": "Consertar a arma na mão",
 		"cost": {}, "gives": {}, "special": &"repair", "station": &"bench",
@@ -168,6 +204,7 @@ static func item_word(item: StringName, amount: int) -> String:
 		&"wood": ["madeira", "madeiras"], &"feather": ["pena", "penas"], &"hide": ["couro", "couros"],
 		&"stone": ["pedra", "pedras"], &"arrow": ["flecha", "flechas"], &"bone": ["osso", "ossos"],
 		&"sinew": ["tendão", "tendões"], &"moss": ["musgo", "musgos"],
+		&"tanned_hide": ["couro curtido", "couros curtidos"], &"iron_scrap": ["sucata", "sucatas"],
 	}
 	var words: Array = WORDS.get(item, [String(Inventory.NAMES.get(item, item)).to_lower()])
 	return words[1] if amount != 1 and words.size() > 1 else words[0]

@@ -634,6 +634,14 @@ func interact(_player: Node) -> void:
 	found.append("%d sucata%s" % [scrap, "s" if scrap > 1 else ""])
 	Inventory.add(&"orc_ration")
 	found.append("carne seca")
+	# O ferro do guerreiro (F13): grande demais, ajusta na bancada.
+	if kind == &"warrior":
+		if _rng.randf() < Tuning.ORC_HELMET_DROP:
+			Inventory.add(&"orc_helmet")
+			found.append("o elmo")
+		if _rng.randf() < Tuning.ORC_CHEST_DROP:
+			Inventory.add(&"orc_chest")
+			found.append("o peitoral")
 	var arrows := Arrow.collect_from(self)
 	if arrows > 0:
 		found.append("%d flecha%s" % [arrows, "s" if arrows > 1 else ""])

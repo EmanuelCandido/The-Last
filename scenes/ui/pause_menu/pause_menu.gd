@@ -58,7 +58,13 @@ const TIPS := """[b]CONTROLES[/b]
 • Antes de golpear, o orc grunhe e arma o braço: é a hora de esquivar ou de erguer a defesa. Bem na hora, ele perde o equilíbrio e ajoelha, e a cabeça fica ao seu alcance.
 • De pé, você só alcança as pernas dele: acertadas, ele manca. O guerreiro usa elmo e peitoral de ferro; o porrete passa quase inteiro pelo ferro, o corte não.
 • Um orc grita e chama os outros. Só dois atacam de cada vez. Quando um cai, os outros perdem a coragem, e o orc ferido foge.
-• Eles não entram na toca. Morto, o orc pode ser revistado ({interact}): a arma dele (gasta), sucata de ferro e carne seca.
+• Eles não entram na toca. Morto, o orc pode ser revistado ({interact}): a arma dele (gasta), sucata de ferro e carne seca. O guerreiro às vezes deixa o elmo e o peitoral.
+
+[b]EQUIPAMENTO DE GUERRA[/b]
+• Na bancada: escudo de galhos (3 madeiras e 1 couro), que vai no braço esquerdo com uma arma de uma mão: a defesa passa bem menos e segura flecha.
+• Pendure couro no defumador com o fogo aceso: vira couro curtido. Dele saem o capuz e o gibão. O crânio do javali vira elmo.
+• O elmo e o peitoral dos orcs são grandes: ajuste na bancada. O ferro protege muito, mas faz barulho, pesa e gela à noite. Couro é para caçar, ferro é para lutar.
+• O machado orc derruba pinheiro vivo (madeira farta, com barulho). Flechas de ferro (sucata e madeira, na bancada) furam o peitoral dos orcs.
 
 [b]RASTROS, CHEIRO E SILÊNCIO[/b]
 • Cervos, coelhos e lobos deixam pegadas no chão. Elas somem em uns dois minutos: as mais escuras são as mais frescas.

@@ -194,8 +194,8 @@ func tree_standing(id: int) -> bool:
 	return id >= 0 and id < _vegetation.trees.size() and not _vegetation.trees[id].fallen
 
 
-func hit_tree(id: int, from: Vector3) -> bool:
-	return _vegetation.hit_tree(id, from)
+func hit_tree(id: int, from: Vector3, chop := false) -> bool:
+	return _vegetation.hit_tree(id, from, chop)
 
 
 func _on_level_loaded(level: Node3D) -> void:

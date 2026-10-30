@@ -18,6 +18,7 @@
 [ext_resource type="Script" path="res://scenes/player/parts/practice.gd" id="16_practice"]
 [ext_resource type="Script" path="res://scenes/player/parts/tree_marker.gd" id="17_tree_marker"]
 [ext_resource type="Script" path="res://scenes/player/parts/melee_ability.gd" id="18_melee"]
+[ext_resource type="Script" path="res://scenes/player/parts/armor_look.gd" id="19_armor"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.26
@@ -102,3 +103,6 @@ script = ExtResource("17_tree_marker")
 
 [node name="MeleeAbility" type="Node" parent="."]
 script = ExtResource("18_melee")
+
+[node name="ArmorLook" type="Node" parent="."]
+script = ExtResource("19_armor")

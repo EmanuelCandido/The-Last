@@ -146,7 +146,7 @@ func _start_swing(heavy: bool, chained := false) -> void:
 	var duration: float = float(timing[0]) * slow
 	var opens: float = float(timing[1]) * slow
 	var closes: float = float(timing[2]) * slow
-	stamina = maxf(stamina - float(spec.heavy_stamina if heavy else spec.stamina), 0.0)
+	stamina = maxf(stamina - float(spec.heavy_stamina if heavy else spec.stamina) * Armor.factor("stamina"), 0.0)
 	_combo = 0 if heavy else _combo + 1
 	var style := Weapons.style_of(item)
 	var action := StringName("%s_heavy" % style) if heavy else StringName("%s_%d" % [style, 2 - _combo % 2])
@@ -279,6 +279,13 @@ func _wear(item: StringName, hits: float) -> void:
 		Events.notification_shown.emit("%s está rachando. Conserte na bancada." % title)
 
 
+## O escudo segurou um golpe: gasta e, no fim, quebra.
+func _wear_shield() -> void:
+	if Inventory.wear_down(Armor.SHIELD, 1.0 / float(Armor.SHIELD_WEAR)):
+		OccludedAudio.play_at(_player, BREAK_SOUND, _player.global_position + Vector3.UP * 0.5, &"World", -3.0, 3.0)
+		Events.notification_shown.emit("O escudo quebrou.")
+
+
 # --- Esquiva e troca de arma ---------------------------------------------------------
 
 func _dodge() -> void:
@@ -358,13 +365,19 @@ func defend(attack: Dictionary) -> StringName:
 			Events.noise_made.emit(_player.global_position, Tuning.MELEE_HIT_NOISE)
 			_wear(item, 0.5)
 			return &"parried"
-		var cost := damage * Tuning.BLOCK_STAMINA_PER_DAMAGE * (2.0 if charge else 1.0)
+		# Com o escudo (F13) a defesa passa menos e cansa menos; quem gasta é o escudo.
+		var shield := Armor.shield_in_use()
+		var cost := damage * Tuning.BLOCK_STAMINA_PER_DAMAGE * (2.0 if charge else 1.0) * (Armor.SHIELD_STAMINA if shield != &"" else 1.0)
 		if stamina >= cost:
 			stamina -= cost
 			_regen_wait = Tuning.STAMINA_REGEN_DELAY
 			OccludedAudio.play_at(_player, BLOCK_SOUNDS.pick_random(), _player.global_position + Vector3.UP * 0.6, &"World", -3.0, 4.0, randf_range(0.9, 1.1))
-			_wear(item, 1.0)
-			_take(damage * Tuning.BLOCK_LEAK * (1.6 if charge else 1.0), attack, push * 0.5, gained * (1.0 if charge else 0.4))
+			if shield != &"":
+				_wear_shield()
+			else:
+				_wear(item, 1.0)
+			var leak := Armor.SHIELD_LEAK if shield != &"" else Tuning.BLOCK_LEAK
+			_take(damage * leak * (1.6 if charge else 1.0), attack, push * 0.5, gained * (1.0 if charge else 0.4) * (0.5 if shield != &"" else 1.0))
 			return &"blocked"
 		# Sem fôlego, a defesa cede: o golpe passa inteiro e derruba.
 		stamina = 0.0
@@ -375,8 +388,10 @@ func defend(attack: Dictionary) -> StringName:
 
 
 func _take(damage: float, attack: Dictionary, push: Vector3, gained: float) -> void:
-	Vitals.damage(damage, attack.get("cause", &"hit"))
 	var kind: StringName = attack.get("kind", &"blunt")
+	# A armadura vestida (F13): passa só uma parte, pelo tipo do golpe.
+	damage *= Armor.protection(kind)
+	Vitals.damage(damage, attack.get("cause", &"hit"))
 	if (kind == &"cut" or kind == &"bite") and damage >= 5.0 and randf() < Tuning.BLEED_CHANCE:
 		Vitals.bleed(Tuning.BLEED_SECONDS)
 	poise += gained

@@ -817,6 +817,19 @@ const BENCH_RADIUS := 2.5
 const HERB_HEAL := 0.8
 const HERB_SECONDS := 30.0
 
+# --- F13: equipamento de guerra (docs/plano_combate.md §5; experimental) ---------------------
+
+## Couro pendurado no defumador vira couro curtido em tantas horas de fumaça.
+const TAN_HOURS := 10.0
+## Golpes de machado para derrubar um pinheiro vivo (a seca cai com DEAD_TREE_HITS).
+const AXE_PINE_HITS := 6
+## Flecha de ferro: dano e quanto passa do ferro do guerreiro (a comum passa ORC_IRON.pierce).
+const IRON_ARROW_DAMAGE := 1.3
+const IRON_ARROW_PIERCE := 0.9
+## O guerreiro revistado deixa o elmo e o peitoral (grandes: ajustar na bancada) com estas chances.
+const ORC_HELMET_DROP := 0.6
+const ORC_CHEST_DROP := 0.45
+
 # --- F12: os orcs (docs/plano_combate.md §7; experimental) ------------------------------------
 
 ## Escala do modelo (o orc é montado a partir do goblin: 1,21 m sem ela) e a altura dos olhos (m).
@@ -870,7 +883,7 @@ const ORC_LEG_DAMAGE := 0.6
 const ORC_LIMP_SPEED := 0.65
 const ORC_LIMP_SECONDS := 30.0
 ## O peitoral de ferro do guerreiro: quanto passa de cada tipo de golpe no tronco (§3.6).
-const ORC_IRON := {&"cut": 0.4, &"pierce": 0.6, &"blunt": 0.9}
+const ORC_IRON := {&"cut": 0.4, &"pierce": 0.6, &"blunt": 0.9, &"iron": 0.9}
 ## Perdeu o goblin de vista: procura por tanto tempo (s); o grito chama quem está até tanto (m).
 const ORC_SEARCH_SECONDS := 25.0
 const ORC_SHOUT_RANGE := 40.0

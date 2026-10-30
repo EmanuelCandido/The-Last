@@ -729,6 +729,8 @@ Cada fase termina jogável, com o teste de fumaça, roteiro `--run` e prints con
 - **Mudou do plano:** o aparo ficou em 0,25 s (com 0,18 s a lâmina do orc, que desce num arco, chegava depois); os orcs não vão no save (voltam no dia seguinte), e o acampamento, o chefe, a bolsa da morte, as pegadas de bota, o faro do orc e os sinais dos dias 1 e 2 ficam para a F13.
 - **Teste:** `tests/test_f12_orcs.gd`.
 
+**Feito (F13-A, experimental):** escudo de galhos (`Armor.SHIELD`: só com arma de uma mão; passa `SHIELD_LEAK` na defesa, cansa menos, gasta ele e não a arma), as armaduras de `data/armor.gd` (capuz e gibão de couro curtido, elmo de crânio, elmo e peitoral orc ajustados na bancada; em cada lugar o goblin veste a melhor que tem; proteção por tipo de golpe, barulho, peso, fôlego e frio pelos fatores do Player e do ColdExposure), o visual delas na `ArmorLook`, o couro curtido no defumador (`hides`, `TAN_HOURS`), o crânio do javali (`Animal.extra_items`), o machado que derruba pinheiro vivo (`Vegetation.hit_tree(..., chop)`), as flechas de ferro (o orc recebe o tipo `&"iron"`, que passa pelo peitoral) e o ferro que o guerreiro deixa. Teste: `tests/test_f13_guerra.gd`.
+
 **Por que nessa ordem:** a F11 deixa a luta boa contra o que já existe (javali e lobo), sem modelo novo, e o risco maior do plano (a luta ser gostosa) aparece cedo. A F12 traz o risco técnico maior (o animador no orc e os bichos percebendo mais de um). A F13 é conteúdo em cima das duas. A F14 amarra na história.
 
 **Depois da F12, uma sessão de playtest sua** com o build de depuração: o diário mostra quanto você luta, foge e morre, e a F13 sai ajustada por isso.

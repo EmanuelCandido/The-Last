@@ -51,6 +51,8 @@ func exposure() -> float:
 		rate *= 0.5 + Wind.strength_at(at)
 		if Inventory.has(&"clothes"):
 			rate *= Tuning.CLOTHES_COLD_FACTOR
+		# F13: o ferro gela, o couro esquenta um pouco.
+		rate *= Armor.factor("cold")
 	if Campfire.distance_to_fire(at) < Tuning.FIRE_WARM_RADIUS:
 		rate = minf(rate, Tuning.FIRE_WARMTH)
 	return rate

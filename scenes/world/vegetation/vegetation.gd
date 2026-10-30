@@ -162,14 +162,15 @@ func shelter_near(p: Vector3, radius: float) -> Vector3:
 
 ## Bate na árvore `id`, golpeada a partir de `from`. Devolve true se ela caiu agora.
 ## Só árvores secas quebram; pinheiros vivos só balançam o som do golpe.
-func hit_tree(id: int, from: Vector3) -> bool:
+## `chop` = golpe de machado (F13): derruba pinheiro vivo em Tuning.AXE_PINE_HITS golpes.
+func hit_tree(id: int, from: Vector3, chop := false) -> bool:
 	var tree := trees[id]
 	OccludedAudio.play_at(self, HIT_SOUNDS.pick_random(), tree.base + Vector3.UP * 1.0, &"World", -2.0, 5.0, randf_range(0.9, 1.1))
 	Events.noise_made.emit(tree.base, 25.0)
-	if not tree.dead:
+	if not tree.dead and not chop:
 		return false
 	tree.hits += 1
-	if tree.hits < DEAD_TREE_HITS:
+	if tree.hits < (DEAD_TREE_HITS if tree.dead else Tuning.AXE_PINE_HITS):
 		return false
 	_fell_tree(tree, from)
 	return true

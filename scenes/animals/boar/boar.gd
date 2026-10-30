@@ -57,6 +57,7 @@ func _init() -> void:
 	step_pitch = 0.8
 	kind = &"boar"
 	charges_left = Tuning.BOAR_CHARGES
+	extra_items = {&"boar_skull": 1}
 
 
 func body_node() -> Node3D:

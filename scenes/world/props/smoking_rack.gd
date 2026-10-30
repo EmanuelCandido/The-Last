@@ -13,6 +13,8 @@ const SMOKED := Color(0.24, 0.12, 0.07)
 var campfire: Campfire
 ## Horas de fumaça de cada pedaço pendurado.
 var pieces: Array[float] = []
+## Horas de fumaça de cada couro pendurado para curtir (F13).
+var hides: Array[float] = []
 
 var _meats: Array[MeshInstance3D] = []
 var _last_fuel := 0.0
@@ -32,6 +34,8 @@ func _process(delta: float) -> void:
 	if campfire.is_lit() and not Game.resting and not Game.awake:
 		for i in pieces.size():
 			pieces[i] = minf(pieces[i] + delta / Tuning.SECONDS_PER_HOUR, Tuning.SMOKE_HOURS)
+		for i in hides.size():
+			hides[i] = minf(hides[i] + delta / Tuning.SECONDS_PER_HOUR, Tuning.TAN_HOURS)
 	_refresh()
 
 
@@ -39,24 +43,40 @@ func ready_count() -> int:
 	return pieces.filter(func(hours: float) -> bool: return hours >= Tuning.SMOKE_HOURS).size()
 
 
+func tanned_count() -> int:
+	return hides.filter(func(hours: float) -> bool: return hours >= Tuning.TAN_HOURS).size()
+
+
 func interaction_prompt() -> String:
+	if tanned_count() > 0:
+		return "Pegar couro curtido (%d)" % tanned_count()
 	if ready_count() > 0:
 		return "Pegar carne defumada (%d)" % ready_count()
 	if Inventory.has(&"meat") and pieces.size() < Tuning.SMOKE_RACK_SLOTS:
 		return "Pendurar carne para defumar"
+	# Com carne defumando, o que falta vem primeiro; pendurar couro entra junto (F13).
+	var hang_hide := Inventory.has(&"hide") and hides.size() < Tuning.SMOKE_RACK_SLOTS and not Inventory.has(&"meat")
 	if not pieces.is_empty():
 		var left: float = Tuning.SMOKE_HOURS - float(pieces.max())
-		return "Defumando: falta %d h%s" % [ceili(left), "" if campfire != null and campfire.is_lit() else " (fogo apagado)"]
+		return "Defumando: falta %d h%s" % [ceili(left), "" if campfire != null and campfire.is_lit() else " (fogo apagado)"] + ("  ·  pendurar couro" if hang_hide else "")
+	if hang_hide:
+		return "Pendurar couro para curtir"
 	return "Defumador: pendure carne crua"
 
 
 func interaction_enabled() -> bool:
-	return ready_count() > 0 or (Inventory.has(&"meat") and pieces.size() < Tuning.SMOKE_RACK_SLOTS)
+	return tanned_count() > 0 or ready_count() > 0 or (Inventory.has(&"meat") and pieces.size() < Tuning.SMOKE_RACK_SLOTS) \
+		or (Inventory.has(&"hide") and hides.size() < Tuning.SMOKE_RACK_SLOTS)
 
 
 func interact(_player: Node) -> void:
 	var done := ready_count()
-	if done > 0:
+	var tanned := tanned_count()
+	if tanned > 0:
+		hides = hides.filter(func(hours: float) -> bool: return hours < Tuning.TAN_HOURS)
+		Inventory.add(&"tanned_hide", tanned)
+		Events.notification_shown.emit("+%d couro curtido" % tanned)
+	elif done > 0:
 		pieces = pieces.filter(func(hours: float) -> bool: return hours < Tuning.SMOKE_HOURS)
 		Inventory.add(&"smoked_meat", done)
 		Events.notification_shown.emit("+%d carne defumada" % done)
@@ -67,6 +87,12 @@ func interact(_player: Node) -> void:
 		for i in hung:
 			pieces.append(0.0)
 		Events.notification_shown.emit("Pendurou %d pedaço%s. Mantenha o fogo aceso." % [hung, "s" if hung > 1 else ""])
+	elif Inventory.has(&"hide") and hides.size() < Tuning.SMOKE_RACK_SLOTS:
+		var hung := mini(Inventory.count(&"hide"), Tuning.SMOKE_RACK_SLOTS - hides.size())
+		Inventory.remove(&"hide", hung)
+		for i in hung:
+			hides.append(0.0)
+		Events.notification_shown.emit("Pendurou %d couro%s na fumaça para curtir." % [hung, "s" if hung > 1 else ""])
 	OccludedAudio.play_at(self, HANG_SOUND, global_position + Vector3.UP * 0.9, &"World", -6.0, 2.5)
 	_refresh()
 
@@ -76,6 +102,8 @@ func _on_skipped(hours: float) -> void:
 	var lit_hours := minf(hours, _last_fuel * Tuning.FIRE_SECONDS_PER_FUEL / Tuning.SECONDS_PER_HOUR)
 	for i in pieces.size():
 		pieces[i] = minf(pieces[i] + lit_hours, Tuning.SMOKE_HOURS)
+	for i in hides.size():
+		hides[i] = minf(hides[i] + lit_hours, Tuning.TAN_HOURS)
 	_refresh()
 
 
@@ -119,11 +147,14 @@ func _build() -> void:
 
 
 func save_data() -> Dictionary:
-	return {"pieces": pieces.duplicate()}
+	return {"pieces": pieces.duplicate(), "hides": hides.duplicate()}
 
 
 func load_data(data: Dictionary) -> void:
 	pieces.clear()
 	for hours: Variant in data.get("pieces", []):
 		pieces.append(float(hours))
+	hides.clear()
+	for hours: Variant in data.get("hides", []):
+		hides.append(float(hours))
 	_refresh()

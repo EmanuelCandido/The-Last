@@ -71,6 +71,8 @@ static func damage_of(arrow_item: StringName) -> float:
 			return Tuning.BONE_ARROW_DAMAGE
 		&"spear":
 			return Tuning.SPEAR_THROW_DAMAGE
+		&"iron_arrow":
+			return Tuning.IRON_ARROW_DAMAGE
 	return 1.0
 
 
@@ -139,7 +141,11 @@ func _stick(hit: Dictionary) -> void:
 		target = (collider as Area3D).get_parent()
 	if target != null:
 		reparent(target.body_node())
-		target.take_hit(power, hit.position, direction, damage_of(item))
+		if target is Orc:
+			# O orc sabe o tipo (F13): a flecha de ferro fura o peitoral.
+			(target as Orc).strike(lerpf(0.6, 1.4, power) * damage_of(item), &"iron" if item == &"iron_arrow" else &"pierce", hit.position, direction, 0.3)
+		else:
+			target.take_hit(power, hit.position, direction, damage_of(item))
 		if target is Animal:
 			Events.arrow_hit.emit((target as Animal).kind)
 		OccludedAudio.play_at(target, HIT_FLESH.pick_random(), hit.position, &"World", 0.0, 5.0)
