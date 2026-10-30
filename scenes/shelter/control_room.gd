@@ -154,6 +154,10 @@ func confess() -> void:
 	await get_tree().create_timer(4.5, false).timeout
 	ari.turn_to(lens.global_position, 1.4)
 	await _line(&"confession_2")
+	# F14: quem matou orcs ouve de onde vieram as máscaras.
+	if Story.has_flag(&"confession_orcs"):
+		await _line(&"confession_orcs_1")
+		await _line(&"confession_orcs_2")
 	await _line(&"confession_3")
 	_refresh_terminal()
 	shelter.keeper.say(&"waiting")

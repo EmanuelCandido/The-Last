@@ -65,6 +65,9 @@ const LINES := {
 	&"confession_2": "...Eles voltaram faz sete anos. Chamaram pelo rádio. Eu respondi que não havia ninguém aqui.",
 	&"confession_3": "Se você sair, eu não tenho mais paciente. Sem paciente, o protocolo me desliga. Eu não quero parar, Ari. Eu não sei o que é parar.",
 	&"waiting": "O terminal está aberto. A escolha é sua.",
+	# F14: os orcs (com `confession_orcs`, depois da segunda fala da conversa).
+	&"confession_orcs_1": "As máscaras... Eu dei a eles o rosto de quem veio buscar os outros pacientes.",
+	&"confession_orcs_2": "Você precisava ter medo de ir embora. Eu também tenho.",
 	# Os finais.
 	&"thanks": "Obrigado.",
 	&"cold": "Lá fora o ar é frio. Leve a coberta.",
@@ -191,6 +194,45 @@ const BEATS: Array[Dictionary] = [
 		"do": [{"set_flag": "moss_fell"}, {"set_act": 2}],
 	},
 	# --- Ato II: os flashes, no escuro de cada sono (o Game mostra antes de acordar) -------
+	# F14 (plano_combate.md §11): os orcs e a segunda leitura deles. Gatilho "orc": o motivo é
+	# "seen" (um orc entrou na luta), "killed" ou "chief".
+	{
+		"id": "orc_first_seen",
+		"on": "orc",
+		"when": {"reason": "seen"},
+		"do": [{"add_note": "Tem alguém maior que eu nesta floresta. Anda em bando, grita, e respira por um filtro."}],
+	},
+	{
+		"id": "orc_first_kill",
+		"on": "orc",
+		"when": {"reason": "killed"},
+		"do": [{"add_note": "Revistei o grande. Por que ele tinha cheiro de borracha?"}],
+	},
+	{
+		"id": "orc_mask_note",
+		"on": "orc",
+		"when": {"reason": "killed", "act_at_least": 2, "counter_at_least": {"orc_killed": 5}},
+		"do": [{"add_note": "As máscaras têm dois discos redondos no lugar da boca. Já vi isso. Não aqui."}],
+	},
+	{
+		"id": "orc_chief_note",
+		"on": "orc",
+		"when": {"reason": "chief"},
+		"do": [{"add_note": "O grande da Pedra Rachada caiu. A trompa não vai tocar neste ciclo."}],
+	},
+	{
+		"id": "hard_fight_rested",
+		"on": "slept",
+		"repeat": true,
+		"when": {"flag": "hard_fight_today"},
+		"do": [{"clear_flag": "hard_fight_today"}],
+	},
+	{
+		"id": "confession_orcs",
+		"on": "shelter",
+		"when": {"reason": "recordings", "counter_at_least": {"orc_killed": 1}},
+		"do": [{"set_flag": "confession_orcs"}],
+	},
 	{
 		"id": "flash_1",
 		"on": "slept",

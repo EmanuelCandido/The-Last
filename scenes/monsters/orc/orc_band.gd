@@ -18,6 +18,13 @@ const GROUP := &"orc_band"
 
 var _arrived_day := -1
 var _rng := RandomNumberGenerator.new()
+## A Investida (F13): em andamento, quem veio, quantos eram e o dia da última.
+var raid_active := false
+var _raiders: Array[Orc] = []
+var _raid_size := 0
+var _last_raid_day := -99
+## Vigilância da luta (F14): quando foi a última que contou.
+var _fight_clock := -999.0
 
 
 func _ready() -> void:
@@ -32,9 +39,12 @@ func _process(_delta: float) -> void:
 			for orc in get_children():
 				orc.queue_free()
 		return
+	# O fim da Investida vale também nos testes (a que o roteiro começa).
+	_raid_update()
 	# Nos testes automáticos, só os orcs que o roteiro põe (sem --orcs eles não chegam sozinhos).
 	if DevTools.automated and not DevTools.orcs:
 		return
+	_raid_schedule()
 	if Clock.day < Tuning.ORC_FIRST_DAY or _arrived_day == Clock.day:
 		return
 	if Clock.hour < Tuning.ORC_ARRIVE_HOUR or Clock.hour >= Tuning.ORC_LEAVE_HOUR - 1.0:
@@ -59,12 +69,13 @@ func arrive() -> void:
 		spawn(&"warrior", at + Vector3(1.6, 0.0, 1.2), patrol)
 
 
-## Cria um orc em `at` (no chão), andando `route`.
-func spawn(kind: StringName, at: Vector3, route: Array[Vector3] = []) -> Orc:
+## Cria um orc em `at` (no chão), andando `route`. `raider` = vem na Investida (tocha, entra na toca).
+func spawn(kind: StringName, at: Vector3, route: Array[Vector3] = [], raider := false) -> Orc:
 	var orc := Orc.new()
 	orc.kind = kind
 	orc.band = self
 	orc.route = route
+	orc.raider = raider
 	add_child(orc)
 	orc.global_position = Vector3(at.x, _ground(at.x, at.z) + 0.1, at.z)
 	orc.died.connect(_on_died)
@@ -151,16 +162,102 @@ func _ground(x: float, z: float) -> float:
 	return float(level.ground_height(x, z)) if level != null and level.has_method("ground_height") else 0.0
 
 
+# --- A Investida (F13, §9.3) ---------------------------------------------------------
+
+func _raid_schedule() -> void:
+	if raid_active or Story.has_flag(&"chief_dead") or Clock.day < Tuning.RAID_DAY:
+		return
+	if Clock.day - _last_raid_day < Tuning.RAID_INTERVAL:
+		return
+	if not Story.has_flag(&"raid_tonight"):
+		if Clock.hour >= Tuning.RAID_WARN_HOUR and Clock.hour < Tuning.RAID_START_HOUR:
+			warn_raid()
+	elif Clock.hour >= Tuning.RAID_START_HOUR:
+		start_raid()
+
+
+## A trompa no acampamento: esta noite eles vêm. Daqui até o fim, não dá para dormir.
+func warn_raid() -> void:
+	Story.set_flag(&"raid_tonight", true)
+	var camp := get_tree().get_first_node_in_group(OrcCamp.GROUP) as Node3D
+	if camp != null:
+		OccludedAudio.play_at(get_parent(), Orc.SHOUT, camp.global_position + Vector3.UP * 3.0, &"Ambience", 8.0, 60.0, 0.55)
+	Events.notification_shown.emit("Uma trompa longe, a leste. Esta noite eles vêm até a toca.")
+
+
+## Os orcs da Investida saem da borda do vale, com tochas, e vão até a toca.
+func start_raid() -> void:
+	if raid_active:
+		return
+	Story.set_flag(&"raid_tonight", true)
+	raid_active = true
+	_last_raid_day = Clock.day
+	_raid_size = _rng.randi_range(Tuning.RAID_SIZE.x, Tuning.RAID_SIZE.y)
+	_raiders.clear()
+	var mouth := Vector3(ForestLayout.CAVE_CENTER.x, 0.0, ForestLayout.CAVE_CENTER.y - ForestLayout.CAVE_DEPTH * 0.5 - 5.0)
+	var inside := Vector3(ForestLayout.CAVE_CENTER.x, 0.0, ForestLayout.CAVE_CENTER.y)
+	mouth.y = _ground(mouth.x, mouth.z)
+	inside.y = _ground(inside.x, inside.z)
+	var start := _edge_spawn()
+	for i in _raid_size:
+		var kind := &"warrior" if i % 2 == 1 else &"scout"
+		var route: Array[Vector3] = [mouth, inside]
+		var orc := spawn(kind, start + Vector3(float(i) * 1.5, 0.0, float(i % 2) * 1.5), route, true)
+		_raiders.append(orc)
+
+
+func _raid_update() -> void:
+	if not raid_active:
+		return
+	var alive: Array[Orc] = []
+	for orc in _raiders:
+		if is_instance_valid(orc) and not orc.is_dead() and orc.state != Orc.State.FLEE:
+			alive.append(orc)
+	var dawn := Clock.hour >= Tuning.RAID_END_HOUR and Clock.hour < 12.0 and Clock.day > _last_raid_day
+	if alive.size() * 2 <= _raid_size or dawn:
+		end_raid(alive)
+
+
+func end_raid(survivors: Array[Orc]) -> void:
+	for orc in survivors:
+		orc._flee()
+	raid_active = false
+	_raiders.clear()
+	Story.set_flag(&"raid_tonight", false)
+	if Vitals.health > 0.0:
+		Story.add_count(&"raids_won", 1)
+		Story.add_vigilance(Tuning.VIGILANCE_RAID_WON)
+		Events.notification_shown.emit("Os orcs recuaram. A toca aguentou.")
+
+
+## Um orc entrou na luta com o goblin (F14): conta para a Vigilância e para as anotações.
+func on_fight(orc: Orc) -> void:
+	Story.trigger(&"orc", &"seen")
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - _fight_clock < Tuning.FIGHT_VIGILANCE_COOLDOWN:
+		return
+	_fight_clock = now
+	Story.add_vigilance(Tuning.VIGILANCE_FIGHT)
+	if Game.player != null and Watchers.watching(Game.player.global_position):
+		Story.add_vigilance(Tuning.VIGILANCE_FIGHT_SEEN)
+
+
 func _on_died(dead: Orc) -> void:
 	Story.add_count(&"orc_killed", 1)
+	Story.trigger(&"orc", &"chief" if dead.kind == &"chief" else &"killed")
+	if dead.kind == &"chief":
+		Story.add_vigilance(Tuning.VIGILANCE_CHIEF)
 	for orc in orcs():
 		if orc.global_position.distance_to(dead.global_position) < 30.0:
 			orc.lose_heart(0.35)
 
 
 func save_data() -> Dictionary:
-	return {"arrived_day": _arrived_day}
+	return {"arrived_day": _arrived_day, "last_raid_day": _last_raid_day}
 
 
 func load_data(data: Dictionary) -> void:
 	_arrived_day = int(data.get("arrived_day", -1))
+	_last_raid_day = int(data.get("last_raid_day", -99))
+	# Uma Investida não volta do save: carregando no meio dela, a noite recomeça calma.
+	Story.set_flag(&"raid_tonight", false)

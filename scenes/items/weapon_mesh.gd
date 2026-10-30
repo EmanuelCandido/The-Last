@@ -68,6 +68,15 @@ static func build(item: StringName) -> ArrayMesh:
 			TreeBuilder.add_branch(guard, Vector3(-0.06, 0.075, 0.0), Vector3(0.06, 0.075, 0.0), 0.012, 0.012, 5)
 			_add_blade(builder.tool_for(_material(preload("res://assets/textures/metal.png"), Color(0.66, 0.65, 0.63))),
 				Vector3(0.0, 0.08, 0.0), length - 0.08, 0.035, 0.006)
+		&"orc_hammer":
+			# Um cabo comprido e a cabeça: um bloco de pedra amarrado com tiras de ferro.
+			TreeBuilder.add_branch(wood, Vector3(0.0, -0.1, 0.0), Vector3(0.0, length, 0.0), 0.02, 0.018, 6)
+			TreeBuilder.add_branch(leather, Vector3(0.0, -0.08, 0.0), Vector3(0.0, 0.1, 0.0), 0.023, 0.023, 6)
+			var block := builder.tool_for(_material(preload("res://assets/textures/rock.png"), Color(0.62, 0.6, 0.58)))
+			TreeBuilder.add_branch(block, Vector3(-0.12, length - 0.06, 0.0), Vector3(0.12, length - 0.04, 0.0), 0.075, 0.07, 6)
+			var bands := builder.tool_for(_material(preload("res://assets/textures/metal.png"), Color(0.5, 0.48, 0.46)))
+			for x: float in [-0.06, 0.06]:
+				TreeBuilder.add_branch(bands, Vector3(x, length - 0.06, 0.0), Vector3(x + 0.015, length - 0.05, 0.0), 0.08, 0.08, 6)
 	var mesh := builder.commit()
 	_cache[item] = mesh
 	return mesh

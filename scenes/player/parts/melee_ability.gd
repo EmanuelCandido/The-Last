@@ -46,6 +46,10 @@ var _queued := false
 ## Armas que já avisaram que estão rachando.
 var _warned := {}
 var _trace := WeaponTrace.new()
+## Vida perdida na luta de agora (F14): passando de Tuning.FIGHT_HURT_LIMIT, a Vigilância sobe e a
+## próxima visita ao Abrigo tem menos lucidez. Esquece depois de um minuto sem levar golpe.
+var _fight_hurt := 0.0
+var _fight_timer := 0.0
 
 @onready var _player: Player = get_parent()
 
@@ -83,6 +87,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	_iframes = maxf(_iframes - delta, 0.0)
+	_fight_timer -= delta
+	if _fight_timer <= 0.0:
+		_fight_hurt = 0.0
 	poise = maxf(poise - Tuning.POISE_DECAY * delta, 0.0)
 	var animator := _player.animator()
 	# Um golpe que outra ação cortou não volta: esquece.
@@ -392,6 +399,12 @@ func _take(damage: float, attack: Dictionary, push: Vector3, gained: float) -> v
 	# A armadura vestida (F13): passa só uma parte, pelo tipo do golpe.
 	damage *= Armor.protection(kind)
 	Vitals.damage(damage, attack.get("cause", &"hit"))
+	var before := _fight_hurt
+	_fight_hurt += damage
+	_fight_timer = 60.0
+	if before < Tuning.FIGHT_HURT_LIMIT and _fight_hurt >= Tuning.FIGHT_HURT_LIMIT:
+		Story.add_vigilance(Tuning.VIGILANCE_FIGHT_HURT)
+		Story.set_flag(&"hard_fight_today")
 	if (kind == &"cut" or kind == &"bite") and damage >= 5.0 and randf() < Tuning.BLEED_CHANCE:
 		Vitals.bleed(Tuning.BLEED_SECONDS)
 	poise += gained

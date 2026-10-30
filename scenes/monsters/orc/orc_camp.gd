@@ -161,6 +161,13 @@ func spawn_guards(band: OrcBand) -> void:
 		loop.append(global_position + Vector3(cos(angle), 0.0, sin(angle)) * RADIUS * 0.55)
 	band.spawn(&"scout", loop[0], loop)
 	band.spawn(&"warrior", loop[2], loop)
+	# O chefe mora aqui, perto do fogo (F13), do dia da patrulha em diante e enquanto vive.
+	if Clock.day >= Tuning.ORC_PATROL_DAY and not Story.has_flag(&"chief_dead"):
+		spawn_chief(band)
+
+
+func spawn_chief(band: OrcBand) -> Orc:
+	return band.spawn(&"chief", global_position + Vector3(1.8, 0.0, 1.2))
 
 
 ## Os orcs trouxeram uma bolsa: junta ao que já está no baú.

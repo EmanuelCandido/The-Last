@@ -109,8 +109,13 @@ func _fight() -> void:
 		Game.player.face(orc.global_position - Game.player.global_position)
 		Input.action_press("aim")
 		await _until(func() -> bool: return orc.state == Orc.State.KNEEL or Vitals.health < 100.0 or orc._attack.is_empty(), 2.0)
-		if orc.state == Orc.State.KNEEL or Vitals.health < 100.0:
+		if orc.state == Orc.State.KNEEL:
 			break
+		# Pegou antes da defesa subir (ou ela só segurou): tenta o próximo golpe.
+		Vitals.health = 100.0
+		Vitals.bleeding = 0.0
+		melee.stamina = 1.0
+		melee.poise = 0.0
 	Input.action_release("aim")
 	_check(orc.state == Orc.State.KNEEL, "aparado, o orc ajoelha (%d, vida %.0f)" % [orc.state, Vitals.health])
 	if orc.state == Orc.State.KNEEL:

@@ -65,6 +65,11 @@ const TIPS := """[b]CONTROLES[/b]
 • Se um orc estava perto, ele leva a bolsa para o baú do acampamento da Pedra Rachada, a leste. A paliçada tem uma fresta nos fundos onde só um goblin passa.
 • Esconderijo (2 pedras e 2 madeiras, dentro da toca): {interact} guarda tudo; agachado, {interact} pega de volta. O que está guardado não se perde.
 
+[b]O CHEFE E A INVESTIDA[/b]
+• O chefe dos orcs mora no acampamento. Ele investe de longe, reto: saia de lado, ou deixe que ele bata num tronco ou na paliçada e fique tonto. O golpe de cima finca o martelo no chão e ele fica preso, curvado: é a hora da cabeça.
+• Enquanto o chefe vive, depois de alguns dias uma trompa soa no fim da tarde: naquela noite eles vêm até a toca, com tochas, e não dá para dormir. Prepare a boca da caverna.
+• Estacas (3 madeiras) ferem a perna de quem passa correndo por cima. A corda de ossos (1 tendão e 2 ossos) bate quando algo passa.
+
 [b]EQUIPAMENTO DE GUERRA[/b]
 • Na bancada: escudo de galhos (3 madeiras e 1 couro), que vai no braço esquerdo com uma arma de uma mão: a defesa passa bem menos e segura flecha.
 • Pendure couro no defumador com o fogo aceso: vira couro curtido. Dele saem o capuz e o gibão. O crânio do javali vira elmo.

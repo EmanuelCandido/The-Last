@@ -50,6 +50,17 @@ var route: Array[Vector3] = []
 ## Quem reúne os orcs (alerta, vez de atacar). Pode faltar (orc de teste).
 var band: Node
 var weapon_item := &"orc_axe"
+## Não vai embora às 19h: o chefe mora no acampamento (F13).
+var resident := false
+## Veio na Investida (F13): de noite, com tocha, e a toca não é proibida para ele.
+var raider := false
+
+## Tamanho do modelo (o chefe é maior).
+var _scale := Tuning.ORC_MODEL_SCALE
+var _charging := 0.0
+var _charge_dir := Vector3.ZERO
+var _charge_wait := 0.0
+var _horned := false
 
 var _animator: GoblinAnimator
 var _visual: Node3D
@@ -80,16 +91,20 @@ func _ready() -> void:
 	add_to_group(GROUP)
 	_rng.randomize()
 	health = float(Tuning.ORC_HEALTH.get(kind, 3.0))
-	weapon_item = &"orc_sword" if kind == &"warrior" else &"orc_axe"
+	weapon_item = &"orc_sword" if kind == &"warrior" else &"orc_hammer" if kind == &"chief" else &"orc_axe"
+	if kind == &"chief":
+		_scale = Tuning.ORC_MODEL_SCALE * Tuning.ORC_CHIEF_SCALE
+		resident = true
+	var size := _scale / Tuning.ORC_MODEL_SCALE
 	collision_layer = BODY_LAYER
 	collision_mask = BODY_MASK
 	floor_snap_length = 0.4
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
-	capsule.radius = 0.32
-	capsule.height = 1.75
+	capsule.radius = 0.32 * size
+	capsule.height = 1.75 * size
 	shape.shape = capsule
-	shape.position = Vector3.UP * 0.875
+	shape.position = Vector3.UP * 0.875 * size
 	add_child(shape)
 	_build_body()
 	_build_hit_area()
@@ -103,6 +118,14 @@ func _ready() -> void:
 	_trace.mask = HIT_LAYER | 8
 	_trace.radius = 0.1
 	Events.noise_made.connect(_on_noise)
+	# Os da Investida vêm de noite com tocha: a luz mostra onde estão na neblina.
+	if raider:
+		var torch := OmniLight3D.new()
+		torch.light_color = Color(1.0, 0.62, 0.32)
+		torch.light_energy = 1.6
+		torch.omni_range = 9.0
+		torch.position = Vector3(0.35, 1.9, 0.2) * size
+		add_child(torch)
 	_target_yaw = _visual.rotation.y
 	_last_yaw = _target_yaw
 
@@ -112,7 +135,7 @@ func _ready() -> void:
 func _build_body() -> void:
 	_visual = Node3D.new()
 	_visual.name = "Visual"
-	_visual.scale = Vector3.ONE * Tuning.ORC_MODEL_SCALE
+	_visual.scale = Vector3.ONE * _scale
 	add_child(_visual)
 	_model = MODEL.instantiate()
 	_visual.add_child(_model)
@@ -121,7 +144,7 @@ func _build_body() -> void:
 	GoblinLook.apply(_model, {
 		"pele": Color(0.78, 0.82, 0.72), "pele_escura": Color(0.52, 0.55, 0.5),
 		"trapo": Color(1.35, 1.32, 1.22), "trapo_escuro": Color(0.95, 0.92, 0.85), "couro": Color(0.7, 0.66, 0.62),
-	}, GoblinLook.TEXEL_SPAN / Tuning.ORC_MODEL_SCALE)
+	}, GoblinLook.TEXEL_SPAN / _scale)
 	var player := _model.find_child("AnimationPlayer") as AnimationPlayer
 	if player != null:
 		player.stop()
@@ -129,7 +152,7 @@ func _build_body() -> void:
 	for piece in ["Elmo", "Peitoral"]:
 		var node := _model.find_child(piece, true, false) as Node3D
 		if node != null:
-			node.visible = kind == &"warrior"
+			node.visible = kind != &"scout"
 	var skeleton := _model.find_child("Skeleton3D") as Skeleton3D
 	_animator = GoblinAnimator.new()
 	add_child(_animator)
@@ -154,10 +177,11 @@ func _build_hit_area() -> void:
 	_hit_area.monitoring = false
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
-	capsule.radius = 0.38
-	capsule.height = 1.85
+	var size := _scale / Tuning.ORC_MODEL_SCALE
+	capsule.radius = 0.38 * size
+	capsule.height = 1.85 * size
 	shape.shape = capsule
-	shape.position = Vector3.UP * 0.92
+	shape.position = Vector3.UP * 0.92 * size
 	_hit_area.add_child(shape)
 	add_child(_hit_area)
 
@@ -212,7 +236,11 @@ func _physics_process(delta: float) -> void:
 		poise = maxf(poise - Tuning.ORC_POISE_DECAY * delta, 0.0)
 		_limp = maxf(_limp - delta, 0.0)
 		_attack_wait -= delta
-		_think(delta)
+		_charge_wait -= delta
+		if _charging > 0.0:
+			_charge_step(delta)
+		else:
+			_think(delta)
 		if _attack.get("active", false):
 			_sweep()
 		if state != State.FLEE and state != State.LEAVE:
@@ -221,6 +249,12 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, 0.0, 8.0 * delta)
 		velocity.z = move_toward(velocity.z, 0.0, 8.0 * delta)
 	move_and_slide()
+	# A investida bateu num tronco, num poste ou na rocha: fica tonto (a hora do goblin).
+	if _charging > 0.0 and is_on_wall():
+		_charging = 0.0
+		_kneel(Tuning.ORC_CHIEF_STUN)
+		OccludedAudio.play_at(get_parent(), MeleeAbility.BLOCK_SOUNDS.pick_random(), global_position + Vector3.UP, &"World", 4.0, 8.0, 0.6)
+		Events.noise_made.emit(global_position, 14.0)
 
 
 func _process(delta: float) -> void:
@@ -306,7 +340,7 @@ func alert(at: Vector3) -> void:
 func _think(delta: float) -> void:
 	_timer -= delta
 	var player := Game.player
-	if state != State.FLEE and state != State.LEAVE and Clock.hour >= Tuning.ORC_LEAVE_HOUR:
+	if not resident and not raider and state != State.FLEE and state != State.LEAVE and Clock.hour >= Tuning.ORC_LEAVE_HOUR:
 		_leave()
 	match state:
 		State.PATROL:
@@ -371,6 +405,8 @@ func _enter(new_state: State) -> void:
 	state = new_state
 	match new_state:
 		State.COMBAT:
+			if band != null and band.has_method("on_fight"):
+				band.on_fight(self)
 			if not _shouted:
 				_shouted = true
 				_play(SHOUT, 0.0)
@@ -411,6 +447,10 @@ func _fight(player: Player, delta: float) -> void:
 			_play(GRUNTS.pick_random(), -4.0, 0.9)
 		return
 	_target_yaw = atan2(toward.x, toward.z)
+	# O chefe investe de longe (F13): reto e rápido. Dá para sair de lado; batendo num tronco, fica tonto.
+	if kind == &"chief" and _charge_wait <= 0.0 and distance > Tuning.ORC_CHIEF_CHARGE_RANGE.x and distance < Tuning.ORC_CHIEF_CHARGE_RANGE.y:
+		_start_charge(toward)
+		return
 	# Colado demais, o arco da arma passa por fora do goblin: recua um passo antes de golpear.
 	if distance < Tuning.ORC_ATTACK_MIN:
 		_move(-toward, Tuning.ORC_WALK_SPEED, delta)
@@ -478,12 +518,37 @@ func _close_attack() -> void:
 
 
 func _end_attack() -> void:
+	# O golpe de cima do chefe finca o martelo no chão: ele fica preso, curvado (F13).
+	var stuck := kind == &"chief" and bool(_attack.get("heavy", false))
 	_attack = {}
 	_attack_wait = _rng.randf_range(Tuning.ORC_ATTACK_PAUSE.x, Tuning.ORC_ATTACK_PAUSE.y)
+	if stuck:
+		_kneel(Tuning.ORC_CHIEF_STUCK, false)
+
+
+func _start_charge(toward: Vector3) -> void:
+	_charging = Tuning.ORC_CHIEF_CHARGE_TIME
+	_charge_dir = toward
+	_charge_wait = Tuning.ORC_CHIEF_CHARGE_PAUSE
+	_target_yaw = atan2(toward.x, toward.z)
+	_play(SHOUT, 2.0, 0.75)
+
+
+func _charge_step(delta: float) -> void:
+	_charging -= delta
+	velocity.x = _charge_dir.x * Tuning.ORC_CHIEF_CHARGE_SPEED
+	velocity.z = _charge_dir.z * Tuning.ORC_CHIEF_CHARGE_SPEED
+	var player := Game.player
+	if player != null and global_position.distance_to(player.global_position) < 1.4 * _scale / Tuning.ORC_MODEL_SCALE:
+		_charging = 0.0
+		player.receive_attack({
+			"damage": Tuning.ORC_CHIEF_CHARGE_DAMAGE, "kind": &"blunt", "from": global_position, "poise": 1.4,
+			"cause": &"orc", "attacker": self, "push": _charge_dir * 5.0 + Vector3.UP * 2.0, "charge": true,
+		})
 
 
 func _sweep() -> void:
-	var blade := WeaponMesh.blade(weapon_item, _weapon.global_position, _weapon_axis, Tuning.ORC_MODEL_SCALE)
+	var blade := WeaponMesh.blade(weapon_item, _weapon.global_position, _weapon_axis, _scale)
 	for hit: Dictionary in _trace.sweep(get_world_3d(), blade[0], blade[1]):
 		var target: Node = hit.target
 		if target is Orc:
@@ -505,16 +570,18 @@ func stagger(_seconds: float) -> void:
 	_kneel()
 
 
-func _kneel() -> void:
+func _kneel(seconds := Tuning.ORC_KNEEL, hurt := true) -> void:
 	if state == State.DEAD:
 		return
 	_attack = {}
+	_charging = 0.0
 	poise = 0.0
 	state = State.KNEEL
-	_timer = Tuning.ORC_KNEEL
+	_timer = seconds
 	if _animator != null:
-		_animator.play_action(&"kneel", Tuning.ORC_KNEEL)
-	_play(HURT.pick_random(), -2.0, 0.9)
+		_animator.play_action(&"kneel", seconds)
+	if hurt:
+		_play(HURT.pick_random(), -2.0, 0.9)
 
 
 # --- Golpes no orc -------------------------------------------------------------------
@@ -530,26 +597,32 @@ func strike(damage: float, kind_of_hit: StringName, point: Vector3, direction: V
 		return
 	# O osso `cabeca` começa no pescoço: o meio da cabeça fica uns 12 cm (no modelo) acima.
 	var head := (_animator.bone_position("cabeca") if _animator != null else global_position + Vector3.UP * 1.3) \
-		+ Vector3.UP * 0.12 * Tuning.ORC_MODEL_SCALE
+		+ Vector3.UP * 0.12 * _scale
 	var hips := _animator.bone_position("quadril") if _animator != null else global_position + Vector3.UP * 0.8
 	var zone := &"torso"
-	if point.distance_to(head) < 0.17 * Tuning.ORC_MODEL_SCALE:
+	if point.distance_to(head) < 0.17 * _scale:
 		zone = &"head"
 	elif point.y < hips.y:
 		zone = &"legs"
 	var hurt := damage
 	match zone:
 		&"head":
-			hurt *= Tuning.ORC_HEAD_DAMAGE / (Tuning.ORC_HELMET if kind == &"warrior" and kind_of_hit != &"blunt" else 1.0)
+			hurt *= Tuning.ORC_HEAD_DAMAGE / (Tuning.ORC_HELMET if kind != &"scout" and kind_of_hit != &"blunt" else 1.0)
 		&"legs":
 			hurt *= Tuning.ORC_LEG_DAMAGE
 			_limp = Tuning.ORC_LIMP_SECONDS
 		_:
-			if kind == &"warrior":
+			if kind != &"scout":
 				hurt *= float(Tuning.ORC_IRON.get(kind_of_hit, 1.0))
 	# Pego desprevenido (o goblin não foi visto): o golpe entra inteiro.
 	health -= hurt
-	morale -= hurt / maxf(float(Tuning.ORC_HEALTH.get(kind, 3.0)), 0.1) * 0.5
+	morale -= hurt / maxf(float(Tuning.ORC_HEALTH.get(kind, 3.0)), 0.1) * (0.2 if kind == &"chief" else 0.5)
+	# O chefe pela metade toca a trompa e chama todos (F13).
+	if kind == &"chief" and not _horned and health < float(Tuning.ORC_HEALTH[&"chief"]) * 0.5:
+		_horned = true
+		_play(SHOUT, 4.0, 0.6)
+		if band != null and band.has_method("alert") and Game.player != null:
+			band.alert(self, Game.player.global_position)
 	_play(HURT.pick_random(), -1.0, _rng.randf_range(0.9, 1.05))
 	if health <= 0.0:
 		_die()
@@ -607,6 +680,10 @@ func _die() -> void:
 	_play(DEATH, 0.0)
 	add_to_group(&"interactable")
 	Events.noise_made.emit(global_position, 12.0)
+	if kind == &"chief":
+		# Sem o chefe, o acampamento não ataca mais a toca neste ciclo (F13).
+		Story.set_flag(&"chief_dead", true)
+		Story.add_count(&"chief_killed", 1)
 	died.emit(self)
 
 
@@ -629,17 +706,17 @@ func interact(_player: Node) -> void:
 	# A arma, gasta da luta.
 	Inventory.add(weapon_item, 1, _rng.randf_range(0.3, 0.6))
 	found.append(String(Weapons.spec(weapon_item).get("called", weapon_item)))
-	var scrap := _rng.randi_range(1, 2) + (1 if kind == &"warrior" else 0)
+	var scrap := _rng.randi_range(1, 2) + (1 if kind == &"warrior" else 3 if kind == &"chief" else 0)
 	Inventory.add(&"iron_scrap", scrap)
 	found.append("%d sucata%s" % [scrap, "s" if scrap > 1 else ""])
 	Inventory.add(&"orc_ration")
 	found.append("carne seca")
 	# O ferro do guerreiro (F13): grande demais, ajusta na bancada.
-	if kind == &"warrior":
-		if _rng.randf() < Tuning.ORC_HELMET_DROP:
+	if kind != &"scout":
+		if kind == &"chief" or _rng.randf() < Tuning.ORC_HELMET_DROP:
 			Inventory.add(&"orc_helmet")
 			found.append("o elmo")
-		if _rng.randf() < Tuning.ORC_CHEST_DROP:
+		if kind == &"chief" or _rng.randf() < Tuning.ORC_CHEST_DROP:
 			Inventory.add(&"orc_chest")
 			found.append("o peitoral")
 	var arrows := Arrow.collect_from(self)
@@ -713,7 +790,7 @@ func _steer(direction: Vector3) -> Vector3:
 ## beira); quem estiver dentro é empurrado para fora.
 func _hold_zones() -> void:
 	var flat := Vector2(global_position.x, global_position.z)
-	for zone: Array in [[ForestLayout.CAVE_CENTER, Tuning.ORC_CAVE_KEEP_OUT], [ForestLayout.RUINS, Tuning.ORC_RUIN_KEEP_OUT]]:
+	for zone: Array in _zones():
 		var center: Vector2 = zone[0]
 		var radius: float = zone[1]
 		var offset := flat - center
@@ -729,17 +806,27 @@ func _hold_zones() -> void:
 		velocity.z = moving.y
 
 
+## Os lugares onde o orc não entra: a toca (menos na Investida) e a ruína. [[centro, raio]...]
+func _zones() -> Array:
+	var list := [[ForestLayout.RUINS, Tuning.ORC_RUIN_KEEP_OUT]]
+	if not raider:
+		list.append([ForestLayout.CAVE_CENTER, Tuning.ORC_CAVE_KEEP_OUT])
+	return list
+
+
 ## Dentro da toca ou perto da ruína: lugar onde o orc não entra.
 func _forbidden(point: Vector3) -> bool:
 	var flat := Vector2(point.x, point.z)
-	return flat.distance_to(ForestLayout.CAVE_CENTER) < Tuning.ORC_CAVE_KEEP_OUT \
-		or flat.distance_to(ForestLayout.RUINS) < Tuning.ORC_RUIN_KEEP_OUT
+	for zone: Array in _zones():
+		if flat.distance_to(zone[0]) < float(zone[1]):
+			return true
+	return false
 
 
 ## O ponto mais perto de `point` fora da toca e da ruína.
 func _keep_out(point: Vector3) -> Vector3:
 	var flat := Vector2(point.x, point.z)
-	for zone: Array in [[ForestLayout.CAVE_CENTER, Tuning.ORC_CAVE_KEEP_OUT], [ForestLayout.RUINS, Tuning.ORC_RUIN_KEEP_OUT]]:
+	for zone: Array in _zones():
 		var center: Vector2 = zone[0]
 		var radius: float = zone[1]
 		var offset := flat - center

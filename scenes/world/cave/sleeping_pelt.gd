@@ -44,7 +44,14 @@ func _update_bed() -> void:
 
 
 func interaction_prompt() -> String:
+	# A noite da Investida (F13): eles estão vindo.
+	if Story.has_flag(&"raid_tonight"):
+		return "Não dá para dormir com eles lá fora"
 	return "Dormir até amanhecer" if Clock.can_sleep() and not Game.resting else ""
+
+
+func interaction_enabled() -> bool:
+	return not Story.has_flag(&"raid_tonight")
 
 
 func interaction_action() -> Dictionary:

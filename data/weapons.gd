@@ -59,10 +59,17 @@ const LIST := {
 		"stamina": 0.24, "heavy_stamina": 0.42, "poise": 0.5, "heavy_poise": 1.0,
 		"speed": 0.72, "wear": 90, "stealth": 3.0, "repair": {&"iron_scrap": 1},
 	},
+	# F13: o martelo do chefe. Lento demais para o dia a dia; derruba qualquer um.
+	&"orc_hammer": {
+		"name": "Martelo do chefe", "called": "o martelo do chefe", "hands": 2, "kind": &"blunt", "style": &"club",
+		"light": 1.3, "heavy": 2.6, "reach": 0.6, "length": 0.8,
+		"stamina": 0.3, "heavy_stamina": 0.5, "poise": 0.8, "heavy_poise": 1.6,
+		"speed": 0.62, "wear": 60, "stealth": 2.0, "repair": {&"iron_scrap": 2},
+	},
 }
 
 ## Ordem em que a troca de arma (Tab) passa pelas armas; &"" é o arco (ou as mãos vazias).
-const CYCLE: Array[StringName] = [&"", &"stone_knife", &"bone_knife", &"club", &"spear", &"orc_axe", &"orc_sword"]
+const CYCLE: Array[StringName] = [&"", &"stone_knife", &"bone_knife", &"club", &"spear", &"orc_axe", &"orc_sword", &"orc_hammer"]
 
 
 static func is_weapon(item: StringName) -> bool:

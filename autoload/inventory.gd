@@ -57,6 +57,7 @@ const NAMES := {
 	&"tanned_hide": "Couro curtido",
 	&"boar_skull": "Crânio de javali",
 	&"iron_arrow": "Flechas de ferro",
+	&"orc_hammer": "Martelo do chefe",
 }
 ## Ordem dos itens na linha do HUD (o que não está aqui não aparece: arco e roupa se veem no goblin).
 const HUD_ORDER: Array[StringName] = [

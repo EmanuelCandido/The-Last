@@ -141,6 +141,17 @@ const LIST: Array[Dictionary] = [
 		"cost": {&"iron_scrap": 1, &"wood": 1}, "gives": {&"iron_arrow": 3}, "station": &"bench",
 		"message": "+3 flechas de ferro: furam o ferro dos orcs.",
 	},
+	# F13: armadilhas, montadas aos pés do goblin.
+	{
+		"id": &"stakes", "name": "Estacas",
+		"cost": {&"wood": 3}, "gives": {}, "special": &"stakes",
+		"message": "Fincou as estacas. Quem passar correndo por cima fere a perna.",
+	},
+	{
+		"id": &"bone_rope", "name": "Corda de ossos",
+		"cost": {&"sinew": 1, &"bone": 2}, "gives": {}, "special": &"bones",
+		"message": "Esticou a corda de ossos. Se algo passar, você vai ouvir.",
+	},
 	{
 		"id": &"repair", "name": "Consertar a arma na mão",
 		"cost": {}, "gives": {}, "special": &"repair", "station": &"bench",

@@ -47,6 +47,9 @@ func _ready() -> void:
 	var bags := BagField.new()
 	bags.name = "Bags"
 	add_child(bags)
+	var traps := TrapField.new()
+	traps.name = "Traps"
+	add_child(traps)
 	var stash := CaveStash.new()
 	stash.name = "Stash"
 	_cave.add_child(stash)

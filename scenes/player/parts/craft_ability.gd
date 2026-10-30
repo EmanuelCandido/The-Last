@@ -130,6 +130,13 @@ func _finish(recipe: Dictionary) -> void:
 					break
 		&"repair":
 			Inventory.repair(Inventory.held())
+		&"stakes", &"bones":
+			var traps := get_tree().get_first_node_in_group(TrapField.GROUP) as TrapField
+			if traps != null:
+				var facing := _player.facing()
+				var kind: StringName = &"stakes" if recipe.special == &"stakes" else &"bones"
+				if not traps.build_at(kind, _player.global_position + facing * 0.8, atan2(facing.x, facing.z)):
+					Events.notification_shown.emit("Já tem armadilhas demais desse tipo.")
 		&"stash":
 			for node in get_tree().get_nodes_in_group(CaveStash.GROUP):
 				if not (node as CaveStash).built:

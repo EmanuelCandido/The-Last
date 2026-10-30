@@ -44,6 +44,9 @@ static func lucidity_seconds(last_wake: StringName) -> float:
 	var seconds := Tuning.LUCIDITY_SECONDS
 	if Vitals.satiety < Tuning.LUCIDITY_HUNGRY_BELOW:
 		seconds *= Tuning.LUCIDITY_HUNGRY_FACTOR
+	# F14: uma luta pesada no dia cansa o corpo de Ari (a adrenalina).
+	if Story.has_flag(&"hard_fight_today"):
+		seconds -= Tuning.COMBAT_LUCIDITY_PENALTY
 	return seconds
 
 

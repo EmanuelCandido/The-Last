@@ -838,6 +838,42 @@ const BONE_ROPES_MAX := 4
 const STAKES_USES := 2
 const STAKES_DAMAGE := 0.8
 const TRAP_RADIUS := 0.9
+## O chefe (o Bruto): tamanho além do orc comum, a investida (velocidade, duração, de que distância,
+## pausa entre uma e outra, dano no goblin), quanto fica tonto batendo num tronco e quanto fica
+## preso depois do golpe de cima (a hora da cabeça).
+const ORC_CHIEF_SCALE := 1.25
+const ORC_CHIEF_CHARGE_SPEED := 6.2
+const ORC_CHIEF_CHARGE_TIME := 2.2
+const ORC_CHIEF_CHARGE_RANGE := Vector2(4.0, 10.0)
+const ORC_CHIEF_CHARGE_PAUSE := 6.0
+const ORC_CHIEF_CHARGE_DAMAGE := 30.0
+const ORC_CHIEF_STUN := 3.0
+const ORC_CHIEF_STUCK := 1.6
+## A Investida (§9.3): do dia RAID_DAY, a cada RAID_INTERVAL dias, se o chefe vive. A trompa às
+## RAID_WARN_HOUR, a chegada às RAID_START_HOUR, de RAID_SIZE orcs com tochas; acaba às
+## RAID_END_HOUR ou quando metade cai.
+const RAID_DAY := 9
+const RAID_INTERVAL := 3
+const RAID_SIZE := Vector2i(3, 5)
+const RAID_WARN_HOUR := 18.0
+const RAID_START_HOUR := 21.0
+const RAID_END_HOUR := 5.5
+
+# --- F14: a segunda leitura (docs/plano_combate.md §2 e §11; experimental) ---------------------
+
+## Vigilância da luta (do Ato II em diante): começar uma luta (no máximo a cada FIGHT_VIGILANCE_COOLDOWN
+## s), a luta vista por um corvo, perder mais de FIGHT_HURT_LIMIT de vida numa luta, matar o chefe e
+## ganhar a Investida (Ari dorme aliviado). Abater em silêncio não conta.
+const VIGILANCE_FIGHT := 2.0
+const VIGILANCE_FIGHT_SEEN := 5.0
+const VIGILANCE_FIGHT_HURT := 5.0
+const VIGILANCE_CHIEF := 10.0
+const VIGILANCE_RAID_WON := -10.0
+const FIGHT_VIGILANCE_COOLDOWN := 120.0
+const FIGHT_HURT_LIMIT := 40.0
+## Depois de uma luta pesada no dia (mais de FIGHT_HURT_LIMIT de vida perdida), a próxima visita ao
+## Abrigo tem tantos segundos de lucidez a menos: o corpo de Ari cansado da adrenalina.
+const COMBAT_LUCIDITY_PENALTY := 20.0
 
 # --- F12: os orcs (docs/plano_combate.md §7; experimental) ------------------------------------
 
@@ -845,7 +881,7 @@ const TRAP_RADIUS := 0.9
 const ORC_MODEL_SCALE := 1.5
 const ORC_EYE_HEIGHT := 1.6
 ## Vida (unidade da flechada), velocidades (m/s) e o giro (rad/s).
-const ORC_HEALTH := {&"scout": 3.0, &"warrior": 4.5}
+const ORC_HEALTH := {&"scout": 3.0, &"warrior": 4.5, &"chief": 12.0}
 const ORC_WALK_SPEED := 1.35
 const ORC_RUN_SPEED := 3.9
 const ORC_TURN_SPEED := 6.0
