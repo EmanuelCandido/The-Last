@@ -60,6 +60,11 @@ const TIPS := """[b]CONTROLES[/b]
 • Um orc grita e chama os outros. Só dois atacam de cada vez. Quando um cai, os outros perdem a coragem, e o orc ferido foge.
 • Eles não entram na toca. Morto, o orc pode ser revistado ({interact}): a arma dele (gasta), sucata de ferro e carne seca. O guerreiro às vezes deixa o elmo e o peitoral.
 
+[b]MORRER E GUARDAR[/b]
+• Morrendo, o que você carrega cai numa bolsa onde você caiu (a armadura, a roupa, o escudo e o arco ficam com você). Ela some no fim do dia seguinte.
+• Se um orc estava perto, ele leva a bolsa para o baú do acampamento da Pedra Rachada, a leste. A paliçada tem uma fresta nos fundos onde só um goblin passa.
+• Esconderijo (2 pedras e 2 madeiras, dentro da toca): {interact} guarda tudo; agachado, {interact} pega de volta. O que está guardado não se perde.
+
 [b]EQUIPAMENTO DE GUERRA[/b]
 • Na bancada: escudo de galhos (3 madeiras e 1 couro), que vai no braço esquerdo com uma arma de uma mão: a defesa passa bem menos e segura flecha.
 • Pendure couro no defumador com o fogo aceso: vira couro curtido. Dele saem o capuz e o gibão. O crânio do javali vira elmo.

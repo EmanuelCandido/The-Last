@@ -829,6 +829,15 @@ const IRON_ARROW_PIERCE := 0.9
 ## O guerreiro revistado deixa o elmo e o peitoral (grandes: ajustar na bancada) com estas chances.
 const ORC_HELMET_DROP := 0.6
 const ORC_CHEST_DROP := 0.45
+## Morrendo com um orc a menos disto (m), ele leva a bolsa para o baú do acampamento.
+const ORC_LOOT_RANGE := 25.0
+## Armadilhas: quantas estacas e cordas de ossos no mapa, quantos golpes as estacas aguentam, o
+## dano na perna (unidade da flechada) e o raio em que pegam quem passa.
+const STAKES_MAX := 6
+const BONE_ROPES_MAX := 4
+const STAKES_USES := 2
+const STAKES_DAMAGE := 0.8
+const TRAP_RADIUS := 0.9
 
 # --- F12: os orcs (docs/plano_combate.md §7; experimental) ------------------------------------
 

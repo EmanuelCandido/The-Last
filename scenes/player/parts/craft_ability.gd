@@ -130,6 +130,11 @@ func _finish(recipe: Dictionary) -> void:
 					break
 		&"repair":
 			Inventory.repair(Inventory.held())
+		&"stash":
+			for node in get_tree().get_nodes_in_group(CaveStash.GROUP):
+				if not (node as CaveStash).built:
+					(node as CaveStash).build_now()
+					break
 	OccludedAudio.play_at(_player, CRAFT_SOUNDS.pick_random(), _player.global_position + Vector3.UP * 0.6, &"World", -4.0, 3.0)
 	Events.notification_shown.emit(String(recipe.get("message", recipe.name)).format(Settings.key_labels()))
 	Events.crafted.emit(recipe.id)

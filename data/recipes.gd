@@ -96,6 +96,11 @@ const LIST: Array[Dictionary] = [
 		"message": "Montou a bancada. Perto dela dá para fazer e consertar mais coisas.",
 	},
 	{
+		"id": &"stash", "name": "Esconderijo na rocha",
+		"cost": {&"stone": 2, &"wood": 2}, "gives": {}, "special": &"stash", "where": &"cave",
+		"message": "Fez um esconderijo atrás de uma laje. O que está guardado não se perde se você morrer.",
+	},
+	{
 		"id": &"bone_knife", "name": "Faca de osso",
 		"cost": {&"bone": 2, &"sinew": 1}, "gives": {&"bone_knife": 1}, "station": &"bench",
 		"message": "Faca de osso pronta: corta mais e dura mais.",
@@ -153,6 +158,9 @@ static func missing(recipe: Dictionary) -> String:
 			return "só dentro da toca"
 		if recipe.get("special", &"") == &"bench" and not player.get_tree().get_nodes_in_group(Workbench.GROUP).any(
 				func(node: Node) -> bool: return not (node as Workbench).built):
+			return "já tem"
+		if recipe.get("special", &"") == &"stash" and not player.get_tree().get_nodes_in_group(CaveStash.GROUP).any(
+				func(node: Node) -> bool: return not (node as CaveStash).built):
 			return "já tem"
 	if recipe.get("station", &"") == &"bench":
 		if player == null or Workbench.near(player.get_tree(), player.global_position, Tuning.BENCH_RADIUS) == null:

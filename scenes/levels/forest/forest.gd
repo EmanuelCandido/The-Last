@@ -43,6 +43,15 @@ func _ready() -> void:
 	var band := OrcBand.new()
 	band.name = "Orcs"
 	add_child(band)
+	# F13: a bolsa da morte e o esconderijo da toca (desmontado até o goblin fabricá-lo).
+	var bags := BagField.new()
+	bags.name = "Bags"
+	add_child(bags)
+	var stash := CaveStash.new()
+	stash.name = "Stash"
+	_cave.add_child(stash)
+	stash.position = Vector3(2.5, 0.0, 1.7)
+	stash.rotation.y = -PI * 0.5
 	# F11: a bancada, desmontada até o goblin fabricá-la.
 	var bench := Workbench.new()
 	bench.name = "Workbench"
@@ -54,6 +63,11 @@ func _ready() -> void:
 	add_child(ruin)
 	ruin.build(_terrain)
 	_vegetation.populate(_terrain)
+	# F13: o acampamento dos orcs, no chão livre mais perto de ForestLayout.ORC_CAMP.
+	var camp := OrcCamp.new()
+	camp.name = "OrcCamp"
+	add_child(camp)
+	camp.build(_terrain, OrcCamp.pick_center(_terrain, _vegetation))
 	_void = NorthVoid.new()
 	_void.name = "NorthVoid"
 	add_child(_void)
