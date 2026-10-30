@@ -750,6 +750,7 @@ Cada fase termina jogável, com teste de fumaça, roteiro `--run` e print confer
 | **F8: Verdade e finais** ✅ feita | Sala de controle, câmeras, conversa, terminal, os 3 finais, créditos, menu principal, modo "Bem-vindo de volta" | Os 3 finais jogados de ponta a ponta |
 | **F9: Caça e vida na toca** ✅ feita | Chuva, manadas com casa e dia, caça legível (sangrar, corpo, mira, tocaia), coleta, carne que estraga, defumador, equipamento, prática, troféus, o Velho e o javali (§8b) | Roteiro de cada bloco e prints da chuva, da manada e dos troféus |
 | **F10: Polimento e orientação** ✅ feita | Testes versionados (`tests/`), degraus, marcos na neblina (pedras, tronco riscado, fumaça, sino), dicas progressivas, aviso de anotação, aviso ao sair, diário de playtest, controle, luz da noite, câmera da mira, cervo novo, export (§8c) | `tests/run_all.ps1` inteiro passando e prints de cada mudança |
+| **F11–F14: Combate e monstros** 📋 planejada | Luta de verdade, armas, armaduras, orcs, a Investida da toca, o troll e a segunda leitura dos orcs: ver [plano_combate.md](plano_combate.md) | O "pronto quando" de cada fase está no §15 de lá |
 
 ---
 

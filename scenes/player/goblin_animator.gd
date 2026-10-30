@@ -83,10 +83,12 @@ var quiver_top := Vector3(-0.08, 0.8, -0.15)
 const FOOT_REACH := 0.3
 ## Pé sem chão: fica pendurado um pouco abaixo da borda, com o joelho solto.
 const FOOT_HANG := -0.1
-## Onde a corda encosta ao puxar: embaixo do queixo, à direita (esqueleto em repouso).
-## A cabeça do goblin é enorme (10 cm de meia-largura na boca, queixo até z = 0,14): a
-## mão da corda tem de ficar fora dela, e o braço do arco (32 cm) tem de alcançar a linha.
-const ANCHOR_REST := Vector3(-0.05, 0.7, 0.16)
+## Onde a corda encosta ao puxar: no canto da mandíbula, por fora da bochecha direita
+## (esqueleto em repouso). A cabeça do goblin é enorme (10 cm de meia-largura na boca, queixo
+## até z = 0,14): ancorada embaixo do queixo, a mão ficava 26 cm à frente do ombro (o braço tem
+## 32), o cotovelo não tinha como ir para trás e o antebraço atravessava o pescoço. Do lado do
+## rosto, a mão fica perto do ombro, o cotovelo dobra para trás e o antebraço segue a flecha.
+const ANCHOR_REST := Vector3(-0.13, 0.7, 0.07)
 ## Do punho até onde os dedos seguram a corda (m).
 const STRING_FINGERS := 0.045
 ## Com a corda solta, a corda fica esta distância à frente da ancoragem: o arco começa perto
@@ -574,8 +576,8 @@ func _aim_overlay(pose: Dictionary) -> void:
 	var hips := -0.45
 	var aimed := {
 		"pelvis_yaw": hips, "feet_yaw": hips * 0.8, "spine_arch": 0.04, "spine_bend": 0.0, "neck_fwd": 0.06,
-		"torso_pitch": 0.1 - pitch * (0.35 if pitch > 0.0 else 0.8) - 0.05 * draw, "torso_yaw": -1.1 - hips - 0.05 * draw, "torso_roll": 0.03,
-		"head_pitch": -pitch * (0.6 if pitch > 0.0 else 0.15), "head_yaw": 1.0 + 0.05 * draw, "head_roll": 0.06 + 0.1 * draw,
+		"torso_pitch": 0.1 - pitch * (0.35 if pitch > 0.0 else 0.8) - 0.05 * draw, "torso_yaw": -1.35 - hips - 0.05 * draw, "torso_roll": 0.03,
+		"head_pitch": -pitch * (0.6 if pitch > 0.0 else 0.15), "head_yaw": 1.25 + 0.05 * draw, "head_roll": 0.06 + 0.1 * draw,
 		"arm_l_fwd": 1.5 + pitch * 0.9, "arm_l_out": 0.0, "arm_l_yaw": -0.4, "arm_l_twist": 0.0, "elbow_l": 0.06, "hand_l": 0.0,
 		"arm_r_fwd": 1.45 + pitch * 0.9, "arm_r_out": 0.0, "arm_r_yaw": 0.15 + 0.75 * draw, "arm_r_twist": 1.5,
 		"elbow_r": 0.7 + 1.7 * draw, "hand_r": 0.2,

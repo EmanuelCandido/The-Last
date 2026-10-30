@@ -16,6 +16,7 @@ signal changed(key: StringName)
 
 const PATH := "user://settings.cfg"
 const BRIGHTNESS_SHADER := preload("res://assets/shaders/brightness.gdshader")
+const RETRO_SHADER := preload("res://assets/shaders/retro_filter.gdshader")
 
 ## Ações que dá para trocar de tecla, na ordem da tela, com o nome que aparece.
 const REMAPPABLE: Array[Array] = [
@@ -46,7 +47,7 @@ const VOLUME_BUSES := {
 ## Seção do arquivo de cada valor simples (os volumes e as teclas têm as suas).
 const SECTIONS := {
 	&"fullscreen": "video", &"vsync": "video", &"render_scale": "video", &"max_fps": "video",
-	&"fov": "video", &"brightness": "video", &"muted": "audio", &"mouse_sensitivity": "controls",
+	&"fov": "video", &"brightness": "video", &"retro": "video", &"muted": "audio", &"mouse_sensitivity": "controls",
 	&"invert_y": "controls", &"text_scale_index": "game", &"show_hints": "game",
 }
 const KEY_NAMES := {
@@ -83,6 +84,8 @@ var render_scale := Tuning.SETTINGS_RENDER_SCALE
 var max_fps := Tuning.SETTINGS_MAX_FPS
 var fov := Tuning.SETTINGS_FOV
 var brightness := Tuning.SETTINGS_BRIGHTNESS
+## O filtro retrô (pixel grande, poucas cores, vinheta e grão) sobre a imagem 3D.
+var retro := Tuning.SETTINGS_RETRO
 # Áudio
 var volumes := {&"master": Tuning.SETTINGS_VOLUME, &"ambience": Tuning.SETTINGS_VOLUME, &"world": Tuning.SETTINGS_VOLUME}
 var muted := false
@@ -97,6 +100,7 @@ var _config := ConfigFile.new()
 var _gain := AudioEffectAmplify.new()
 var _gamma_layer: CanvasLayer
 var _gamma: ShaderMaterial
+var _retro_layer: CanvasLayer
 
 
 ## O último aparelho usado foi o controle (os textos de tecla mostram os botões dele).
@@ -107,6 +111,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	AudioServer.add_bus_effect(0, _gain)
 	_build_gamma()
+	_build_retro()
 	_load()
 	for key: StringName in SECTIONS:
 		_apply(key)
@@ -368,6 +373,8 @@ func _apply(key: StringName) -> void:
 		&"brightness":
 			_gamma.set_shader_parameter(&"gamma", brightness)
 			_gamma_layer.visible = absf(brightness - 1.0) > 0.01
+		&"retro":
+			_retro_layer.visible = retro
 		&"muted":
 			AudioServer.set_bus_mute(0, muted)
 
@@ -389,6 +396,7 @@ func _default(key: StringName) -> Variant:
 		&"max_fps": return Tuning.SETTINGS_MAX_FPS
 		&"fov": return Tuning.SETTINGS_FOV
 		&"brightness": return Tuning.SETTINGS_BRIGHTNESS
+		&"retro": return Tuning.SETTINGS_RETRO
 		&"mouse_sensitivity": return Tuning.SETTINGS_MOUSE_SENSITIVITY
 		&"text_scale_index": return Tuning.SETTINGS_TEXT_SCALE
 		&"show_hints": return true
@@ -436,3 +444,31 @@ func _build_gamma() -> void:
 	_gamma.shader = BRIGHTNESS_SHADER
 	rect.material = _gamma
 	_gamma_layer.add_child(rect)
+
+
+## O filtro retrô, abaixo do brilho (o brilho clareia a imagem já filtrada) e de toda a interface.
+func _build_retro() -> void:
+	_retro_layer = CanvasLayer.new()
+	_retro_layer.name = "RetroFilter"
+	_retro_layer.layer = -2
+	add_child(_retro_layer)
+	var rect := ColorRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var material := ShaderMaterial.new()
+	material.shader = RETRO_SHADER
+	material.set_shader_parameter(&"virtual_height", Tuning.RETRO_VIRTUAL_HEIGHT)
+	material.set_shader_parameter(&"levels", Tuning.RETRO_LEVELS)
+	material.set_shader_parameter(&"dither", Tuning.RETRO_DITHER)
+	material.set_shader_parameter(&"bloom", Tuning.RETRO_BLOOM)
+	material.set_shader_parameter(&"bloom_threshold", Tuning.RETRO_BLOOM_THRESHOLD)
+	material.set_shader_parameter(&"bloom_tint", Tuning.RETRO_BLOOM_TINT)
+	material.set_shader_parameter(&"saturation", Tuning.RETRO_SATURATION)
+	material.set_shader_parameter(&"shadow_tint", Tuning.RETRO_SHADOW_TINT)
+	material.set_shader_parameter(&"light_tint", Tuning.RETRO_LIGHT_TINT)
+	material.set_shader_parameter(&"vignette", Tuning.RETRO_VIGNETTE)
+	material.set_shader_parameter(&"vignette_range", Tuning.RETRO_VIGNETTE_RANGE)
+	material.set_shader_parameter(&"grain", Tuning.RETRO_GRAIN)
+	material.set_shader_parameter(&"grain_fps", Tuning.RETRO_GRAIN_FPS)
+	rect.material = material
+	_retro_layer.add_child(rect)

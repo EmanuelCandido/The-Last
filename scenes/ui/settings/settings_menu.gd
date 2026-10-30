@@ -121,6 +121,7 @@ func _show_tab(tab: String) -> void:
 				func(v: float) -> String: return "%d°" % roundi(v))
 			_slider("Brilho", &"brightness", Tuning.SETTINGS_BRIGHTNESS_RANGE, 0.05,
 				func(v: float) -> String: return "%d%%" % roundi(v * 100.0))
+			_check("Filtro retrô", &"retro")
 		"audio":
 			_volume("Volume geral", &"master")
 			_volume("Ambiente (vento, chuva, bichos)", &"ambience")

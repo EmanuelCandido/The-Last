@@ -727,3 +727,23 @@ const BELL_HIT_SWING := 0.22
 const BELL_COOLDOWN := 6.0
 const BELL_DB := -2.0
 const BELL_UNIT_SIZE := 30.0
+
+## Filtro retrô (RetroFilter no Settings, sobre todo o 3D): linhas da grade dos pixels grandes, cores por
+## canal e força do pontilhado; brilho em volta das luzes (força, limiar de luminância, cor); cor
+## (saturação, tinta da sombra e da luz, com luminância perto de 1 para
+## só mudar o matiz: a escuridão é da cena, não do filtro); vinheta (força e raio onde
+## começa e onde fecha, na altura da tela) e grão (força e trocas por segundo).
+const SETTINGS_RETRO := true
+const RETRO_VIRTUAL_HEIGHT := 360.0
+const RETRO_LEVELS := 48.0
+const RETRO_DITHER := 0.7
+const RETRO_BLOOM := 0.35
+const RETRO_BLOOM_THRESHOLD := 0.82
+const RETRO_BLOOM_TINT := Color(1.0, 0.72, 0.45)
+const RETRO_SATURATION := 0.92
+const RETRO_SHADOW_TINT := Color(1.05, 0.98, 0.94)
+const RETRO_LIGHT_TINT := Color(1.02, 1.0, 0.96)
+const RETRO_VIGNETTE := 0.3
+const RETRO_VIGNETTE_RANGE := Vector2(0.45, 1.15)
+const RETRO_GRAIN := 0.02
+const RETRO_GRAIN_FPS := 24.0

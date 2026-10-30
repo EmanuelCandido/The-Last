@@ -119,7 +119,7 @@ tests/               roteiros --run de cada fase e o run_all.ps1
 ## Arquitetura
 
 - **Configurações (`Settings`, autoload):** vídeo (tela cheia, vsync, escala 3D em `root.scaling_3d_scale`, limite de
-  FPS, campo de visão, brilho), áudio (geral, Ambience, World), controles (sensibilidade, inverter Y, teclas) e jogo
+  FPS, campo de visão, brilho, filtro retrô), áudio (geral, Ambience, World), controles (sensibilidade, inverter Y, teclas) e jogo
   (tamanho de avisos/prompt/legendas, dicas de controle). Salvas em `user://settings.cfg`, fora do save; carregam no
   início e valem na hora. Padrões em `Tuning.SETTINGS_*`.
   - Quem muda chama `set_value(chave, valor)`, `set_volume(bus, 0..1)` ou `rebind(ação, evento)`; `reset_section`
@@ -129,6 +129,12 @@ tests/               roteiros --run de cada fase e o run_all.ps1
   - Volume geral é um `AudioEffectAmplify` no Master (o volume do Master é do ouvido, `Game.open_ears`); "Efeitos"
     mexe em World e Shelter juntos (a tela não pode contar que o Abrigo existe). Brilho é uma curva de gama
     (`brightness.gdshader`) num `CanvasLayer` de camada -1, abaixo de toda a interface.
+  - **Filtro retrô (`retro`, "Filtro retrô" no Vídeo):** o visual do jogo inteiro (floresta, Abrigo, flashes,
+    menu). `retro_filter.gdshader` num `CanvasLayer` de camada -2 (abaixo do brilho e da interface): pixel grande
+    (blocos inteiros de `Tuning.RETRO_VIRTUAL_HEIGHT` linhas, média de 4 amostras lineares; os mipmaps da tela do
+    Godot vêm borrados e só servem para o brilho), halo quente em volta das luzes (`RETRO_BLOOM_THRESHOLD`), cor
+    quente e um pouco dessaturada com as tintas de luminância ~1 (a escuridão é da cena, não do filtro), vinheta,
+    grão a 24 trocas por segundo e `RETRO_LEVELS` cores por canal com Bayer 4×4 na grade dos blocos.
   - Teclas: `REMAPPABLE` lista as ações da tela; `rebind` troca a principal (primeira tecla ou botão do mouse) e
     tira a mesma tecla das outras ações, que recebem a antiga (as duas trocam). Textos que mostram tecla usam
     `key_label(ação)` ou `key_labels()` com `String.format` (`{interact}`, `{eat}`...): prompt do Player e de Ari,
@@ -255,7 +261,7 @@ tests/               roteiros --run de cada fase e o run_all.ps1
   - **Nada perfeito:** a pose neutra (`_neutral`) já é a postura do goblin, curvada e assimétrica (ombro caído, cabeça torta, pés abertos para fora, braços pendurados). Por cima entram oscilações lentas (`_wave`) em cada parte, passadas com altura e abertura sorteadas, ritmo manco (pé direito atrasado), apoio que troca de perna parado e fôlego (ofega e apoia as mãos nos joelhos depois de correr).
   - Manias parado (`GoblinIdle.overlay`, com o estado delas): coçar a orelha, farejar, olhar para trás, examinar as garras. Não travam o jogador; qualquer movimento corta.
   - Arco: base de arqueiro (quadril e peito de lado, ombro do arco para o alvo, cabeça de volta olhando pela flecha, pés afastados), braço treme se segurar a corda puxada por mais de 1 s e coice ao soltar.
-  - Mira com IK (`_aim_arms`, depois de toda a pose): a empunhadura vai para a linha que sai do canto da boca (`ANCHOR_REST`) até `aim_point`, um `draw_length` à frente; a mão da corda vai até `nock_depth` atrás da empunhadura real. `_reach` é IK de duas juntas por giros (braço até o cotovelo com `pole`, torção para o antebraço ficar no plano da dobra, antebraço até o punho), partindo dos ângulos da pose.
+  - Mira com IK (`_aim_arms`, depois de toda a pose): a empunhadura vai para a linha que sai do canto da mandíbula, por fora da bochecha direita (`ANCHOR_REST`; embaixo do queixo a mão ficava longe demais do ombro e o antebraço atravessava o pescoço), até `aim_point`, um `draw_length` à frente; a mão da corda vai até `nock_depth` atrás da empunhadura real. `_reach` é IK de duas juntas por giros (braço até o cotovelo com `pole`, torção para o antebraço ficar no plano da dobra, antebraço até o punho), partindo dos ângulos da pose.
   - Pés: `_orient` deixa o pé paralelo ao chão no espaço do esqueleto, girado por `foot_*_yaw`; a perna abre com `leg_*_out`.
   - Pés no chão (`_ground_feet`): um raio por pé acha a altura e a inclinação do chão embaixo dele (degrau, pedra, encosta). O quadril desce para o pé mais baixo com apoio; pé sem chão fica pendurado, e com só um pé apoiado o peso vai para ele. `foot_supported` é lido pelo Player.
   - Coluna: o giro do tronco se divide entre `tronco` (lombar) e `peito`; por cima entram `spine_arch` (costas redondas em cima, lombar arqueada), `spine_bend` (curva de lado em S) e `neck_fwd` (`pescoco`). A soma lombar + peito é o giro antigo + arch / 2, então as poses dos braços continuam calibradas.
