@@ -61,6 +61,9 @@ var _charging := 0.0
 var _charge_dir := Vector3.ZERO
 var _charge_wait := 0.0
 var _horned := false
+## O arqueiro (F12+): o arco na mão esquerda e quanto já puxou a corda (segundos; 0 = não puxando).
+var _bow: HeldBow
+var _drawing := 0.0
 
 var _animator: GoblinAnimator
 var _visual: Node3D
@@ -91,7 +94,7 @@ func _ready() -> void:
 	add_to_group(GROUP)
 	_rng.randomize()
 	health = float(Tuning.ORC_HEALTH.get(kind, 3.0))
-	weapon_item = &"orc_sword" if kind == &"warrior" else &"orc_hammer" if kind == &"chief" else &"orc_axe"
+	weapon_item = &"orc_sword" if kind == &"warrior" else &"orc_hammer" if kind == &"chief" else &"stone_knife" if kind == &"archer" else &"orc_axe"
 	if kind == &"chief":
 		_scale = Tuning.ORC_MODEL_SCALE * Tuning.ORC_CHIEF_SCALE
 		resident = true
@@ -168,6 +171,13 @@ func _build_body() -> void:
 	_weapon = MeshInstance3D.new()
 	_weapon.mesh = WeaponMesh.build(weapon_item)
 	add_child(_weapon)
+	if kind == &"archer":
+		_bow = HeldBow.new()
+		add_child(_bow)
+		if _animator != null:
+			var left := _model.find_child("braco_E*mao", true, false) as Node3D
+			if left != null:
+				_animator.bow_grip = left.transform.origin
 
 
 func _build_hit_area() -> void:
@@ -269,8 +279,10 @@ func _process(delta: float) -> void:
 	_animator.turn_rate = angle_difference(_last_yaw, _visual.rotation.y) / maxf(delta, 0.001)
 	_last_yaw = _visual.rotation.y
 	_animator.lying = state == State.DEAD and not _animator.is_busy()
+	_aim_bow()
 	_animator.update(delta)
 	_weapon_axis = WeaponMesh.hold(_weapon, weapon_item, _animator, _visual)
+	_place_bow()
 
 
 # --- Sentidos ------------------------------------------------------------------------
@@ -447,6 +459,9 @@ func _fight(player: Player, delta: float) -> void:
 			_play(GRUNTS.pick_random(), -4.0, 0.9)
 		return
 	_target_yaw = atan2(toward.x, toward.z)
+	if kind == &"archer":
+		_archer(player, toward, distance, delta)
+		return
 	# O chefe investe de longe (F13): reto e rápido. Dá para sair de lado; batendo num tronco, fica tonto.
 	if kind == &"chief" and _charge_wait <= 0.0 and distance > Tuning.ORC_CHIEF_CHARGE_RANGE.x and distance < Tuning.ORC_CHIEF_CHARGE_RANGE.y:
 		_start_charge(toward)
@@ -524,6 +539,92 @@ func _end_attack() -> void:
 	_attack_wait = _rng.randf_range(Tuning.ORC_ATTACK_PAUSE.x, Tuning.ORC_ATTACK_PAUSE.y)
 	if stuck:
 		_kneel(Tuning.ORC_CHIEF_STUCK, false)
+
+
+# --- O arqueiro -----------------------------------------------------------------------
+
+## Fica longe, puxa a corda (o aviso: o grunhido e o rangido do arco) e atira. Perto demais, recua;
+## encurralado, usa a faca como os outros.
+func _archer(player: Player, toward: Vector3, distance: float, delta: float) -> void:
+	if _drawing > 0.0:
+		_drawing += delta
+		_brake(delta)
+		if _drawing >= Tuning.ORC_ARCHER_DRAW:
+			_loose(player)
+			_drawing = 0.0
+			_attack_wait = _rng.randf_range(Tuning.ORC_ATTACK_PAUSE.x, Tuning.ORC_ATTACK_PAUSE.y) + 0.8
+		return
+	if distance < Tuning.ORC_ATTACK_RANGE and _attack_wait <= 0.0:
+		_start_attack(false)
+		return
+	if distance > Tuning.ORC_ARCHER_RANGE.y or _seen_time > 1.0:
+		_walk_to(player.global_position, Tuning.ORC_RUN_SPEED if distance > 30.0 else Tuning.ORC_WALK_SPEED, delta)
+		return
+	if distance < Tuning.ORC_ARCHER_RANGE.x:
+		_move(-toward, Tuning.ORC_WALK_SPEED, delta)
+		_target_yaw = atan2(toward.x, toward.z)
+		return
+	if _attack_wait <= 0.0:
+		_drawing = 0.001
+		_play(GRUNTS.pick_random(), -6.0, 1.1)
+		OccludedAudio.play_at(get_parent(), Player.BOW_DRAW_SOUNDS.pick_random(), global_position + Vector3.UP * 1.6, &"World", -2.0, 6.0, 0.8)
+	else:
+		_strafe(toward, delta)
+
+
+## Solta a flecha na direção do goblin, adiantando o movimento dele e subindo para a queda.
+func _loose(player: Player) -> void:
+	var origin := _bow.global_position + Vector3.UP * 0.05 if _bow != null else global_position + Vector3.UP * 1.6
+	var target := player.global_position + Vector3.UP * 0.5
+	var speed := Arrow.start_velocity(Vector3.FORWARD, Tuning.ORC_ARCHER_POWER).length()
+	var flight := origin.distance_to(target) / speed
+	target += Vector3(player.velocity.x, 0.0, player.velocity.z) * flight
+	target.y += 0.5 * Arrow.GRAVITY * flight * flight
+	var direction := (target - origin).normalized()
+	# Escondido no capim ou agachado, a mira erra mais.
+	var spread := Tuning.ORC_ARCHER_SPREAD * (2.0 - clampf(player.visibility(), 0.0, 1.0))
+	direction = direction.rotated(Vector3.UP, _rng.randf_range(-spread, spread))
+	direction = direction.rotated(direction.cross(Vector3.UP).normalized(), _rng.randf_range(-spread, spread))
+	var arrow := OrcArrow.new()
+	arrow.item = &"orc_arrow"
+	get_parent().add_child(arrow)
+	arrow.launch(origin, direction, Tuning.ORC_ARCHER_POWER, [get_rid(), _hit_area.get_rid()])
+	OccludedAudio.play_at(get_parent(), Player.BOW_RELEASE_SOUNDS.pick_random(), origin, &"World", 0.0, 6.0, 0.8)
+	Events.noise_made.emit(global_position, 10.0)
+
+
+## O pose do arco no animador do goblin: a mira com IK leva as mãos até o alvo.
+func _aim_bow() -> void:
+	if _bow == null or _animator == null:
+		return
+	var aiming := _drawing > 0.0 and Game.player != null
+	_animator.aiming = aiming
+	_animator.draw = clampf(_drawing / Tuning.ORC_ARCHER_DRAW, 0.0, 1.0)
+	_animator.nock_depth = HeldBow.nock_depth(_animator.draw)
+	if aiming:
+		var target := Game.player.global_position + Vector3.UP * 0.5
+		var to := target - (global_position + Vector3.UP * 1.5)
+		_animator.aim_pitch = atan2(to.y, Vector2(to.x, to.z).length())
+		_animator.aim_point = target
+	else:
+		_animator.aim_point = Vector3.INF
+	_weapon.visible = not aiming and state != State.DEAD
+
+
+## O arco na mão esquerda: carregado, deitado para a frente; puxando, de pé, apontado para o alvo.
+func _place_bow() -> void:
+	if _bow == null or _animator == null:
+		return
+	var grip := _animator.bow_grip_position()
+	# Carregado: em pé, a barriga para a frente do corpo.
+	var forward := _visual.global_basis.z.normalized()
+	var held := Basis(Vector3.UP.cross(forward).normalized(), Vector3.UP, forward)
+	if _animator.aim_weight() > 0.01 and _animator.aim_point != Vector3.INF:
+		var aimed := Basis.looking_at(_animator.aim_point - grip, Vector3.UP, true) * Basis(Vector3.BACK, PlayerGear.BOW_CANT)
+		held = Basis(held.get_rotation_quaternion().slerp(aimed.get_rotation_quaternion(), _animator.aim_weight()))
+	_bow.global_transform = Transform3D(held.scaled(Vector3.ONE * _scale), grip)
+	_bow.pose_string(_animator.draw, _drawing > 0.0)
+	_bow.visible = state != State.DEAD
 
 
 func _start_charge(toward: Vector3) -> void:
@@ -623,6 +724,9 @@ func strike(damage: float, kind_of_hit: StringName, point: Vector3, direction: V
 		_play(SHOUT, 4.0, 0.6)
 		if band != null and band.has_method("alert") and Game.player != null:
 			band.alert(self, Game.player.global_position)
+		# E solta o lobo de guerra (do dia ORC_WAR_WOLF_DAY em diante).
+		if Clock.day >= Tuning.ORC_WAR_WOLF_DAY:
+			call_war_wolf()
 	_play(HURT.pick_random(), -1.0, _rng.randf_range(0.9, 1.05))
 	if health <= 0.0:
 		_die()
@@ -637,6 +741,22 @@ func strike(damage: float, kind_of_hit: StringName, point: Vector3, direction: V
 		_enter(State.COMBAT)
 	if morale < Tuning.ORC_FLEE_MORALE and state != State.KNEEL:
 		_flee()
+
+
+## O lobo de guerra do chefe: um lobo que já vem caçando o goblin.
+func call_war_wolf() -> Wolf:
+	var level := Game.current_level
+	var animals := level.get_node_or_null(^"Animals") if level != null else null
+	if animals == null or not level.has_method("ground_height"):
+		return null
+	var wolf := Wolf.new()
+	animals.add_child(wolf)
+	var at := Vector2(global_position.x + 2.0, global_position.z + 1.0)
+	wolf.setup(level._terrain, at, _rng.randi())
+	wolf.position = Vector3(at.x, float(level.ground_height(at.x, at.y)), at.y)
+	wolf.awareness = 1.4
+	_play(SHOUT, 2.0, 1.3)
+	return wolf
 
 
 ## Um companheiro caiu: a moral cai.
@@ -860,10 +980,15 @@ func _play(stream: AudioStream, volume_db: float, pitch := 1.0) -> void:
 	_voice.play()
 
 
-func _on_step(_side: int) -> void:
+func _on_step(side: int) -> void:
 	var level := Game.current_level
 	if level == null:
 		return
+	# A pegada da bota, onde o pé pousou: dá para seguir a patrulha.
+	if _animator != null:
+		var foot := _animator.bone_position("pe_E" if side == 0 else "pe_D")
+		var ground := float(level.ground_height(foot.x, foot.z)) if level.has_method("ground_height") else foot.y
+		Tracks.stamp(Vector3(foot.x, ground, foot.z), Vector3.UP, _visual.rotation.y, Tuning.ORC_BOOT_SIZE * _scale / Tuning.ORC_MODEL_SCALE, &"orc")
 	var surface: StringName = level.surface_at(global_position) if level.has_method("surface_at") else &"dirt"
 	var sounds: Array = Footsteps.SOUNDS.get(surface, Footsteps.SOUNDS.get(&"dirt", []))
 	if sounds.is_empty():

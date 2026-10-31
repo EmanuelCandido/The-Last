@@ -7,7 +7,7 @@ extends MultiMeshInstance3D
 ## Quem anda chama Tracks.stamp(); quem procura pegadas chama Tracks.nearest().
 
 ## Desenho de cada espécie no shader (INSTANCE_CUSTOM.r).
-const SHAPES := {&"deer": 0.0, &"rabbit": 1.0, &"wolf": 2.0}
+const SHAPES := {&"deer": 0.0, &"rabbit": 1.0, &"wolf": 2.0, &"orc": 3.0}
 const SHADER := preload("res://assets/shaders/track_print.gdshader")
 ## Altura acima do chão (m), para não piscar com o terreno.
 const LIFT := 0.012

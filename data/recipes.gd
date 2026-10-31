@@ -148,6 +148,11 @@ const LIST: Array[Dictionary] = [
 		"message": "Fincou as estacas. Quem passar correndo por cima fere a perna.",
 	},
 	{
+		"id": &"armed_log", "name": "Tronco armado",
+		"cost": {&"sinew": 1}, "gives": {}, "special": &"log",
+		"message": "Amarrou a corda na árvore seca. Quem passar por ela derruba o tronco em cima de si.",
+	},
+	{
 		"id": &"bone_rope", "name": "Corda de ossos",
 		"cost": {&"sinew": 1, &"bone": 2}, "gives": {}, "special": &"bones",
 		"message": "Esticou a corda de ossos. Se algo passar, você vai ouvir.",
@@ -173,6 +178,8 @@ static func missing(recipe: Dictionary) -> String:
 		if recipe.get("special", &"") == &"stash" and not player.get_tree().get_nodes_in_group(CaveStash.GROUP).any(
 				func(node: Node) -> bool: return not (node as CaveStash).built):
 			return "já tem"
+	if recipe.get("special", &"") == &"log" and _dead_tree_near() == -1:
+		return "precisa de uma árvore seca perto"
 	if recipe.get("station", &"") == &"bench":
 		if player == null or Workbench.near(player.get_tree(), player.global_position, Tuning.BENCH_RADIUS) == null:
 			return "precisa da bancada"
@@ -198,6 +205,16 @@ static func missing(recipe: Dictionary) -> String:
 		if short > 0:
 			lacking.append("%d %s" % [short, item_word(item, short)])
 	return "falta " + ", ".join(lacking) if not lacking.is_empty() else ""
+
+
+## A árvore seca em pé mais perto do goblin, a até Tuning.LOG_TREE_REACH (-1 = nenhuma).
+static func _dead_tree_near() -> int:
+	var player := Game.player
+	var level := Game.current_level
+	if player == null or level == null or not level.has_method("tree_near"):
+		return -1
+	var tree: int = level.tree_near(player.global_position, Tuning.LOG_TREE_REACH)
+	return tree if tree != -1 and level.is_tree_dead(tree) and level.tree_standing(tree) else -1
 
 
 ## O que a receita gasta de verdade (o conserto gasta o material da arma na mão).

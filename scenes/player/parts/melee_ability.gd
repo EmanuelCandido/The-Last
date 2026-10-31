@@ -354,6 +354,10 @@ func defend(attack: Dictionary) -> StringName:
 	var in_front := rad_to_deg(_player.facing().angle_to(away)) < Tuning.BLOCK_ARC_DEG * 0.5
 	var item := Inventory.held()
 	var spec := Weapons.spec(item)
+	# Flecha: só o escudo segura, e não dá para aparar.
+	var missile: bool = attack.get("missile", false)
+	if missile and Armor.shield_in_use() == &"":
+		in_front = false
 	if guarding and in_front:
 		if charge and spec.has("brace"):
 			# A investida bate na ponta da lança firmada: quem se fere é o bicho.
@@ -364,7 +368,7 @@ func defend(attack: Dictionary) -> StringName:
 			_wear(item, 3.0)
 			_player.shove(-away * 1.4, 0.15)
 			return &"braced"
-		if not charge and _guard_time <= Tuning.PARRY_WINDOW:
+		if not charge and not missile and _guard_time <= Tuning.PARRY_WINDOW:
 			if attacker != null and attacker.has_method("stagger"):
 				attacker.stagger(Tuning.PARRY_STAGGER)
 			stamina = minf(stamina + 0.1, 1.0)

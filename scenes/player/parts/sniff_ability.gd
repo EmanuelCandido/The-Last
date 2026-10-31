@@ -9,6 +9,8 @@ extends Node
 ## Parte do goblin: um nó filho do Player. Tirar o nó tira a mecânica.
 
 const SNIFF_SOUND := preload("res://assets/audio/real/sniff.ogg")
+## A trilha do orc: cinza-esverdeada, de couro velho e borracha.
+const ORC_SCENT := Color(0.42, 0.5, 0.36)
 ## Cor da trilha de cada espécie (o resto usa DEFAULT_SCENT).
 const SCENT_COLORS := {
 	&"deer": Color(0.78, 0.36, 0.06),
@@ -77,6 +79,24 @@ func scented_animals() -> Array[Animal]:
 	return found
 
 
+## Orcs cujo cheiro chega no goblin agora (F12+): fedor de couro, fumaça e borracha, que o vento
+## traz de muito mais longe que o dos bichos (Tuning.ORC_SMELL_RANGE).
+func scented_orcs() -> Array[Node3D]:
+	var found: Array[Node3D] = []
+	var at := _player.global_position
+	for node in get_tree().get_nodes_in_group(Orc.GROUP):
+		var orc := node as Orc
+		if orc.is_dead():
+			continue
+		var to_goblin := Vector2(at.x - orc.global_position.x, at.z - orc.global_position.z)
+		var distance := to_goblin.length()
+		if distance > Tuning.ORC_SMELL_RANGE or distance < 0.5:
+			continue
+		if to_goblin.normalized().dot(Wind.direction) >= Tuning.SNIFF_DOWNWIND:
+			found.append(orc)
+	return found
+
+
 func is_active() -> bool:
 	return _active
 
@@ -110,7 +130,9 @@ func _update_wind() -> void:
 
 
 func _update_trails() -> void:
-	var scented := scented_animals()
+	var scented: Array[Node3D] = []
+	scented.append_array(scented_animals())
+	scented.append_array(scented_orcs())
 	for animal: Variant in _trails.keys():
 		if not is_instance_valid(animal) or not scented.has(animal):
 			_stop_trail(_trails[animal])
@@ -118,7 +140,7 @@ func _update_trails() -> void:
 	var goal := _player.global_position + Vector3.UP * TRAIL_HEIGHT
 	for animal in scented:
 		if not _trails.has(animal):
-			_trails[animal] = _build_trail(SCENT_COLORS.get(animal.kind, DEFAULT_SCENT))
+			_trails[animal] = _build_trail(ORC_SCENT if animal is Orc else SCENT_COLORS.get(animal.kind, DEFAULT_SCENT))
 			add_child(_trails[animal])
 		var trail: CPUParticles3D = _trails[animal]
 		var from := animal.global_position + Vector3.UP * TRAIL_HEIGHT

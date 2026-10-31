@@ -1,7 +1,7 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_never, cull_disabled, specular_disabled;
 // Pegada no chão (Tracks): o quad cobre a pegada e o desenho sai daqui, pixelado como as
-// texturas do jogo. INSTANCE_CUSTOM: r = espécie (0 cervo, 1 coelho, 2 lobo), g = instante
+// texturas do jogo. INSTANCE_CUSTOM: r = espécie (0 cervo, 1 coelho, 2 lobo, 3 bota de orc), g = instante
 // em que foi deixada, b = sorteio (cada pegada um pouco diferente).
 // A marca é escura (terra úmida amassada) com uma borda clara (terra empurrada para fora),
 // para se ler tanto na terra da trilha quanto no capim.
@@ -42,6 +42,14 @@ float print_shape(vec2 p, float kind) {
 		// Coelho: as duas patas de trás compridas na frente, as da frente pequenas atrás, em fila.
 		float shape = max(blob(p, vec2(-0.4, 0.32), vec2(0.25, 0.48)), blob(p, vec2(0.4, 0.32), vec2(0.25, 0.48)));
 		return max(shape, max(blob(p, vec2(0.0, -0.42), vec2(0.19, 0.17)), blob(p, vec2(0.05, -0.76), vec2(0.19, 0.15))));
+	}
+	if (kind > 2.5) {
+		// Bota de orc: sola comprida e larga na frente, o salto separado atrás e as travas
+		// atravessadas (faixas sem marca).
+		float sole = blob(p, vec2(0.0, 0.25), vec2(0.62, 0.62));
+		float heel = blob(p, vec2(0.0, -0.66), vec2(0.5, 0.3));
+		float tread = step(0.5, fract(p.y * 3.5));
+		return max(sole * max(tread, step(0.85, abs(p.x) / 0.62)), heel);
 	}
 	// Lobo: almofada e quatro dedos.
 	float shape = blob(p, vec2(0.0, -0.35), vec2(0.42, 0.36));

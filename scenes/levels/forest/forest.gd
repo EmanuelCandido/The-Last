@@ -71,6 +71,11 @@ func _ready() -> void:
 	camp.name = "OrcCamp"
 	add_child(camp)
 	camp.build(_terrain, OrcCamp.pick_center(_terrain, _vegetation))
+	# Os sinais dos orcs antes de eles chegarem (a flecha, os ossos, as pegadas de bota).
+	var signs := OrcSigns.new()
+	signs.name = "OrcSigns"
+	add_child(signs)
+	signs.build(_terrain, _vegetation)
 	_void = NorthVoid.new()
 	_void.name = "NorthVoid"
 	add_child(_void)

@@ -66,7 +66,8 @@ func arrive() -> void:
 		var patrol := make_route()
 		var at := _edge_spawn()
 		spawn(&"scout", at, patrol)
-		spawn(&"warrior", at + Vector3(1.6, 0.0, 1.2), patrol)
+		# O segundo da patrulha: o guerreiro ou o arqueiro.
+		spawn(&"archer" if _rng.randf() < 0.5 else &"warrior", at + Vector3(1.6, 0.0, 1.2), patrol)
 
 
 ## Cria um orc em `at` (no chão), andando `route`. `raider` = vem na Investida (tocha, entra na toca).
@@ -118,6 +119,16 @@ func make_route() -> Array[Vector3]:
 	var points: Array[Vector3] = []
 	var start := _rng.randf() * TAU
 	var count := _rng.randi_range(5, 6)
+	# Os troncos riscados pelo goblin chamam a patrulha (§9.4): a trilha dele é trilha para eles.
+	var marked: Array[Vector3] = []
+	var marks := get_tree().get_first_node_in_group(TreeMarks.GROUP) as TreeMarks
+	var level := Game.current_level
+	if marks != null and level != null and level.has_method("tree_base"):
+		for tree: Variant in marks.marks:
+			if _rng.randf() < Tuning.MARKED_TREE_ROUTE_CHANCE:
+				var base: Vector3 = level.tree_base(int(tree))
+				if _usable(Vector2(base.x, base.z)):
+					marked.append(base + Vector3(1.2, 0.0, 0.0))
 	for i in count:
 		for attempt in 12:
 			var angle := start + TAU * i / count + _rng.randf_range(-0.3, 0.3)
@@ -125,6 +136,10 @@ func make_route() -> Array[Vector3]:
 			if _usable(p):
 				points.append(Vector3(p.x, _ground(p.x, p.y), p.y))
 				break
+	points.append_array(marked)
+	# Em ordem de ângulo em volta do vale: a rota dá a volta sem cruzar.
+	points.sort_custom(func(a: Vector3, b: Vector3) -> bool:
+		return wrapf(atan2(a.z, a.x) - start, 0.0, TAU) < wrapf(atan2(b.z, b.x) - start, 0.0, TAU))
 	return points
 
 

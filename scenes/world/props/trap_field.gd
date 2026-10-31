@@ -9,7 +9,7 @@ const GROUP := &"trap_field"
 const RATTLE := preload("res://assets/audio/sfx/stone_click_2.wav")
 const STAKE_HIT := Arrow.HIT_FLESH
 
-## [{"kind": &"stakes"|&"bones", "at": [x, y, z], "yaw": f, "uses": n}]
+## [{"kind": &"stakes"|&"bones"|&"log", "at": [x, y, z], "yaw": f, "uses": n, "tree": id}]
 var traps: Array[Dictionary] = []
 var _nodes: Array[Node3D] = []
 var _cooldown := {}
@@ -20,13 +20,14 @@ func _ready() -> void:
 	add_to_group(SaveSystem.PERSIST_GROUP)
 
 
-## Monta a armadilha `kind` em `at`, de frente para `yaw`. Devolve false se já há demais.
-func build_at(kind: StringName, at: Vector3, yaw: float) -> bool:
+## Monta a armadilha `kind` em `at`, de frente para `yaw`. Devolve false se já há demais. O tronco
+## armado (&"log") leva a árvore seca `tree`: quem passa pela corda em `at` derruba ela.
+func build_at(kind: StringName, at: Vector3, yaw: float, tree := -1) -> bool:
 	var same := traps.filter(func(trap: Dictionary) -> bool: return trap.kind == kind).size()
 	var limit := Tuning.STAKES_MAX if kind == &"stakes" else Tuning.BONE_ROPES_MAX
 	if same >= limit:
 		return false
-	traps.append({"kind": kind, "at": [at.x, at.y, at.z], "yaw": yaw, "uses": Tuning.STAKES_USES if kind == &"stakes" else 999})
+	traps.append({"kind": kind, "at": [at.x, at.y, at.z], "yaw": yaw, "uses": Tuning.STAKES_USES if kind == &"stakes" else 1 if kind == &"log" else 999, "tree": tree})
 	_rebuild()
 	return true
 
@@ -42,11 +43,17 @@ func _physics_process(delta: float) -> void:
 	for i in traps.size():
 		var trap := traps[i]
 		var at := _point(trap)
-		for victim in _victims(at, Tuning.TRAP_RADIUS):
+		var radius := Tuning.LOG_TRIGGER_RADIUS if trap.kind == &"log" else Tuning.TRAP_RADIUS
+		for victim in _victims(at, radius):
 			var key := "%d:%d" % [i, victim.get_instance_id()]
 			if _cooldown.has(key):
 				continue
 			_cooldown[key] = 3.0
+			if trap.kind == &"log":
+				_drop_log(trap, at)
+				trap.uses = 0
+				spent = true
+				break
 			if trap.kind == &"stakes":
 				if _speed(victim) > 2.0:
 					_wound(victim, at)
@@ -70,6 +77,29 @@ func _victims(at: Vector3, radius: float) -> Array[Node3D]:
 		if node is Wolf and (node as Animal).state != Animal.State.DEAD and (node as Node3D).global_position.distance_to(at) < radius:
 			list.append(node)
 	return list
+
+
+## A corda foi puxada: a árvore seca cai por cima da trilha e acerta quem está embaixo.
+func _drop_log(trap: Dictionary, at: Vector3) -> void:
+	var level := Game.current_level
+	var tree := int(trap.get("tree", -1))
+	if level == null or tree < 0 or not level.has_method("tree_standing") or not level.tree_standing(tree):
+		return
+	var vegetation: Vegetation = level._vegetation
+	var info: Vegetation.TreeInfo = vegetation.trees[tree]
+	# Cai para o lado da corda (o _fell_tree derruba para longe de `from`).
+	var toward := Vector3(at.x - info.base.x, 0.0, at.z - info.base.z).normalized()
+	vegetation._fell_tree(info, info.base - toward)
+	var line_end := info.base + toward * 6.0
+	get_tree().create_timer(1.2, false).timeout.connect(func() -> void:
+		for victim in _victims((info.base + line_end) * 0.5, 4.0):
+			var p := Geometry3D.get_closest_point_to_segment(victim.global_position, info.base, line_end)
+			if p.distance_to(victim.global_position) > Tuning.LOG_HIT_RADIUS:
+				continue
+			if victim is Orc:
+				(victim as Orc).strike(Tuning.LOG_DAMAGE, &"blunt", victim.global_position + Vector3.UP * 1.2, toward, 2.0)
+			elif victim is Animal:
+				(victim as Animal).take_hit(1.0, victim.global_position + Vector3.UP * 0.5, toward, Tuning.LOG_DAMAGE))
 
 
 func _speed(victim: Node3D) -> float:
@@ -99,11 +129,26 @@ func _rebuild() -> void:
 	_nodes.clear()
 	for trap in traps:
 		var node := MeshInstance3D.new()
-		node.mesh = _stakes_mesh() if trap.kind == &"stakes" else _bones_mesh()
+		node.mesh = _stakes_mesh() if trap.kind == &"stakes" else _log_mesh(trap) if trap.kind == &"log" else _bones_mesh()
 		add_child(node)
 		node.global_position = _point(trap)
 		node.rotation.y = float(trap.yaw)
 		_nodes.append(node)
+
+
+## A corda de tendão do tronco armado: da trilha até a árvore seca, baixinha.
+func _log_mesh(trap: Dictionary) -> ArrayMesh:
+	var builder := TreeBuilder.Builder.new()
+	var rope := builder.tool_for(PropLook.bark())
+	var level := Game.current_level
+	var at := _point(trap)
+	var end := at + Vector3(1.0, 0.0, 0.0)
+	if level != null and level.has_method("tree_base") and int(trap.get("tree", -1)) >= 0:
+		end = level.tree_base(int(trap.tree))
+	var local_end := Basis(Vector3.UP, -float(trap.yaw)) * (end - at)
+	TreeBuilder.add_branch(rope, Vector3(-0.4, 0.2, 0.0), local_end + Vector3.UP * 0.5, 0.006, 0.006, 3)
+	TreeBuilder.add_branch(rope, Vector3(-0.4, -0.05, 0.0), Vector3(-0.4, 0.25, 0.0), 0.02, 0.015, 4)
+	return builder.commit()
 
 
 static var _stakes: ArrayMesh

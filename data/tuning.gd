@@ -875,13 +875,37 @@ const FIGHT_HURT_LIMIT := 40.0
 ## Abrigo tem tantos segundos de lucidez a menos: o corpo de Ari cansado da adrenalina.
 const COMBAT_LUCIDITY_PENALTY := 20.0
 
+# --- G: o que faltava do plano de combate (experimental) ------------------------------------------
+
+## Pegada da bota do orc (largura e comprimento, maior que a real para se ler, como as outras) e até
+## onde o goblin fareja um orc contra o vento (ele sente o orc muito antes do orc sentir ele).
+const ORC_BOOT_SIZE := Vector2(0.24, 0.44)
+const ORC_SMELL_RANGE := 70.0
+## Chance de cada tronco riscado entrar na rota de uma patrulha: os riscos que guiam o goblin na
+## neblina também guiam os orcs (§9.4).
+const MARKED_TREE_ROUTE_CHANCE := 0.5
+## O arqueiro orc: a distância em que ele fica para atirar (m), o tempo puxando a corda (o aviso),
+## o quanto a corda vai (velocidade da flecha) e o erro da mira (rad; maior com o goblin escondido).
+const ORC_ARCHER_RANGE := Vector2(7.0, 22.0)
+const ORC_ARCHER_DRAW := 1.4
+const ORC_ARCHER_POWER := 0.8
+const ORC_ARCHER_SPREAD := 0.035
+## O lobo de guerra: o chefe o chama com a trompa (do dia ORC_WAR_WOLF_DAY em diante).
+const ORC_WAR_WOLF_DAY := 7
+## O tronco armado: raio em que quem passa pela corda derruba a árvore, raio do golpe da árvore
+## caindo em volta da linha dela, o dano (unidade da flechada) e a distância da árvore seca.
+const LOG_TRIGGER_RADIUS := 1.2
+const LOG_HIT_RADIUS := 1.4
+const LOG_DAMAGE := 3.0
+const LOG_TREE_REACH := 2.5
+
 # --- F12: os orcs (docs/plano_combate.md §7; experimental) ------------------------------------
 
 ## Escala do modelo (o orc é montado a partir do goblin: 1,21 m sem ela) e a altura dos olhos (m).
 const ORC_MODEL_SCALE := 1.5
 const ORC_EYE_HEIGHT := 1.6
 ## Vida (unidade da flechada), velocidades (m/s) e o giro (rad/s).
-const ORC_HEALTH := {&"scout": 3.0, &"warrior": 4.5, &"chief": 12.0}
+const ORC_HEALTH := {&"scout": 3.0, &"warrior": 4.5, &"chief": 12.0, &"archer": 2.5}
 const ORC_WALK_SPEED := 1.35
 const ORC_RUN_SPEED := 3.9
 const ORC_TURN_SPEED := 6.0

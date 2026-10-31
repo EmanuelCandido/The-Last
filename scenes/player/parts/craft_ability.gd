@@ -130,6 +130,12 @@ func _finish(recipe: Dictionary) -> void:
 					break
 		&"repair":
 			Inventory.repair(Inventory.held())
+		&"log":
+			var field := get_tree().get_first_node_in_group(TrapField.GROUP) as TrapField
+			var tree := Recipes._dead_tree_near()
+			if field != null and tree != -1:
+				var facing := _player.facing()
+				field.build_at(&"log", _player.global_position + facing * 0.6, atan2(facing.x, facing.z), tree)
 		&"stakes", &"bones":
 			var traps := get_tree().get_first_node_in_group(TrapField.GROUP) as TrapField
 			if traps != null:

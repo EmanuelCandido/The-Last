@@ -426,7 +426,7 @@ func receive_attack(attack: Dictionary) -> StringName:
 func take_hit(power: float, _point: Vector3, direction: Vector3, damage := 1.0) -> void:
 	receive_attack({
 		"damage": lerpf(10.0, 20.0, power) * damage, "kind": &"pierce", "from": global_position - direction,
-		"poise": 0.4, "cause": &"arrow", "push": direction * 1.2,
+		"poise": 0.4, "cause": &"arrow", "push": direction * 1.2, "missile": true,
 	})
 
 
