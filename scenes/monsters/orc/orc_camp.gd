@@ -2,8 +2,10 @@ class_name OrcCamp
 extends Node3D
 ## O acampamento da Pedra Rachada (F13, docs/plano_combate.md §9.1; experimental): uma paliçada de
 ## troncos pontudos em volta de uma fogueira, duas tendas de couro, o tambor e o baú onde os orcs
-## guardam o que levam (a bolsa do goblin morto perto deles). A entrada larga dá para o vale; atrás,
-## falta um tronco: uma fresta onde só o goblin passa. De dia, dois orcs ficam de guarda.
+## guardam o que levam (a bolsa do goblin morto perto deles). Fica no vale deles, depois do
+## desfiladeiro (F14), aos pés da rocha partida que dá o nome. A entrada larga dá para o
+## desfiladeiro; atrás, falta um tronco: uma fresta onde só o goblin passa. De dia, dois orcs
+## ficam de guarda.
 ##
 ## Filho da floresta (grupo "persist"): guarda o baú (itens e desgaste).
 
@@ -31,33 +33,41 @@ func _ready() -> void:
 	add_to_group(SaveSystem.PERSIST_GROUP)
 
 
-## O chão para o acampamento: o ponto mais perto de ForestLayout.ORC_CAMP sem árvore dentro da
-## paliçada, pouco inclinado e longe da trilha (sempre o mesmo: a busca não sorteia nada).
+## O chão para o acampamento: perto de ForestLayout.ORC_CAMP, sem árvore dentro da paliçada,
+## dentro do vale da Pedra Rachada e longe da boca do desfiladeiro, e o mais plano que houver (a
+## volta da paliçada perto da altura do meio: numa encosta, os troncos do lado de baixo ficavam
+## curtos e os do lado de cima, enterrados). Sempre o mesmo: a busca não sorteia nada.
 static func pick_center(terrain: Terrain, vegetation: Vegetation) -> Vector2:
 	var best := ForestLayout.ORC_CAMP
 	var best_score := INF
-	for x in range(-20, 21, 2):
-		for z in range(-20, 21, 2):
+	for x in range(-30, 31, 2):
+		for z in range(-30, 31, 2):
 			var p := ForestLayout.ORC_CAMP + Vector2(x, z)
-			if p.length() > ForestLayout.VALLEY_RADIUS - RADIUS - 6.0 or p.y < Tuning.VOID_EDGE_Z + RADIUS + 8.0:
+			if not ForestLayout.in_second_valley(p, RADIUS + 4.0) or p.y < Tuning.VOID_EDGE_Z + RADIUS + 8.0:
 				continue
-			if ForestLayout.distance_to_trail(p) < RADIUS + 2.0:
+			if p.distance_to(ForestLayout.GORGE_TO) < RADIUS + 14.0:
 				continue
 			if terrain.get_normal(p.x, p.y).y < 0.93:
 				continue
-			if vegetation.tree_near(Vector3(p.x, 0.0, p.y), RADIUS + 1.0) != -1:
+			var middle := terrain.get_height(p.x, p.y)
+			var tilt := 0.0
+			for k in 12:
+				var at := p + Vector2.from_angle(TAU * k / 12.0) * RADIUS
+				tilt = maxf(tilt, absf(terrain.get_height(at.x, at.y) - middle))
+			if tilt > 1.6 or vegetation.tree_near(Vector3(p.x, 0.0, p.y), RADIUS + 1.0) != -1:
 				continue
-			var score := p.distance_to(ForestLayout.ORC_CAMP)
+			var score := tilt * 12.0 + p.distance_to(ForestLayout.ORC_CAMP) * 0.3
 			if score < best_score:
 				best_score = score
 				best = p
 	return best
 
 
-## Monta o acampamento em `center` (no chão do `terrain`).
-func build(terrain: Terrain, center: Vector2) -> void:
+## Monta o acampamento em `center` (no chão do `terrain`); a Pedra Rachada usa as pedras da
+## `vegetation`.
+func build(terrain: Terrain, center: Vector2, vegetation: Vegetation = null) -> void:
 	position = Vector3(center.x, terrain.get_height(center.x, center.y), center.y)
-	var toward_valley := (-center).normalized()
+	var toward_valley := (ForestLayout.GORGE_TO - center).normalized()
 	var gate_angle := atan2(toward_valley.y, toward_valley.x)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3460
@@ -140,6 +150,34 @@ func build(terrain: Terrain, center: Vector2) -> void:
 	add_child(_chest_node)
 	_chest_node.position = Vector3(chest_spot.x, terrain.get_height(center.x + chest_spot.x, center.y + chest_spot.y) - position.y, chest_spot.y)
 	_chest_node.rotation.y = -gate_angle
+	if vegetation != null:
+		_build_split_rock(terrain, center, -toward_valley, vegetation)
+
+
+## A Pedra Rachada (F14): uma rocha enorme atrás da paliçada, partida ao meio, as duas metades
+## abertas para os lados com uma fenda escura no meio.
+func _build_split_rock(terrain: Terrain, center: Vector2, back: Vector2, vegetation: Vegetation) -> void:
+	var spot := center + back * (RADIUS + 7.0)
+	var side := Vector2(-back.y, back.x)
+	var body := StaticBody3D.new()
+	body.name = "SplitRock"
+	body.set_meta(&"surface", &"stone")
+	add_child(body)
+	var heading := atan2(back.x, back.y)
+	for half: float in [-1.0, 1.0]:
+		var at := spot + side * half * 2.4
+		var ground := terrain.get_height(at.x, at.y) - position.y
+		# Escala igual nos três eixos: a colisão de malha não aceita esticar.
+		var basis := Basis.from_euler(Vector3(0.0, heading + half * 0.3, half * 0.22)).scaled(Vector3.ONE * 5.0)
+		var xf := Transform3D(basis, Vector3(at.x - center.x, ground - 0.6, at.y - center.y))
+		var rock := MeshInstance3D.new()
+		rock.mesh = vegetation.rock_mesh(3)
+		rock.transform = xf
+		add_child(rock)
+		var shape := CollisionShape3D.new()
+		shape.shape = vegetation.rock_shape(3)
+		shape.transform = xf
+		body.add_child(shape)
 
 
 func _process(delta: float) -> void:
@@ -151,6 +189,17 @@ func _process(delta: float) -> void:
 	if _drum_check <= 0.0:
 		_drum_check = 1.0
 		_drum_keeper()
+		_notice_visitor()
+
+
+## O goblin chegou no vale da Pedra Rachada (F14): a anotação de Ari (gatilho `orc`, `valley`).
+func _notice_visitor() -> void:
+	var player := Game.player
+	if player == null or Story.has_flag(&"second_valley_seen"):
+		return
+	if ForestLayout.in_second_valley(Vector2(player.global_position.x, player.global_position.z)):
+		Story.set_flag(&"second_valley_seen")
+		Story.trigger(&"orc", &"valley")
 
 
 ## O tambor (F14): o orc calmo mais perto dele vira o tocador (o chefe só na noite da Investida,

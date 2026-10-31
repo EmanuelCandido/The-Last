@@ -4,8 +4,10 @@ extends Node3D
 ## anda e como se ajudam. Filho da floresta.
 ##
 ## Chegada pelo dia do ciclo: do Tuning.ORC_FIRST_DAY em diante um batedor por dia; do ORC_PATROL_DAY,
-## também uma patrulha de dois (batedor e guerreiro). Entram às ORC_ARRIVE_HOUR pela borda do vale,
-## longe do goblin, e cada grupo anda uma rota em volta do vale; às ORC_LEAVE_HOUR vão embora.
+## também uma patrulha de dois (batedor e guerreiro). Entram às ORC_ARRIVE_HOUR pelo desfiladeiro
+## (F14: vêm do vale da Pedra Rachada; aparecem no ponto do caminho mais perto da toca que fique
+## longe do goblin e andam o resto, `Orc.approach`), e cada grupo anda uma rota em volta do vale;
+## às ORC_LEAVE_HOUR voltam pelo desfiladeiro.
 ##
 ## O grito de um orc chama os que estão perto (alert). Na luta, só os ORC_ATTACKERS_AT_ONCE mais
 ## perto do goblin atacam (may_attack); os outros rodeiam. Um orc morto abala os que viram.
@@ -87,14 +89,19 @@ func enabled() -> bool:
 
 ## Chegam os orcs do dia: um batedor e, mais tarde no ciclo, a patrulha.
 func arrive() -> void:
-	var route := make_route()
-	spawn(&"scout", _edge_spawn(), route)
+	var entry := _entry()
+	var path: Array[Vector3] = entry[1]
+	var scout := spawn(&"scout", entry[0], make_route())
+	scout.approach = path.duplicate()
 	if Clock.day >= Tuning.ORC_PATROL_DAY:
 		var patrol := make_route()
-		var at := _edge_spawn()
-		spawn(&"scout", at, patrol)
+		# A patrulha vem atrás, uns passos de distância no mesmo caminho.
+		var behind: Vector3 = entry[0] + Vector3(4.0, 0.0, 1.5)
+		var first := spawn(&"scout", behind, patrol)
+		first.approach = path.duplicate()
 		# O segundo da patrulha: o guerreiro ou o arqueiro.
-		spawn(&"archer" if _rng.randf() < 0.5 else &"warrior", at + Vector3(1.6, 0.0, 1.2), patrol)
+		var second := spawn(&"archer" if _rng.randf() < 0.5 else &"warrior", behind + Vector3(1.6, 0.0, 1.2), patrol)
+		second.approach = path.duplicate()
 
 
 ## Cria um orc em `at` (no chão), andando `route`. `raider` = vem na Investida (tocha, entra na toca).
@@ -180,23 +187,23 @@ func _usable(p: Vector2) -> bool:
 	return true
 
 
-## Um ponto de chegada na borda do vale, longe do goblin.
-func _edge_spawn() -> Vector3:
+## Por onde os orcs entram (F14): [o ponto onde aparecem, o caminho que falta até o vale da toca].
+## O caminho é o do desfiladeiro, vindo do vale deles; eles aparecem no ponto dele mais perto da
+## toca que fique a pelo menos ORC_SPAWN_MIN_DISTANCE do goblin (no fim do desfiladeiro, se nenhum
+## ficar).
+func _entry() -> Array:
+	var path := ForestLayout.gorge_path(true)
 	var player := Game.player
-	var best := Vector2.ZERO
-	var best_distance := -1.0
-	for attempt in 16:
-		var angle := _rng.randf() * TAU
-		var p := Vector2(cos(angle), sin(angle)) * (ForestLayout.VALLEY_RADIUS - 12.0)
-		if not _usable(p):
-			continue
-		var distance := p.distance_to(Vector2(player.global_position.x, player.global_position.z)) if player != null else 999.0
+	var start := 0
+	for i in range(path.size() - 1, -1, -1):
+		var distance := path[i].distance_to(Vector2(player.global_position.x, player.global_position.z)) if player != null else 999.0
 		if distance >= Tuning.ORC_SPAWN_MIN_DISTANCE:
-			return Vector3(p.x, 0.0, p.y)
-		if distance > best_distance:
-			best_distance = distance
-			best = p
-	return Vector3(best.x, 0.0, best.y)
+			start = i
+			break
+	var rest: Array[Vector3] = []
+	for i in range(start + 1, path.size()):
+		rest.append(Vector3(path[i].x, _ground(path[i].x, path[i].y), path[i].y))
+	return [Vector3(path[start].x, 0.0, path[start].y), rest]
 
 
 func _ground(x: float, z: float) -> float:
@@ -227,7 +234,7 @@ func warn_raid() -> void:
 	Events.notification_shown.emit("Uma trompa longe, a leste. Esta noite eles vêm até a toca.")
 
 
-## Os orcs da Investida saem da borda do vale, com tochas, e vão até a toca.
+## Os orcs da Investida vêm pelo desfiladeiro, com tochas, e vão até a toca.
 func start_raid() -> void:
 	if raid_active:
 		return
@@ -240,11 +247,14 @@ func start_raid() -> void:
 	var inside := Vector3(ForestLayout.CAVE_CENTER.x, 0.0, ForestLayout.CAVE_CENTER.y)
 	mouth.y = _ground(mouth.x, mouth.z)
 	inside.y = _ground(inside.x, inside.z)
-	var start := _edge_spawn()
+	var entry := _entry()
+	var start: Vector3 = entry[0]
+	var path: Array[Vector3] = entry[1]
 	for i in _raid_size:
 		var kind := &"warrior" if i % 2 == 1 else &"scout"
 		var route: Array[Vector3] = [mouth, inside]
 		var orc := spawn(kind, start + Vector3(float(i) * 1.5, 0.0, float(i % 2) * 1.5), route, true)
+		orc.approach = path.duplicate()
 		_raiders.append(orc)
 
 

@@ -53,6 +53,9 @@ var poise := 0.0
 var morale := 1.0
 ## Rota da patrulha (pontos no chão, em volta).
 var route: Array[Vector3] = []
+## O caminho até a rota, andado uma vez antes dela (F14: quem chega pelo desfiladeiro). Indo
+## embora, o caminho de volta.
+var approach: Array[Vector3] = []
 ## Quem reúne os orcs (alerta, vez de atacar). Pode faltar (orc de teste).
 var band: Node
 var weapon_item := &"orc_axe"
@@ -377,6 +380,10 @@ func _think(delta: float) -> void:
 				return
 			if _drum(delta):
 				return
+			if not approach.is_empty():
+				if _walk_to(approach[0], Tuning.ORC_WALK_SPEED, delta) < 1.5:
+					approach.pop_front()
+				return
 			if route.is_empty():
 				_stand(delta)
 				return
@@ -405,8 +412,11 @@ func _think(delta: float) -> void:
 			_fight(player, delta)
 		State.FLEE, State.LEAVE:
 			var away := _goal
-			if _walk_to(away, Tuning.ORC_RUN_SPEED if state == State.FLEE else Tuning.ORC_WALK_SPEED, delta, true) < 3.0 \
-					or (player != null and global_position.distance_to(player.global_position) > 70.0 and _timer <= 0.0):
+			var reached := _walk_to(away, Tuning.ORC_RUN_SPEED if state == State.FLEE else Tuning.ORC_WALK_SPEED, delta, true) < 3.0
+			if reached and not approach.is_empty():
+				# Indo embora pelo desfiladeiro: o próximo ponto do caminho.
+				_goal = approach.pop_front()
+			elif reached or (player != null and global_position.distance_to(player.global_position) > 70.0 and _timer <= 0.0):
 				queue_free()
 		State.KNEEL:
 			_stand(delta)
@@ -847,6 +857,7 @@ func unaware() -> bool:
 
 func _flee() -> void:
 	_attack = {}
+	approach.clear()
 	state = State.FLEE
 	_timer = 8.0
 	var player := Game.player
@@ -856,11 +867,28 @@ func _flee() -> void:
 	_play(SHOUT, -4.0, 1.2)
 
 
+## Vai embora para o vale dele (F14): do vale da toca, pelo desfiladeiro; do vale da Pedra
+## Rachada, para as tendas do acampamento.
 func _leave() -> void:
 	_attack = {}
 	state = State.LEAVE
 	_timer = 5.0
-	_goal = _edge_point(Vector3(global_position.x, 0.0, global_position.z).normalized())
+	approach.clear()
+	var here := Vector2(global_position.x, global_position.z)
+	var camp := get_tree().get_first_node_in_group(OrcCamp.GROUP) as Node3D
+	if ForestLayout.in_second_valley(here, -15.0) and camp != null:
+		_goal = camp.global_position
+		return
+	var path := ForestLayout.gorge_path(false)
+	# Já dentro do desfiladeiro: começa do ponto mais perto à frente.
+	var start := 0
+	if ForestLayout.in_gorge(here):
+		var t := ForestLayout.gorge_frame(here).x
+		while start < path.size() - 1 and ForestLayout.gorge_frame(path[start]).x < t:
+			start += 1
+	for i in range(start, path.size()):
+		approach.append(Vector3(path[i].x, global_position.y, path[i].y))
+	_goal = approach.pop_front()
 
 
 func _die() -> void:
@@ -1036,12 +1064,19 @@ func _search_point() -> Vector3:
 	return base + Vector3(cos(angle), 0.0, sin(angle)) * _rng.randf_range(3.0, 9.0)
 
 
-## Um ponto na borda do vale na direção `direction` (para onde o orc vai embora).
+## Um ponto na borda do vale onde o orc está, na direção `direction` (para onde ele foge). No
+## desfiladeiro, a boca que fica para aquele lado (F14).
 func _edge_point(direction: Vector3) -> Vector3:
 	var flat := Vector2(direction.x, direction.z)
 	if flat.length_squared() < 0.01:
 		flat = Vector2(1.0, 0.0)
+	var here := Vector2(global_position.x, global_position.z)
 	var edge := flat.normalized() * (ForestLayout.VALLEY_RADIUS - 6.0)
+	if ForestLayout.in_gorge(here):
+		var axis := ForestLayout.GORGE_TO - ForestLayout.GORGE_FROM
+		edge = ForestLayout.GORGE_TO if flat.dot(axis) > 0.0 else ForestLayout.GORGE_FROM
+	elif ForestLayout.in_second_valley(here, -15.0):
+		edge = ForestLayout.SECOND_VALLEY + flat.normalized() * (ForestLayout.SECOND_VALLEY_RADIUS - 6.0)
 	return Vector3(edge.x, global_position.y, edge.y)
 
 

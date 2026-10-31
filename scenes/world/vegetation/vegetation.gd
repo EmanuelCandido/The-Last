@@ -83,6 +83,13 @@ var _settings := {}
 var _tree_grid := {}
 var _colliders: StaticBody3D
 var _tree_colliders: StaticBody3D
+## As malhas da volta principal, reaproveitadas no leste (F14): o mesmo MultiMesh por bloco.
+var _pines: Array[Mesh] = []
+var _dead_trees: Array[Mesh] = []
+var _grass_clump: Mesh
+var _ferns: Array[Mesh] = []
+var _rocks: Array[Mesh] = []
+var _rock_shapes: Array[Shape3D] = []
 
 
 func populate(terrain: Terrain) -> void:
@@ -97,6 +104,7 @@ func populate(terrain: Terrain) -> void:
 	_scatter_rocks(terrain, rng)
 	_scatter_logs(terrain, rng)
 	_place_old_tree(terrain, rng)
+	_populate_east(terrain)
 	_build_multimeshes()
 
 
@@ -205,12 +213,10 @@ func _fell_tree(tree: TreeInfo, from: Vector3) -> void:
 
 
 func _scatter_trees(terrain: Terrain, rng: RandomNumberGenerator) -> void:
-	var pines: Array[Mesh] = []
 	for i in 4:
-		pines.append(TreeBuilder.build_pine(rng, bark_material, needles_material))
-	var dead_trees: Array[Mesh] = []
+		_pines.append(TreeBuilder.build_pine(rng, bark_material, needles_material))
 	for i in 3:
-		dead_trees.append(TreeBuilder.build_dead_tree(rng, dead_bark_material))
+		_dead_trees.append(TreeBuilder.build_dead_tree(rng, dead_bark_material))
 
 	var limit := ForestLayout.VALLEY_RADIUS + 45.0
 	var x := -limit
@@ -221,50 +227,71 @@ func _scatter_trees(terrain: Terrain, rng: RandomNumberGenerator) -> void:
 			z += tree_spacing
 			if p.length() > limit or ForestLayout.cave_ellipse(p) < 2.2 or p.distance_to(ForestLayout.OLD_TREE) < 9.0:
 				continue
-			# Algumas árvores solitárias também nascem nas áreas abertas.
-			if rng.randf() > terrain.forest_density(p.x, p.y) * 0.9 + 0.03:
-				continue
-			if ForestLayout.distance_to_trail(p) < 3.0 or terrain.get_normal(p.x, p.y).y < 0.78:
-				continue
-			var tree := TreeInfo.new()
-			tree.dead = rng.randf() < 0.16
-			tree.mesh = dead_trees[rng.randi() % dead_trees.size()] if tree.dead else pines[rng.randi() % pines.size()]
-			var tree_scale := rng.randf_range(0.75, 1.25)
-			tree.base = Vector3(p.x, terrain.get_height(p.x, p.y) - 0.25, p.y)
-			tree.transform = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * tree_scale), tree.base)
-			tree.radius = float(tree.mesh.get_meta("trunk_radius", 0.3)) * tree_scale
-			var slot := _add_instance(tree.mesh, tree.transform, tree_draw_distance, true)
-			tree.chunk = slot[0]
-			tree.index = slot[1]
-			tree.collider = _add_cylinder_collider(_tree_colliders, tree.base, tree.radius + 0.03, 8.0)
-			var id := trees.size()
-			trees.append(tree)
-			var cell := Vector2i(floori(p.x / TREE_CELL), floori(p.y / TREE_CELL))
-			if not _tree_grid.has(cell):
-				_tree_grid[cell] = []
-			_tree_grid[cell].append(id)
-			tree_positions.append(p)
+			_try_tree(terrain, rng, p)
 		x += tree_spacing
 
 
+## Uma das malhas de pedra (e a colisão dela), para quem monta pedras fora do sorteio (F14: a
+## Pedra Rachada do acampamento).
+func rock_mesh(variant: int) -> Mesh:
+	return _rocks[variant % _rocks.size()]
+
+
+func rock_shape(variant: int) -> Shape3D:
+	return _rock_shapes[variant % _rock_shapes.size()]
+
+
+## Uma árvore em `p`, se o sorteio e o chão deixarem.
+func _try_tree(terrain: Terrain, rng: RandomNumberGenerator, p: Vector2) -> void:
+	# Algumas árvores solitárias também nascem nas áreas abertas.
+	if rng.randf() > terrain.forest_density(p.x, p.y) * 0.9 + 0.03:
+		return
+	if ForestLayout.distance_to_trail(p) < 3.0 or terrain.get_normal(p.x, p.y).y < 0.78:
+		return
+	var tree := TreeInfo.new()
+	tree.dead = rng.randf() < 0.16
+	tree.mesh = _dead_trees[rng.randi() % _dead_trees.size()] if tree.dead else _pines[rng.randi() % _pines.size()]
+	var tree_scale := rng.randf_range(0.75, 1.25)
+	tree.base = Vector3(p.x, terrain.get_height(p.x, p.y) - 0.25, p.y)
+	tree.transform = Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * tree_scale), tree.base)
+	tree.radius = float(tree.mesh.get_meta("trunk_radius", 0.3)) * tree_scale
+	var slot := _add_instance(tree.mesh, tree.transform, tree_draw_distance, true)
+	tree.chunk = slot[0]
+	tree.index = slot[1]
+	tree.collider = _add_cylinder_collider(_tree_colliders, tree.base, tree.radius + 0.03, 8.0)
+	var id := trees.size()
+	trees.append(tree)
+	var cell := Vector2i(floori(p.x / TREE_CELL), floori(p.y / TREE_CELL))
+	if not _tree_grid.has(cell):
+		_tree_grid[cell] = []
+	_tree_grid[cell].append(id)
+	tree_positions.append(p)
+
+
 func _scatter_grass(terrain: Terrain, rng: RandomNumberGenerator) -> void:
-	var clump := TreeBuilder.build_grass_clump(grass_material)
+	_grass_clump = TreeBuilder.build_grass_clump(grass_material)
 	var limit := ForestLayout.VALLEY_RADIUS + 15.0
 	for i in int(PI * limit * limit * grass_per_m2):
 		var p := Vector2(rng.randf_range(-limit, limit), rng.randf_range(-limit, limit))
 		if p.length() > limit or ForestLayout.cave_ellipse(p) < 1.15:
 			continue
-		var splat := terrain.get_splat(p.x, p.y)
-		if rng.randf() > (1.0 - splat.r) * (1.0 - splat.g) * (1.0 - 0.65 * splat.b):
-			continue
-		var width := rng.randf_range(0.7, 1.3)
-		var height := rng.randf_range(0.4, 0.95)
-		var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(width, height, width))
-		_add_instance(clump, Transform3D(basis, Vector3(p.x, terrain.get_height(p.x, p.y) - 0.05, p.y)), grass_draw_distance, false)
+		_try_grass(terrain, rng, p)
+
+
+## Um tufo de capim em `p`, se o chão deixar (pouco na rocha e na terra).
+func _try_grass(terrain: Terrain, rng: RandomNumberGenerator, p: Vector2) -> void:
+	var splat := terrain.get_splat(p.x, p.y)
+	if rng.randf() > (1.0 - splat.r) * (1.0 - splat.g) * (1.0 - 0.65 * splat.b):
+		return
+	var width := rng.randf_range(0.7, 1.3)
+	var height := rng.randf_range(0.4, 0.95)
+	var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(width, height, width))
+	_add_instance(_grass_clump, Transform3D(basis, Vector3(p.x, terrain.get_height(p.x, p.y) - 0.05, p.y)), grass_draw_distance, false)
 
 
 func _scatter_ferns(terrain: Terrain, rng: RandomNumberGenerator) -> void:
 	var ferns: Array[Mesh] = [TreeBuilder.build_fern(rng, fern_material), TreeBuilder.build_fern(rng, fern_material)]
+	_ferns = ferns
 	var limit := ForestLayout.VALLEY_RADIUS + 20.0
 	var placed := 0
 	var attempts := 0
@@ -290,6 +317,8 @@ func _scatter_rocks(terrain: Terrain, rng: RandomNumberGenerator) -> void:
 		# Colisão com a malha exata: o casco convexo de uma pedra irregular sobra até
 		# 1 m nas reentrâncias e o goblin ficava "em pé no ar".
 		shapes.append(mesh.create_trimesh_shape())
+	_rocks = rocks
+	_rock_shapes = shapes
 	for i in rock_count:
 		var p: Vector2
 		# Parte das pedras se concentra na boca da caverna e no pé das montanhas.
@@ -333,6 +362,77 @@ func _scatter_logs(terrain: Terrain, rng: RandomNumberGenerator) -> void:
 		_add_instance(logs[variant], xf, small_draw_distance, true)
 		_add_shape_collider(shapes[variant], xf, &"wood")
 		placed += 1
+
+
+## F14: o desfiladeiro e o vale da Pedra Rachada, com um sorteio próprio (o do vale da toca não
+## muda). Só onde as voltas de cima não chegam: fora do círculo de cada uma.
+func _populate_east(terrain: Terrain) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = vegetation_seed + 14
+	var center := ForestLayout.SECOND_VALLEY
+	var reach := ForestLayout.SECOND_VALLEY_RADIUS + 45.0
+	# Árvores: a mesma grade, cobrindo o desfiladeiro e o vale com as encostas.
+	var x := ForestLayout.GORGE_FROM.x - 10.0
+	while x < center.x + reach:
+		var z := center.y - reach
+		while z < center.y + reach:
+			var p := Vector2(x, z) + Vector2(rng.randf(), rng.randf()) * tree_spacing
+			z += tree_spacing
+			if _east_area(p, ForestLayout.VALLEY_RADIUS + 45.0, 40.0):
+				_try_tree(terrain, rng, p)
+		x += tree_spacing
+	# Capim: quatro de cada cinco no vale, o resto no chão do desfiladeiro.
+	var disc := ForestLayout.SECOND_VALLEY_RADIUS + 15.0
+	var corridor := ForestLayout.GORGE_HALF_WIDTH + 6.0
+	var gorge_length := (ForestLayout.GORGE_TO - ForestLayout.GORGE_FROM).length()
+	var area := PI * disc * disc + gorge_length * corridor * 2.0
+	for i in int(area * grass_per_m2):
+		var p := _east_sample(rng, disc, corridor)
+		if _east_area(p, ForestLayout.VALLEY_RADIUS + 15.0, 15.0):
+			_try_grass(terrain, rng, p)
+	# Samambaias na mata do vale.
+	for i in 900:
+		var p := _east_sample(rng, disc, corridor)
+		if not _east_area(p, ForestLayout.VALLEY_RADIUS + 20.0, 15.0) or rng.randf() > terrain.forest_density(p.x, p.y) - 0.2:
+			continue
+		var origin := Vector3(p.x, terrain.get_height(p.x, p.y) - 0.05, p.y)
+		_add_instance(_ferns[i % 2], Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(0.7, 1.4)), origin), small_draw_distance, false)
+	# Pedras: o cascalho grande que caiu dos paredões (fora da ravina e da passagem) e algumas no vale.
+	for i in 70:
+		var p: Vector2
+		if i < 45:
+			var side := rng.randf_range(-1.0, 1.0)
+			side = signf(side) * lerpf(ForestLayout.GORGE_HALF_WIDTH - 3.0, ForestLayout.GORGE_HALF_WIDTH + 3.0, absf(side))
+			p = ForestLayout.gorge_point(rng.randf_range(0.05, 0.98), side)
+			if ForestLayout.ravine_depth(p) > 0.05 or absf(ForestLayout.gorge_frame(p).y - ForestLayout.GORGE_LEDGE) < 1.8:
+				continue
+		else:
+			var angle := rng.randf() * TAU
+			p = center + Vector2(cos(angle), sin(angle)) * rng.randf_range(10.0, ForestLayout.SECOND_VALLEY_RADIUS + 10.0)
+		var variant := rng.randi() % _rocks.size()
+		var rock_scale := rng.randf_range(0.5, 1.6) * (1.8 if rng.randf() < 0.2 else 1.0)
+		var basis := Basis.from_euler(Vector3(rng.randf_range(-0.3, 0.3), rng.randf() * TAU, rng.randf_range(-0.3, 0.3))).scaled(Vector3.ONE * rock_scale)
+		var xf := Transform3D(basis, Vector3(p.x, terrain.get_height(p.x, p.y) - 0.1 * rock_scale, p.y))
+		_add_instance(_rocks[variant], xf, rock_draw_distance, true)
+		_add_shape_collider(_rock_shapes[variant], xf, &"stone")
+
+
+## Um ponto para sortear no leste: no vale da Pedra Rachada (até `disc` do centro) ou no
+## desfiladeiro (até `corridor` de lado do eixo).
+func _east_sample(rng: RandomNumberGenerator, disc: float, corridor: float) -> Vector2:
+	if rng.randf() < 0.8:
+		var angle := rng.randf() * TAU
+		return ForestLayout.SECOND_VALLEY + Vector2(cos(angle), sin(angle)) * sqrt(rng.randf()) * disc
+	return ForestLayout.gorge_point(rng.randf(), rng.randf_range(-corridor, corridor))
+
+
+## `p` fica no leste e fora do círculo `main_limit` (o que a volta principal espalha): no
+## desfiladeiro ou no vale da Pedra Rachada, até `margin` além do chão deles.
+static func _east_area(p: Vector2, main_limit: float, margin: float) -> bool:
+	if p.length() <= main_limit:
+		return false
+	return ForestLayout.distance_to_gorge(p) < ForestLayout.GORGE_HALF_WIDTH + margin \
+		or p.distance_to(ForestLayout.SECOND_VALLEY) < ForestLayout.SECOND_VALLEY_RADIUS + margin
 
 
 func _place_old_tree(terrain: Terrain, rng: RandomNumberGenerator) -> void:

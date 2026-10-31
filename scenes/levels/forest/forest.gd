@@ -66,17 +66,18 @@ func _ready() -> void:
 	add_child(ruin)
 	ruin.build(_terrain)
 	_vegetation.populate(_terrain)
-	# F13: o acampamento dos orcs, no chão livre mais perto de ForestLayout.ORC_CAMP.
+	# F13: o acampamento dos orcs, no chão livre mais perto de ForestLayout.ORC_CAMP (F14: no vale
+	# da Pedra Rachada, depois do desfiladeiro).
 	var camp := OrcCamp.new()
 	camp.name = "OrcCamp"
 	add_child(camp)
-	camp.build(_terrain, OrcCamp.pick_center(_terrain, _vegetation))
+	camp.build(_terrain, OrcCamp.pick_center(_terrain, _vegetation), _vegetation)
 	# Os sinais dos orcs antes de eles chegarem (a flecha, os ossos, as pegadas de bota).
 	var signs := OrcSigns.new()
 	signs.name = "OrcSigns"
 	add_child(signs)
 	signs.build(_terrain, _vegetation)
-	# A ponte caída da borda oeste e o troll que mora nela (F14).
+	# A ponte caída sobre a ravina do desfiladeiro e o troll que mora embaixo dela (F14).
 	var bridge := TrollBridge.new()
 	bridge.name = "TrollBridge"
 	add_child(bridge)
@@ -85,8 +86,7 @@ func _ready() -> void:
 	_void.name = "NorthVoid"
 	add_child(_void)
 	_void.build(_terrain, _vegetation)
-	var half := ForestLayout.TERRAIN_SIZE * 0.5
-	Wind.set_exposure(_terrain.build_wind_exposure(), Rect2(-half, -half, half * 2.0, half * 2.0))
+	Wind.set_exposure(_terrain.build_wind_exposure(), _terrain.rect())
 	_ambience.vegetation = _vegetation
 	_ambience.build_life(_terrain)
 	_spawn_animals()

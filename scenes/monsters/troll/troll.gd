@@ -3,8 +3,8 @@ extends CharacterBody3D
 ## O troll da ponte caída (docs/plano_combate.md §2 e §7.2; experimental). O corpo é o do orc, bem
 ## maior, com a pele cinza de pedra e um olho só, que brilha verde: a lente do Zelador.
 ##
-## De dia dorme sentado perto da ponte. De noite anda devagar pelas bordas do vale, entre a ponte e
-## dois pontos da borda. Ouve e fareja muito bem; vê pouco. Quando pega o goblin, não fere: a tela
+## De dia dorme sentado no fundo da ravina, embaixo da ponte caída. De noite sobe a rampa, sai pela
+## boca do desfiladeiro e anda devagar pela borda leste do vale da toca. Ouve e fareja muito bem; vê pouco. Quando pega o goblin, não fere: a tela
 ## escurece, e o goblin acorda largado na boca da toca, com a Vigilância mais alta. É o "ser sedado"
 ## do Abrigo dentro da floresta: o Zelador não pode ferir o paciente. Na toca ele não entra; com a
 ## bateria do Zelador baixa (R3 sem o R4) ele só dorme, e só um barulho perto o acorda.
@@ -39,6 +39,7 @@ var _target_yaw := 0.0
 var _last_yaw := 0.0
 var _sense_timer := 0.0
 var _breath_timer := 4.0
+var _stuck := 0.0
 var _rng := RandomNumberGenerator.new()
 
 
@@ -155,14 +156,25 @@ func _physics_process(delta: float) -> void:
 			if night or awareness > 1.0:
 				state = State.WANDER
 		State.WANDER:
-			if not night and awareness < 0.3:
-				if _walk_to(home, Tuning.TROLL_WALK_SPEED, delta) < 1.5:
-					state = State.SLEEP
-			elif awareness >= 1.0 and player != null:
+			if awareness >= 1.0 and player != null:
 				state = State.HUNT
 			elif not route.is_empty():
-				if _walk_to(route[_route_index % route.size()], Tuning.TROLL_WALK_SPEED, delta) < 2.0:
+				# De dia volta pela própria ronda (o último ponto é a toca dele): em linha reta,
+				# morro acima, ele empacava nos paredões do desfiladeiro.
+				var index := _route_index % route.size()
+				var last := index == route.size() - 1
+				if _walk_to(route[index], Tuning.TROLL_WALK_SPEED, delta) < (1.5 if last else 2.0):
+					if last and not night and awareness < 0.3:
+						state = State.SLEEP
+					_route_index = 0 if last else _route_index + 1
+				# Preso numa pedra ou num tronco: desiste deste ponto e segue a ronda.
+				_stuck = _stuck + delta if get_real_velocity().length() < 0.15 else 0.0
+				if _stuck > 3.0:
+					_stuck = 0.0
 					_route_index += 1
+			elif not night and awareness < 0.3:
+				if _walk_to(home, Tuning.TROLL_WALK_SPEED, delta) < 1.5:
+					state = State.SLEEP
 		State.HUNT:
 			if player == null or awareness < 0.3:
 				state = State.WANDER
@@ -262,6 +274,7 @@ func _grab(player: Player) -> void:
 	awareness = 0.0
 	global_position = home
 	state = State.SLEEP
+	_route_index = 0
 
 
 ## O passo pesado: o som do mesmo chão do goblin (Footsteps.SOUNDS), uma oitava abaixo e mais alto.

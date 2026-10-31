@@ -19,7 +19,7 @@ func run() -> void:
 	Story.act = 2
 	Story.vigilance = 20.0
 	_troll = _bridge.spawn_troll()
-	for case: String in ["day_night", "grab", "cave", "battery", "off"]:
+	for case: String in ["day_night", "round", "grab", "cave", "battery", "off"]:
 		print("[T] --- %s" % case)
 		await call("_" + case)
 	print("[T] FIM: %s" % ("TUDO OK" if _fails == 0 else "%d FALHA(S)" % _fails))
@@ -37,11 +37,32 @@ func _day_night() -> void:
 	_check(_troll._eye.light_energy > 0.6, "o olho verde aceso (%.2f)" % _troll._eye.light_energy)
 
 
+func _round() -> void:
+	# De noite ele sobe a rampa da ravina e sai andando pelo desfiladeiro, para o vale da toca.
+	_put(Vector3(ForestLayout.SPAWN.x, 0.0, ForestLayout.SPAWN.y))
+	_troll.global_position = _troll.home + Vector3.UP * 0.2
+	_troll._route_index = 0
+	var start := ForestLayout.gorge_frame(Vector2(_troll.home.x, _troll.home.z)).x
+	var out := func() -> bool:
+		return ForestLayout.gorge_frame(Vector2(_troll.global_position.x, _troll.global_position.z)).x < start - 0.12
+	var waited := 0.0
+	while not out.call() and waited < 50.0:
+		await _wait(0.5)
+		waited += 0.5
+	var here := Vector2(_troll.global_position.x, _troll.global_position.z)
+	_check(out.call(), "saiu da ravina e anda pelo desfiladeiro (%.0f s)" % waited)
+	_check(_troll.global_position.y > Game.current_level.ground_height(here.x, here.y) - 0.5, "no chão do desfiladeiro, não no fundo")
+	_troll.global_position = _troll.home + Vector3.UP * 0.2
+	_troll._route_index = 0
+
+
 func _grab() -> void:
 	var health := Vitals.health
 	var vigilance := Story.vigilance
 	var hour := Clock.hour
-	_put(_troll.global_position + Vector3(3.0, 0.0, 0.0))
+	# No fundo da ravina, a uns passos dele.
+	var beside := ForestLayout.gorge_point(ForestLayout.RAVINE_AT, -6.2)
+	_put(Vector3(beside.x, 0.0, beside.y))
 	_troll.awareness = 1.2
 	await _until(func() -> bool: return _troll.state == Troll.State.CARRY, 6.0)
 	_check(_troll.state == Troll.State.CARRY, "ouviu, veio e pegou o goblin")

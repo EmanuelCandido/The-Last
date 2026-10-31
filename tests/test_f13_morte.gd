@@ -68,7 +68,7 @@ func _camp() -> void:
 	if camp == null:
 		return
 	var flat := Vector2(camp.global_position.x, camp.global_position.z)
-	_check(flat.length() < ForestLayout.VALLEY_RADIUS and flat.y > Tuning.VOID_EDGE_Z, "dentro do vale e fora do vazio do norte")
+	_check(ForestLayout.in_second_valley(flat, OrcCamp.RADIUS) and flat.y > Tuning.VOID_EDGE_Z, "no vale da Pedra Rachada e fora do vazio do norte")
 	_check(flat.distance_to(ForestLayout.CAVE_CENTER) > 80.0, "longe da toca (%.0f m)" % flat.distance_to(ForestLayout.CAVE_CENTER))
 	var fire := camp.get_node(^"Fire") as Campfire
 	fire.fuel = 0.0
@@ -82,8 +82,12 @@ func _camp() -> void:
 	for i in 72:
 		var angle := TAU * i / 72.0
 		var dir := Vector3(cos(angle), 0.0, sin(angle))
-		var from := camp.global_position + dir * (OrcCamp.RADIUS + 1.0) + Vector3.UP * 0.6
-		var to := camp.global_position + dir * (OrcCamp.RADIUS - 1.0) + Vector3.UP * 0.6
+		# Na altura do chão daquele lado (o vale da Pedra Rachada não é plano).
+		var from := camp.global_position + dir * (OrcCamp.RADIUS + 1.0)
+		var to := camp.global_position + dir * (OrcCamp.RADIUS - 1.0)
+		var ground := maxf(_level.ground_height(from.x, from.z), _level.ground_height(to.x, to.z))
+		from.y = ground + 0.6
+		to.y = ground + 0.6
 		# Uma esfera do tamanho do goblin (os vãos entre os troncos são finos demais para ele).
 		var query := PhysicsShapeQueryParameters3D.new()
 		var sphere := SphereShape3D.new()

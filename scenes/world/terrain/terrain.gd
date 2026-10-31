@@ -1,25 +1,31 @@
 class_name Terrain
 extends Node3D
-## Terreno gerado por ruído: vale com colinas, anel de montanhas e a encosta da caverna.
+## Terreno gerado por ruído: vale com colinas, anel de montanhas e a encosta da caverna; a leste,
+## o desfiladeiro com a ravina e o vale da Pedra Rachada (F14).
 ##
 ## Gera a malha em blocos (o culling descarta o que está fora da câmera), a colisão
-## por HeightMapShape3D e guarda a grade de alturas para consultas rápidas.
+## por HeightMapShape3D e guarda a grade de alturas para consultas rápidas. A grade cobre o
+## retângulo de ForestLayout.TERRAIN_MIN a TERRAIN_MAX.
 ## A cor do vértice leva os pesos das texturas: R rocha, G terra, B chão de floresta.
 
-## Células por lado da grade.
-const RESOLUTION := 256
-## Blocos de malha por lado.
-const CHUNKS := 8
+## Lado de uma célula da grade (m).
+const CELL := 1.5
+## Células por lado de um bloco de malha (48 m).
+const CHUNK_CELLS := 32
 
 @export var terrain_seed := 1337
 @export var material: Material
 
 ## Altura do chão dentro da caverna (o terreno é aplainado nela).
 var cave_floor_height := 0.0
-var cell_size := ForestLayout.TERRAIN_SIZE / RESOLUTION
+var cell_size := CELL
+## Células da grade em x e em z.
+var cells_x := int((ForestLayout.TERRAIN_MAX.x - ForestLayout.TERRAIN_MIN.x) / CELL)
+var cells_z := int((ForestLayout.TERRAIN_MAX.y - ForestLayout.TERRAIN_MIN.y) / CELL)
 
-var _side := RESOLUTION + 1
-var _half := ForestLayout.TERRAIN_SIZE * 0.5
+var _origin := ForestLayout.TERRAIN_MIN
+var _side_x := cells_x + 1
+var _side_z := cells_z + 1
 var _heights := PackedFloat32Array()
 var _normals := PackedVector3Array()
 var _splat := PackedColorArray()
@@ -36,28 +42,33 @@ func generate() -> void:
 	var mouth := ForestLayout.CAVE_CENTER - Vector2(0.0, ForestLayout.CAVE_DEPTH * 0.5)
 	cave_floor_height = _raw_height(mouth.x, mouth.y)
 
-	_heights.resize(_side * _side)
-	for gz in _side:
-		for gx in _side:
-			_heights[gz * _side + gx] = _height_at(_grid_x(gx), _grid_x(gz))
+	_heights.resize(_side_x * _side_z)
+	for gz in _side_z:
+		for gx in _side_x:
+			_heights[gz * _side_x + gx] = _height_at(_grid_x(gx), _grid_z(gz))
 	_compute_normals_and_splat()
 	_build_meshes()
 	_build_collision()
 
 
+## O retângulo coberto pelo terreno, no chão (x, z).
+func rect() -> Rect2:
+	return Rect2(_origin, Vector2(cells_x, cells_z) * cell_size)
+
+
 ## Altura do terreno em (x, z), interpolada igual aos triângulos da malha.
 func get_height(x: float, z: float) -> float:
-	var fx := clampf((x + _half) / cell_size, 0.0, RESOLUTION - 0.001)
-	var fz := clampf((z + _half) / cell_size, 0.0, RESOLUTION - 0.001)
+	var fx := clampf((x - _origin.x) / cell_size, 0.0, cells_x - 0.001)
+	var fz := clampf((z - _origin.y) / cell_size, 0.0, cells_z - 0.001)
 	var ix := int(fx)
 	var iz := int(fz)
 	var tx := fx - ix
 	var tz := fz - iz
-	var i := iz * _side + ix
+	var i := iz * _side_x + ix
 	var h00 := _heights[i]
 	var h10 := _heights[i + 1]
-	var h01 := _heights[i + _side]
-	var h11 := _heights[i + _side + 1]
+	var h01 := _heights[i + _side_x]
+	var h11 := _heights[i + _side_x + 1]
 	if tx + tz <= 1.0:
 		return h00 + (h10 - h00) * tx + (h01 - h00) * tz
 	return h11 + (h01 - h11) * (1.0 - tx) + (h10 - h11) * (1.0 - tz)
@@ -94,32 +105,39 @@ func forest_density(x: float, z: float) -> float:
 	density *= smoothstep(9.0, 16.0, p.distance_to(ForestLayout.OLD_TREE))
 	density *= smoothstep(10.0, 18.0, p.distance_to(ForestLayout.RUINS))
 	density *= smoothstep(1.6, 3.0, ForestLayout.cave_ellipse(p))
+	# O chão do desfiladeiro é cascalho, quase sem árvore; na ravina, nenhuma (F14).
+	if density > 0.0 and ForestLayout.near_gorge(p, ForestLayout.GORGE_HALF_WIDTH + 14.0):
+		density *= lerpf(0.15, 1.0, smoothstep(ForestLayout.GORGE_HALF_WIDTH - 2.0, ForestLayout.GORGE_HALF_WIDTH + 8.0, ForestLayout.distance_to_gorge(p)))
+		density *= 1.0 - smoothstep(0.2, 1.0, ForestLayout.ravine_depth(p))
 	return density
 
 
 ## Publica a grade de alturas como textura global (terrain_height + terrain_height_rect),
 ## para shaders encostarem vértices no chão (a grama acompanha a encosta).
 func publish_height_texture() -> void:
-	var image := Image.create(_side, _side, false, Image.FORMAT_RH)
-	for gz in _side:
-		for gx in _side:
-			image.set_pixel(gx, gz, Color(_heights[gz * _side + gx], 0.0, 0.0))
+	var image := Image.create(_side_x, _side_z, false, Image.FORMAT_RH)
+	for gz in _side_z:
+		for gx in _side_x:
+			image.set_pixel(gx, gz, Color(_heights[gz * _side_x + gx], 0.0, 0.0))
 	# O centro do texel i cai exatamente no vértice i da grade.
-	var start := -_half - cell_size * 0.5
-	var size := _side * cell_size
+	var start := _origin - Vector2(cell_size, cell_size) * 0.5
+	var size := Vector2(_side_x, _side_z) * cell_size
 	RenderingServer.global_shader_parameter_set(&"terrain_height", ImageTexture.create_from_image(image))
-	RenderingServer.global_shader_parameter_set(&"terrain_height_rect", Vector4(start, start, size, size))
+	RenderingServer.global_shader_parameter_set(&"terrain_height_rect", Vector4(start.x, start.y, size.x, size.y))
 
 
-## Mapa de exposição ao vento para o autoload Wind (0 abrigado .. 1 aberto).
-## Topos e clareiras expõem; vales, mata fechada e o interior da caverna abrigam.
-func build_wind_exposure(resolution := 128) -> Image:
-	var image := Image.create(resolution, resolution, false, Image.FORMAT_L8)
-	var step := ForestLayout.TERRAIN_SIZE / resolution
-	for iz in resolution:
-		for ix in resolution:
-			var x := -_half + (ix + 0.5) * step
-			var z := -_half + (iz + 0.5) * step
+## Mapa de exposição ao vento para o autoload Wind (0 abrigado .. 1 aberto), cobrindo rect() com
+## um pixel a cada `step` m. Topos e clareiras expõem; vales, mata fechada e o interior da caverna
+## abrigam. O desfiladeiro é um corredor de vento (F14), menos no fundo da ravina.
+func build_wind_exposure(step := 3.0) -> Image:
+	var area := rect()
+	var width := ceili(area.size.x / step)
+	var height := ceili(area.size.y / step)
+	var image := Image.create(width, height, false, Image.FORMAT_L8)
+	for iz in height:
+		for ix in width:
+			var x := area.position.x + (ix + 0.5) * area.size.x / width
+			var z := area.position.y + (iz + 0.5) * area.size.y / height
 			var h := get_height(x, z)
 			var around := 0.0
 			for k in 8:
@@ -127,7 +145,14 @@ func build_wind_exposure(resolution := 128) -> Image:
 				around += get_height(x + cos(angle) * 24.0, z + sin(angle) * 24.0)
 			var relief := clampf((h - around / 8.0) / 8.0, -1.0, 1.0)
 			var exposure := 0.72 + relief * 0.3 - forest_density(x, z) * 0.45 + smoothstep(25.0, 60.0, h) * 0.2
-			exposure *= 1.0 - ForestLayout.cave_interior(Vector2(x, z))
+			var p := Vector2(x, z)
+			var frame := ForestLayout.gorge_frame(p) if ForestLayout.near_gorge(p, ForestLayout.GORGE_HALF_WIDTH + 14.0) else Vector2(-1.0, 0.0)
+			if frame.x > 0.1 and frame.x < 1.0:
+				var channel := 1.0 - smoothstep(ForestLayout.GORGE_HALF_WIDTH, ForestLayout.GORGE_HALF_WIDTH + 6.0, absf(frame.y))
+				channel *= smoothstep(0.1, 0.35, frame.x) * (1.0 - smoothstep(0.85, 1.0, frame.x))
+				exposure = lerpf(exposure, 1.0, channel)
+				exposure *= 1.0 - 0.8 * ForestLayout.ravine_depth(p) / ForestLayout.RAVINE_DEPTH
+			exposure *= 1.0 - ForestLayout.cave_interior(p)
 			var value := clampf(exposure, 0.05, 1.0)
 			image.set_pixel(ix, iz, Color(value, value, value))
 	return image
@@ -166,10 +191,20 @@ func _raw_height(x: float, z: float) -> float:
 	var h := _hills.get_noise_2d(x, z) * 9.0 + _detail.get_noise_2d(x, z) * 1.0
 
 	# Anel de montanhas em volta do vale, com borda irregular.
-	var edge := p.length() + _warp.get_noise_2d(x, z) * 28.0
+	var warp := _warp.get_noise_2d(x, z)
+	var edge := p.length() + warp * 28.0
 	var mountain := smoothstep(ForestLayout.VALLEY_RADIUS - 15.0, ForestLayout.VALLEY_RADIUS + 70.0, edge)
-	var ridge := clampf(_ridges.get_noise_2d(x, z) * 0.5 + 0.5, 0.0, 1.0)
-	h += mountain * mountain * (40.0 + ridge * 70.0)
+	# F14: o vale da Pedra Rachada, com um anel mais curto e mais íngreme, e o desfiladeiro que
+	# atravessa as montanhas entre os dois (paredões de pedra dos lados do chão).
+	if mountain > 0.0 and x > ForestLayout.GORGE_FROM.x - 40.0:
+		var second := p.distance_to(ForestLayout.SECOND_VALLEY) + warp * 14.0
+		mountain = minf(mountain, smoothstep(ForestLayout.SECOND_VALLEY_RADIUS - 8.0, ForestLayout.SECOND_VALLEY_RADIUS + 35.0, second))
+		if ForestLayout.near_gorge(p, ForestLayout.GORGE_HALF_WIDTH + 25.0):
+			var gorge := ForestLayout.distance_to_gorge(p) + warp * 3.0
+			mountain = minf(mountain, smoothstep(ForestLayout.GORGE_HALF_WIDTH, ForestLayout.GORGE_HALF_WIDTH + 20.0, gorge))
+	if mountain > 0.0:
+		var ridge := clampf(_ridges.get_noise_2d(x, z) * 0.5 + 0.5, 0.0, 1.0)
+		h += mountain * mountain * (40.0 + ridge * 70.0)
 
 	# Colina atrás da caverna: íngreme atrás, descida longa e suave na frente.
 	var hill_center := ForestLayout.CAVE_CENTER + Vector2(0.0, 20.0)
@@ -190,26 +225,29 @@ func _height_at(x: float, z: float) -> float:
 	# Trilha levemente afundada.
 	if _trail_bounds.has_point(p):
 		h -= 0.15 * (1.0 - smoothstep(0.5, 2.5, ForestLayout.distance_to_trail(p)))
+	# A ravina do desfiladeiro (F14).
+	if ForestLayout.near_gorge(p, ForestLayout.GORGE_HALF_WIDTH + 14.0):
+		h -= ForestLayout.ravine_depth(p)
 	# Chão da caverna plano, emendando suave com a encosta.
 	var flatten := 1.0 - smoothstep(1.0, 1.5, ForestLayout.cave_ellipse(p))
 	return lerpf(h, cave_floor_height, flatten)
 
 
 func _compute_normals_and_splat() -> void:
-	_normals.resize(_side * _side)
-	_splat.resize(_side * _side)
-	for gz in _side:
-		for gx in _side:
-			var i := gz * _side + gx
-			var left := _heights[gz * _side + maxi(gx - 1, 0)]
-			var right := _heights[gz * _side + mini(gx + 1, RESOLUTION)]
-			var back := _heights[maxi(gz - 1, 0) * _side + gx]
-			var front := _heights[mini(gz + 1, RESOLUTION) * _side + gx]
+	_normals.resize(_side_x * _side_z)
+	_splat.resize(_side_x * _side_z)
+	for gz in _side_z:
+		for gx in _side_x:
+			var i := gz * _side_x + gx
+			var left := _heights[gz * _side_x + maxi(gx - 1, 0)]
+			var right := _heights[gz * _side_x + mini(gx + 1, cells_x)]
+			var back := _heights[maxi(gz - 1, 0) * _side_x + gx]
+			var front := _heights[mini(gz + 1, cells_z) * _side_x + gx]
 			var normal := Vector3(left - right, 2.0 * cell_size, back - front).normalized()
 			_normals[i] = normal
 
 			var x := _grid_x(gx)
-			var z := _grid_x(gz)
+			var z := _grid_z(gz)
 			var p := Vector2(x, z)
 			var rock := smoothstep(0.84, 0.66, normal.y)
 			rock = maxf(rock, smoothstep(28.0, 50.0, _heights[i]) * 0.85)
@@ -219,6 +257,10 @@ func _compute_normals_and_splat() -> void:
 				dirt = 1.0 - smoothstep(ForestLayout.TRAIL_HALF_WIDTH - 0.3, ForestLayout.TRAIL_HALF_WIDTH + 1.2, ForestLayout.distance_to_trail(p) + wobble)
 			var cave := 1.0 - smoothstep(0.85, 1.25, ForestLayout.cave_ellipse(p))
 			var ruins := 1.0 - smoothstep(5.0, 9.0, p.distance_to(ForestLayout.RUINS))
+			# O chão do desfiladeiro: cascalho e terra (F14).
+			if ForestLayout.near_gorge(p, ForestLayout.GORGE_HALF_WIDTH + 3.0) and ForestLayout.in_gorge(p):
+				var floor_gravel := 1.0 - smoothstep(ForestLayout.GORGE_HALF_WIDTH - 3.0, ForestLayout.GORGE_HALF_WIDTH + 1.0, absf(ForestLayout.gorge_frame(p).y))
+				dirt = maxf(dirt, floor_gravel * (0.78 + _detail.get_noise_2d(x * 2.0, z * 2.0) * 0.2))
 			var forest := forest_density(x, z) * (1.0 - dirt)
 			# Chão da caverna: terra batida com pedrinhas, sem rocha (evita o salpicado da transição).
 			rock *= 1.0 - cave
@@ -226,7 +268,7 @@ func _compute_normals_and_splat() -> void:
 
 
 func _build_meshes() -> void:
-	var cells := RESOLUTION / CHUNKS
+	var cells := CHUNK_CELLS
 	var row := cells + 1
 	var indices := PackedInt32Array()
 	for z in cells:
@@ -235,8 +277,8 @@ func _build_meshes() -> void:
 			# Sentido horário visto de cima (face da frente no Godot).
 			indices.append_array([i, i + 1, i + row, i + 1, i + row + 1, i + row])
 
-	for cz in CHUNKS:
-		for cx in CHUNKS:
+	for cz in cells_z / CHUNK_CELLS:
+		for cx in cells_x / CHUNK_CELLS:
 			var vertices := PackedVector3Array()
 			var normals := PackedVector3Array()
 			var colors := PackedColorArray()
@@ -244,8 +286,8 @@ func _build_meshes() -> void:
 				for x in row:
 					var gx := cx * cells + x
 					var gz := cz * cells + z
-					var gi := gz * _side + gx
-					vertices.append(Vector3(_grid_x(gx), _heights[gi], _grid_x(gz)))
+					var gi := gz * _side_x + gx
+					vertices.append(Vector3(_grid_x(gx), _heights[gi], _grid_z(gz)))
 					normals.append(_normals[gi])
 					colors.append(_splat[gi])
 			var arrays := []
@@ -268,10 +310,10 @@ func _build_meshes() -> void:
 ## Esconde os blocos da malha que ficam inteiros ao norte de `z` (o mundo acabando, R3).
 ## `z` = -INF mostra tudo.
 func set_north_cut(z: float) -> void:
-	var span := ForestLayout.TERRAIN_SIZE / CHUNKS
-	for cz in CHUNKS:
-		var hidden := -_half + (cz + 1) * span <= z + 0.01
-		for cx in CHUNKS:
+	var span := CHUNK_CELLS * cell_size
+	for cz in cells_z / CHUNK_CELLS:
+		var hidden := _origin.y + (cz + 1) * span <= z + 0.01
+		for cx in cells_x / CHUNK_CELLS:
 			(get_node("Chunk_%d_%d" % [cx, cz]) as Node3D).visible = not hidden
 
 
@@ -281,13 +323,16 @@ func _build_collision() -> void:
 	for i in _heights.size():
 		data[i] = _heights[i] / cell_size
 	var shape := HeightMapShape3D.new()
-	shape.map_width = _side
-	shape.map_depth = _side
+	shape.map_width = _side_x
+	shape.map_depth = _side_z
 	shape.map_data = data
 	var collision := CollisionShape3D.new()
 	collision.shape = shape
-	# Escala uniforme: cada célula do heightmap vira cell_size metros.
+	# Escala uniforme: cada célula do heightmap vira cell_size metros. O heightmap fica centrado
+	# no nó: o nó vai para o meio do retângulo.
 	collision.scale = Vector3.ONE * cell_size
+	var center := rect().get_center()
+	collision.position = Vector3(center.x, 0.0, center.y)
 	var body := StaticBody3D.new()
 	body.name = "Collision"
 	body.add_child(collision)
@@ -295,10 +340,14 @@ func _build_collision() -> void:
 
 
 func _grid_x(index: int) -> float:
-	return -_half + index * cell_size
+	return _origin.x + index * cell_size
+
+
+func _grid_z(index: int) -> float:
+	return _origin.y + index * cell_size
 
 
 func _nearest_index(x: float, z: float) -> int:
-	var gx := clampi(roundi((x + _half) / cell_size), 0, RESOLUTION)
-	var gz := clampi(roundi((z + _half) / cell_size), 0, RESOLUTION)
-	return gz * _side + gx
+	var gx := clampi(roundi((x - _origin.x) / cell_size), 0, cells_x)
+	var gz := clampi(roundi((z - _origin.y) / cell_size), 0, cells_z)
+	return gz * _side_x + gx

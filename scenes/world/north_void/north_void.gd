@@ -61,13 +61,13 @@ func _apply(on: bool) -> void:
 ## O corte do chão na borda: uma faixa preta que desce do perfil do terreno até o fundo.
 func _build_cut() -> void:
 	var z := Tuning.VOID_EDGE_Z
-	var half := ForestLayout.TERRAIN_SIZE * 0.5
+	var area := _terrain.rect()
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var steps := Terrain.RESOLUTION
+	var steps := _terrain.cells_x
 	for i in steps:
-		var x0 := -half + ForestLayout.TERRAIN_SIZE * i / steps
-		var x1 := -half + ForestLayout.TERRAIN_SIZE * (i + 1) / steps
+		var x0 := area.position.x + area.size.x * i / steps
+		var x1 := area.position.x + area.size.x * (i + 1) / steps
 		# Um pouco abaixo do chão, para a emenda não cintilar.
 		var top0 := Vector3(x0, _terrain.get_height(x0, z) - 0.03, z)
 		var top1 := Vector3(x1, _terrain.get_height(x1, z) - 0.03, z)
@@ -121,8 +121,9 @@ func _build_wall() -> void:
 	_wall.name = "Wall"
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(ForestLayout.TERRAIN_SIZE, WALL_HEIGHT, 2.0)
+	var area := _terrain.rect()
+	box.size = Vector3(area.size.x, WALL_HEIGHT, 2.0)
 	shape.shape = box
-	shape.position = Vector3(0.0, WALL_HEIGHT * 0.5 - DEPTH * 0.25, Tuning.VOID_EDGE_Z - 1.0)
+	shape.position = Vector3(area.get_center().x, WALL_HEIGHT * 0.5 - DEPTH * 0.25, Tuning.VOID_EDGE_Z - 1.0)
 	_wall.add_child(shape)
 	add_child(_wall)

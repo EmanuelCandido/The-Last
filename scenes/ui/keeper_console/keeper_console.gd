@@ -25,6 +25,8 @@ const PLACES := {
 	"trilha": Vector2(4.0, 2.0),
 	"ruina": Vector2(-15.0, -38.0),
 	"norte": Vector2(-2.0, -86.0),
+	"desfiladeiro": ForestLayout.GORGE_FROM,
+	"pedra": ForestLayout.SECOND_VALLEY + Vector2(-22.0, 0.0),
 }
 ## O que o Zelador anota de cada objetivo real que Ari fez (o status mostra).
 const ALERTS := {

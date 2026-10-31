@@ -8,10 +8,11 @@ extends Node3D
 
 const GROUP := &"orc_signs"
 const PICK_SOUND := preload("res://assets/audio/real/pickup_3.ogg")
-## Onde ficam: a flecha num pinheiro perto da clareira; os ossos e as pegadas no caminho do leste.
+## Onde ficam: a flecha num pinheiro perto da clareira; os ossos e as pegadas no caminho do leste
+## (F14: a fila de botas vai dar na boca do desfiladeiro).
 const ARROW_NEAR := Vector2(26.0, 14.0)
 const CARCASS_AT := Vector2(44.0, -4.0)
-const BOOT_LINE := [Vector2(36.0, -10.0), Vector2(52.0, -20.0)]
+const BOOT_LINE := [Vector2(48.0, -6.0), Vector2(78.0, -11.0)]
 
 var arrow_taken := false
 var bones_taken := false

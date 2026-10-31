@@ -92,7 +92,8 @@ const CONSOLE_HELP := """comandos:
   status                 o paciente e a simulação
   neblina off | on       a neblina da floresta
   ameaca off | on        os orcs da floresta
-  teleport <lugar>       onde o goblin acorda (caverna, clareira, trilha, ruina, norte)
+  teleport <lugar>       onde o goblin acorda (caverna, clareira, trilha, ruina, norte,
+                         desfiladeiro, pedra)
   give <item> [n]        cria itens no inventário do goblin
   ficar                  volta para a floresta. Ele para de apagar.
   acordar                abre a saída blindada.
@@ -231,6 +232,12 @@ const BEATS: Array[Dictionary] = [
 		"on": "orc",
 		"when": {"reason": "chief"},
 		"do": [{"add_note": "O grande da Pedra Rachada caiu. A trompa não vai tocar neste ciclo."}],
+	},
+	{
+		"id": "second_valley_note",
+		"on": "orc",
+		"when": {"reason": "valley"},
+		"do": [{"add_note": "Depois do desfiladeiro tem outro vale, com uma pedra rachada no meio. Nenhum bicho, nenhum pássaro. Só o fogo deles e o tambor."}],
 	},
 	{
 		"id": "troll_carried_note",

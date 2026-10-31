@@ -56,10 +56,14 @@ func _signs() -> void:
 	_check(signs._arrow.interaction_prompt() == "", "só uma vez")
 	signs._bones.interact(Game.player)
 	_check(signs.bones_taken and Inventory.count(&"bone") == 2, "os ossos do cervo esfolado")
-	_put(Vector3(40.0, 0.0, -8.0))
+	var line_a: Vector2 = OrcSigns.BOOT_LINE[0]
+	var line_b: Vector2 = OrcSigns.BOOT_LINE[1]
+	_put(Vector3(line_a.x - 4.0, 0.0, line_a.y + 2.0))
 	signs._stamped = -999.0
 	await _wait(0.3)
-	_check(Tracks.nearest(&"orc", Vector3(44.0, _level.ground_height(44.0, -15.0), -15.0), 6.0) != Vector3.INF, "as pegadas de bota passam perto")
+	var middle := line_a.lerp(line_b, 0.5)
+	_check(Tracks.nearest(&"orc", Vector3(middle.x, _level.ground_height(middle.x, middle.y), middle.y), 6.0) != Vector3.INF, "as pegadas de bota passam perto")
+	_check(line_b.distance_to(ForestLayout.GORGE_FROM) < 25.0, "e levam até a boca do desfiladeiro")
 	var saved := signs.save_data()
 	signs.load_data({})
 	signs.load_data(saved)
