@@ -183,7 +183,23 @@ float scene_gate(vec2 p, float t) {
 	color = mix(color, 0.2, rect(p, vec2(truck_x + 0.22, 0.27), vec2(0.06, 0.05)));
 	float shade;
 	float people = crowd(p, t, 5, 0.06, 0.3, 40.0, shade);
-	return mix(color, shade, people);
+	color = mix(color, shade, people);
+	// A equipe de resgate parada no portão (F14): macacão claro e o respirador com os dois filtros
+	// escuros na frente do rosto, a mesma silhueta da máscara dos orcs.
+	for (int i = 0; i < 3; i++) {
+		float s = 0.27 - float(i) * 0.02;
+		vec2 feet = vec2(0.38 + float(i) * 0.085, 0.16 + float(i % 2) * 0.025);
+		float sway = sin(t * 0.8 + float(i) * 2.1) * 0.004;
+		color = mix(color, 0.68, person(p, feet + vec2(sway, 0.0), s, 0.0));
+		// O visor numa faixa escura em cima e os filtros embaixo, de lado, na altura da boca.
+		vec2 face = feet + vec2(sway, s * 0.84);
+		color = mix(color, 0.12, rect(p, face + vec2(0.0, s * 0.11), vec2(s * 0.075, s * 0.022)));
+		float filters = max(1.0 - step(s * 0.032, length(p - face - vec2(-s * 0.06, 0.0))),
+			1.0 - step(s * 0.032, length(p - face - vec2(s * 0.06, 0.0))));
+		color = mix(color, 0.07, filters);
+		color = mix(color, 0.3, rect(p, face + vec2(0.0, -s * 0.01), vec2(s * 0.03, s * 0.025)));
+	}
+	return color;
 }
 
 void fragment() {

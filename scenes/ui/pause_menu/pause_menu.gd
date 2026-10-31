@@ -15,7 +15,7 @@ const TIPS := """[b]CONTROLES[/b]
 {aim} — mirar com o arco (com uma arma de mão: defender)
 {attack}, mirando — segure para puxar a corda, solte para atirar
 {attack} sem mirar — golpear (quebra árvores secas)
-{weapon_swap} — trocar o arco por uma arma de mão  ·  {dodge} — esquivar
+{weapon_swap} — trocar o arco por uma arma de mão  ·  {dodge} — esquivar  ·  {lock_on} — travar no alvo
 {pause} — pausar  ·  F3 — desempenho  ·  as teclas mudam em Configurações
 
 [b]PRIMEIROS PASSOS[/b]
@@ -208,6 +208,12 @@ func _show_status(text: String) -> void:
 ## As Dicas com as teclas de agora (Settings), os títulos em ocre e as anotações de Ari no fim.
 func _tips_with_notes() -> String:
 	var text := TIPS.format(Settings.key_labels())
+	# O bestiário: só o que o goblin já encontrou.
+	var seen := StoryBeats.BESTIARY.filter(func(entry: Array) -> bool: return Story.has_flag(entry[0]))
+	if not seen.is_empty():
+		text += "\n\n[b]BESTIÁRIO[/b]"
+		for entry: Array in seen:
+			text += "\n• [b]%s.[/b] %s" % [entry[1], entry[2]]
 	text = text.replace("[b]", "[color=%s][b]" % UiStyle.hex(UiStyle.ACCENT)).replace("[/b]", "[/b][/color]")
 	if Story.notes.is_empty():
 		return text

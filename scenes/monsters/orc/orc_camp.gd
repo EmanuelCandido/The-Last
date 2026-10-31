@@ -19,6 +19,11 @@ const GAP := 0.62
 var chest := {}
 var _chest_node: Node3D
 var _guarded_day := -1
+## O tambor (F14): o centro do couro e onde o tocador fica (no espaço do acampamento), quem bate agora.
+var _drum_face := Vector3.ZERO
+var _drum_stand := Vector3.ZERO
+var _drummer: Orc
+var _drum_check := 0.0
 
 
 func _ready() -> void:
@@ -115,6 +120,9 @@ func build(terrain: Terrain, center: Vector2) -> void:
 	skin.height = 0.03
 	skin.radial_segments = 9
 	leather.append_from(skin, 0, Transform3D(Basis.IDENTITY, Vector3(drum_spot.x, drum_ground + 0.71, drum_spot.y)))
+	_drum_face = Vector3(drum_spot.x, drum_ground + 0.72, drum_spot.y)
+	var toward_fire := -drum_spot.normalized()
+	_drum_stand = Vector3(drum_spot.x + toward_fire.x * 0.85, drum_ground, drum_spot.y + toward_fire.y * 0.85)
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Camp"
 	mesh.mesh = builder.commit()
@@ -134,11 +142,50 @@ func build(terrain: Terrain, center: Vector2) -> void:
 	_chest_node.rotation.y = -gate_angle
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	var fire := get_node_or_null(^"Fire") as Campfire
 	if fire != null and fire.fuel < 2.0:
 		fire.fuel = 2.0
 	_guard()
+	_drum_check -= delta
+	if _drum_check <= 0.0:
+		_drum_check = 1.0
+		_drum_keeper()
+
+
+## O tambor (F14): o orc calmo mais perto dele vira o tocador (o chefe só na noite da Investida,
+## quando o tambor bate mais rápido e não para). Sem orc, sem tambor.
+func _drum_keeper() -> void:
+	var raid := Story.has_flag(&"raid_tonight")
+	if _drummer != null and is_instance_valid(_drummer) and _drummer.state == Orc.State.PATROL and _drummer.drum_at != Vector3.INF:
+		_drummer.drum_bpm = Tuning.ORC_DRUM_RAID_BPM if raid else Tuning.SHELTER_BPM
+		_drummer.drum_rest = 0.0 if raid else Tuning.ORC_DRUM_REST
+		return
+	if _drummer != null and is_instance_valid(_drummer):
+		_drummer.drum_at = Vector3.INF
+	_drummer = null
+	var stand := to_global(_drum_stand)
+	var best_distance := Tuning.ORC_DRUM_REACH
+	for node in get_tree().get_nodes_in_group(Orc.GROUP):
+		var orc := node as Orc
+		if orc == null or orc.state != Orc.State.PATROL or orc.raider or (orc.kind == &"chief" and not raid):
+			continue
+		var distance := orc.global_position.distance_to(stand)
+		if distance < best_distance:
+			best_distance = distance
+			_drummer = orc
+	if _drummer != null:
+		_drummer.drum_at = stand
+		_drummer.drum_face = to_global(_drum_face)
+		_drummer.drum_bpm = Tuning.ORC_DRUM_RAID_BPM if raid else Tuning.SHELTER_BPM
+		_drummer.drum_rest = 0.0 if raid else Tuning.ORC_DRUM_REST
+
+
+## Quem está batendo o tambor agora (null = ninguém).
+func drummer() -> Orc:
+	if _drummer != null and is_instance_valid(_drummer) and _drummer.drum_at != Vector3.INF:
+		return _drummer
+	return null
 
 
 ## De dia, do dia da chegada dos orcs em diante, dois ficam de guarda no acampamento.

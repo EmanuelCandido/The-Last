@@ -30,6 +30,9 @@ const BELL_AT := Vector3(-150.0, 40.0, -120.0)
 const CROWD_AT := Vector3(-60.0, 7.0, -47.0)
 ## O reflexo um pouco maior que o natural, para o rosto ler no vidro escuro.
 const FACE_SIZE := Vector2(0.72, 0.9)
+## O vulto de respirador (F14) atravessa a rua de cruzamento, de uma ponta à outra.
+const WALKER_FROM := Vector3(-17.0, STREET_Y, CROSS_Z - 2.5)
+const WALKER_TO := Vector3(17.0, STREET_Y, CROSS_Z - 2.5)
 
 ## O ar de fora: o mesmo do Abrigo, com a neblina e o céu cinza.
 var environment: Environment
@@ -50,6 +53,11 @@ var _bell_timer := 0.0
 var _seen_for := 0.0
 var _running := false
 var _ari: Ari
+var _walker: Node3D
+var _walker_legs: Array[Node3D] = []
+var _walker_phase := 0.0
+var _walker_look := 0.0
+var _walker_done := false
 
 
 func _ready() -> void:
@@ -62,6 +70,7 @@ func _ready() -> void:
 	_build_shop()
 	_build_props()
 	_commit()
+	_build_walker()
 	_build_air()
 	set_process(false)
 
@@ -104,7 +113,36 @@ func _process(delta: float) -> void:
 			# A gravação tem três badaladas: emendada no fim, o sino dobra sem parar no ritmo dele.
 			_bell_timer = BELL.get_length()
 			_bell.play()
+	_update_walker(delta, walked)
 	_update_reflection(delta)
+
+
+## O vulto atravessa a rua quando Ari sai na calçada. Longe o bastante, para no meio e olha para
+## ela; depois segue e some na neblina do outro lado.
+func _update_walker(delta: float, walked: float) -> void:
+	if _walker_done or walked < Tuning.OUTSIDE_WALKER_AFTER:
+		return
+	_walker.visible = true
+	var to_ari := to_local(_ari.global_position) - _walker.position
+	to_ari.y = 0.0
+	var stopping := _walker.position.x >= 0.0 and _walker_look < Tuning.OUTSIDE_WALKER_LOOK
+	if stopping and to_ari.length() > Tuning.OUTSIDE_WALKER_KEEP_AWAY:
+		_walker_look += delta
+		_walker.rotation.y = lerp_angle(_walker.rotation.y, atan2(to_ari.x, to_ari.z), delta * 2.0)
+		_swing_legs(0.0)
+		return
+	_walker.position = _walker.position.move_toward(WALKER_TO, Tuning.OUTSIDE_WALKER_SPEED * delta)
+	_walker.rotation.y = lerp_angle(_walker.rotation.y, PI * 0.5, delta * 2.0)
+	_walker_phase += delta * Tuning.OUTSIDE_WALKER_SPEED * 3.6
+	_swing_legs(sin(_walker_phase) * 0.4)
+	if _walker.position.is_equal_approx(WALKER_TO):
+		_walker.visible = false
+		_walker_done = true
+
+
+func _swing_legs(angle: float) -> void:
+	for i in _walker_legs.size():
+		_walker_legs[i].rotation.x = angle if i == 0 else -angle
 
 
 ## O rosto no vidro: o reflexo fica atrás do vidro, no lugar do espelho de Ari, e só aparece de
@@ -307,6 +345,29 @@ func _build_props() -> void:
 		if absf(at.x) < 4.0 and rng.randf() < 0.6:
 			at.x = signf(at.x) * rng.randf_range(4.0, 5.6)
 		ShelterLook.box(self, Vector3(0.2, 0.004, 0.26), at, &"paper" if i % 4 == 0 else &"blanket", Vector3(0.0, rng.randf() * TAU, 0.0))
+
+
+## Macacão claro, capuz e o respirador com os dois filtros na frente da boca: a máscara que os
+## orcs copiam na floresta. As pernas giram no quadril.
+func _build_walker() -> void:
+	_walker = Node3D.new()
+	_walker.name = "Walker"
+	_walker.position = WALKER_FROM
+	_walker.rotation.y = PI * 0.5
+	_walker.visible = false
+	add_child(_walker)
+	ShelterLook.box(_walker, Vector3(0.44, 0.62, 0.26), Vector3(0.0, 1.2, 0.0), &"plastic")
+	ShelterLook.sphere(_walker, 0.13, Vector3(0.0, 1.64, 0.0), &"plastic")
+	ShelterLook.box(_walker, Vector3(0.2, 0.06, 0.04), Vector3(0.0, 1.69, 0.12), &"window")
+	ShelterLook.box(_walker, Vector3(0.12, 0.1, 0.08), Vector3(0.0, 1.57, 0.12), &"rubber")
+	for side: float in [-1.0, 1.0]:
+		ShelterLook.cylinder(_walker, 0.05, 0.07, Vector3(side * 0.085, 1.55, 0.15), &"rubber", Vector3(PI * 0.5, 0.0, 0.0))
+		ShelterLook.box(_walker, Vector3(0.1, 0.56, 0.12), Vector3(side * 0.28, 1.17, 0.0), &"plastic")
+		var hip := Node3D.new()
+		hip.position = Vector3(side * 0.11, 0.89, 0.0)
+		_walker.add_child(hip)
+		ShelterLook.box(hip, Vector3(0.15, 0.87, 0.16), Vector3(0.0, -0.44, 0.0), &"plastic")
+		_walker_legs.append(hip)
 
 
 func _build_air() -> void:

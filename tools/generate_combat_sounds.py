@@ -82,6 +82,46 @@ def orc_voice(seed, dur, f0, f1, rough, vowel, attack=0.03):
     return out * env
 
 
+def orc_drum(variant):
+    """O tambor do acampamento (F14): tronco oco com couro esticado. A pele cai de tom no baque, o tapa
+    da mão fica por cima e o oco do tronco ressoa curto. A 2 é o segundo baque do coração, mais leve."""
+    rng = np.random.default_rng(980 + variant)
+    n = int(0.9 * SR)
+    t = np.arange(n) / SR
+    f = (62 + 8 * variant) * (1.0 + 0.6 * np.exp(-t / 0.03))
+    skin = tone(f, ((1, 1.0), (2, 0.25), (3, 0.1))) * np.exp(-t / (0.32 - 0.06 * variant))
+    hollow = np.sin(2 * np.pi * (170 + 20 * variant) * t) * np.exp(-t / 0.07) * 0.35
+    slap = band_oneshot(burst(rng, 0.9, 0.018), 250, 1800, 0.3) * 0.5
+    return skin + hollow + slap
+
+
+def orc_talk(variant):
+    """A língua dos orcs (F14): uma frase de rádio tocada ao contrário. Sílabas de voz rouca por um
+    alto-falante pequeno (só o meio da voz, saturado), o chiado do canal e o estalo de abrir e fechar.
+    Na segunda leitura, o rádio da equipe de resgate ("evacuar ala norte")."""
+    rng = np.random.default_rng(990 + variant)
+    syllables = int(rng.integers(5, 9))
+    parts = [np.zeros(int(0.12 * SR))]
+    for i in range(syllables):
+        dur = rng.uniform(0.12, 0.26)
+        # A frase cai de tom até o fim, como quem dá uma ordem.
+        f0 = rng.uniform(110, 150) * (1.0 - 0.15 * i / syllables)
+        vowel = str(rng.choice(["a", "o", "u"]))
+        parts.append(orc_voice(int(rng.integers(1_000_000)), dur, f0, f0 * rng.uniform(0.85, 1.1), 0.3, vowel, 0.015))
+        parts.append(np.zeros(int(rng.uniform(0.02, 0.09) * SR)))
+    parts.append(np.zeros(int(0.12 * SR)))
+    speech = np.concatenate(parts)
+    n = len(speech)
+    radio = band_oneshot(speech, 350, 2800, 0.2)
+    radio = np.tanh(radio / (np.max(np.abs(radio)) + 1e-9) * 2.5)
+    hiss = band_oneshot(rng.standard_normal(n), 800, 5000, 0.2) * 0.08
+    out = radio + hiss
+    for at in (0, n - int(0.05 * SR)):
+        click = band_oneshot(burst(rng, 0.05, 0.006), 1200, 6000, 0.2) * 0.8
+        out[at:at + len(click)] += click
+    return out[::-1].copy()
+
+
 def main():
     out = ROOT / "sfx"
     for v in (1, 2, 3):
@@ -97,6 +137,11 @@ def main():
     for v in (1, 2):
         write_wav(out / f"orc_hurt_{v}.wav", orc_voice(960 + v, 0.5, 150 + 15 * v, 95, 1.0, "o", 0.01))
     write_wav(out / "orc_death.wav", orc_voice(970, 1.6, 120, 55, 0.8, "o", 0.02))
+    # F14: o tambor (os dois baques do coração) e a língua dos orcs.
+    for v in (1, 2):
+        write_wav(out / f"orc_drum_{v}.wav", orc_drum(v))
+    for v in (1, 2, 3, 4):
+        write_wav(out / f"orc_talk_{v}.wav", orc_talk(v), peak=0.7)
 
 
 if __name__ == "__main__":

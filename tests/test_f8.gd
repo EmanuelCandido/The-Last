@@ -180,6 +180,8 @@ func _wake() -> void:
 	await _wait(2.0)
 	_check(outside.reflection < 0.05, "longe do vidro, nada de reflexo")
 	_check(not outside._crowd.playing, "no começo da rua, ainda sem vozes")
+	_check(outside._walker.visible and outside._walker.position.x > Outside.WALKER_FROM.x + 1.0,
+		"o vulto de respirador atravessa a rua lá na frente (x %.1f)" % outside._walker.position.x)
 	ari.global_position = outside.to_global(Vector3(0.0, Outside.STREET_Y + 0.05, -36.0))
 	await _wait(1.0)
 	_check(outside._crowd.playing, "mais adiante, as vozes ao longe")

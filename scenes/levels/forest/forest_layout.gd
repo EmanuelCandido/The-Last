@@ -33,6 +33,8 @@ const MEADOW_RADIUS := 18.0
 const RUINS := Vector2(-18.0, -46.0)
 ## O acampamento dos orcs (F13): o lugar preferido; o OrcCamp procura o chão livre mais perto.
 const ORC_CAMP := Vector2(66.0, -36.0)
+## A ponte caída na borda oeste (F14): a casa do troll.
+const TROLL_BRIDGE := Vector2(-86.0, 8.0)
 ## A casa de cada manada de cervos (§8b-B): onde ela volta no fim da tarde e dorme. De dia anda
 ## pelo vale todo.
 const DEER_HOMES := [Vector2(42.0, -12.0), Vector2(-42.0, -22.0), Vector2(-52.0, 30.0), Vector2(50.0, 42.0), Vector2(14.0, -62.0)]

@@ -456,6 +456,12 @@ const EXIT_DOOR_SECONDS := 4.5
 ## (m andados desde a porta), e o reflexo no vidro (aparece a esta distância, m; fica na tela s).
 const OUTSIDE_FOG_DENSITY := 0.03
 const OUTSIDE_BELL_AFTER := 14.0
+## O vulto de respirador (F14): metros que Ari anda na rua até ele aparecer, a velocidade dele,
+## quantos segundos para no meio olhando para ela e a distância mínima para parar (mais perto, segue).
+const OUTSIDE_WALKER_AFTER := 1.0
+const OUTSIDE_WALKER_SPEED := 1.3
+const OUTSIDE_WALKER_LOOK := 3.0
+const OUTSIDE_WALKER_KEEP_AWAY := 10.0
 const REFLECTION_DISTANCE := 3.2
 const REFLECTION_HOLD := 6.0
 ## Se Ari não chegar ao vidro, a cena acaba sozinha depois disto (s lá fora).
@@ -898,6 +904,45 @@ const LOG_TRIGGER_RADIUS := 1.2
 const LOG_HIT_RADIUS := 1.4
 const LOG_DAMAGE := 3.0
 const LOG_TREE_REACH := 2.5
+## Prática de luta (como a do arco): defesas e aparos bem feitos alargam a janela do aparo até
+## PRACTICE_PARRY_MAX a mais; golpes que acertam baixam o fôlego dos golpes até PRACTICE_SWING_MAX.
+## O ganho é 1 - e^(-x/k), com k em PRACTICE_GUARDS e PRACTICE_MELEE_HITS.
+const PRACTICE_PARRY_MAX := 0.4
+const PRACTICE_SWING_MAX := 0.25
+const PRACTICE_GUARDS := 30.0
+const PRACTICE_MELEE_HITS := 60.0
+## Trava de alvo: até onde ela pega (m), o cone da câmera (graus) e quanto a câmera segue (1/s).
+const LOCK_RANGE := 14.0
+const LOCK_CONE := 70.0
+const LOCK_FOLLOW := 6.0
+## O tambor do acampamento (F14): um orc de verdade bate no ritmo do coração de Ari (SHELTER_BPM; na
+## noite da Investida, ORC_DRUM_RAID_BPM e sem descanso). Segundos batendo e descansando, o intervalo
+## do segundo baque do coração, de que distância ele larga a patrulha para ir ao tambor, o volume e
+## o tamanho do som (bus Ambience: ouve-se de longe na floresta).
+const ORC_DRUM_BOUT := 40.0
+const ORC_DRUM_REST := 60.0
+const ORC_DRUM_RAID_BPM := 112.0
+const ORC_DRUM_DUB := 0.3
+const ORC_DRUM_REACH := 14.0
+const ORC_DRUM_DB := 4.0
+const ORC_DRUM_SIZE := 30.0
+## A língua dos orcs (F14): de quanto em quanto tempo dois orcs calmos perto um do outro conversam
+## (s, sorteado), a distância entre eles e o volume.
+const ORC_TALK_INTERVAL := Vector2(10.0, 24.0)
+const ORC_TALK_RANGE := 9.0
+const ORC_TALK_DB := -5.0
+## O troll da ponte (F14): tamanho do modelo (o orc é ORC_MODEL_SCALE), velocidades (anda devagar; a
+## corrida dele perde para o disparo do goblin), a distância em que pega, os sentidos (ouve e fareja
+## muito, vê pouco), as horas que o goblin fica desacordado e a Vigilância que sobe.
+const TROLL_SCALE := 2.6
+const TROLL_WALK_SPEED := 1.1
+const TROLL_RUN_SPEED := 3.6
+const TROLL_GRAB_RANGE := 1.6
+const TROLL_HEARING := 26.0
+const TROLL_SMELL := 40.0
+const TROLL_SIGHT := 8.0
+const TROLL_CARRY_HOURS := 3.0
+const VIGILANCE_TROLL := 15.0
 
 # --- F12: os orcs (docs/plano_combate.md §7; experimental) ------------------------------------
 

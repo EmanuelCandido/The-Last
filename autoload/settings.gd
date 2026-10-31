@@ -37,6 +37,7 @@ const REMAPPABLE: Array[Array] = [
 	[&"throw", "Jogar pedra"],
 	[&"dodge", "Esquivar"],
 	[&"weapon_swap", "Trocar de arma"],
+	[&"lock_on", "Travar no alvo"],
 ]
 ## Volumes: chave -> buses. "world" leva também o bus Shelter (os sons do Abrigo contam como
 ## efeitos; a tela não pode dizer que ele existe). "master" é um ganho no Master, porque o volume

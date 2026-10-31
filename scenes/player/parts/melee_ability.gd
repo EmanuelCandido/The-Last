@@ -46,6 +46,8 @@ var _queued := false
 ## Armas que já avisaram que estão rachando.
 var _warned := {}
 var _trace := WeaponTrace.new()
+## A trava de alvo (lock_on): o bicho ou orc em que a câmera fica presa (null = solta).
+var locked: Node3D
 ## Vida perdida na luta de agora (F14): passando de Tuning.FIGHT_HURT_LIMIT, a Vigilância sobe e a
 ## próxima visita ao Abrigo tem menos lucidez. Esquece depois de um minuto sem levar golpe.
 var _fight_hurt := 0.0
@@ -70,6 +72,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("dodge"):
 		get_viewport().set_input_as_handled()
 		_dodge()
+		return
+	if event.is_action_pressed("lock_on"):
+		get_viewport().set_input_as_handled()
+		locked = null if locked != null else _lock_target()
 		return
 	if Inventory.held() == &"":
 		return
@@ -126,6 +132,7 @@ func _physics_process(delta: float) -> void:
 
 	if _swing.get("active", false):
 		_sweep()
+	_follow_lock(delta)
 
 
 ## Quanto fôlego falta para cansar (0 = sem fôlego). Para os roteiros e a interface.
@@ -153,7 +160,7 @@ func _start_swing(heavy: bool, chained := false) -> void:
 	var duration: float = float(timing[0]) * slow
 	var opens: float = float(timing[1]) * slow
 	var closes: float = float(timing[2]) * slow
-	stamina = maxf(stamina - float(spec.heavy_stamina if heavy else spec.stamina) * Armor.factor("stamina"), 0.0)
+	stamina = maxf(stamina - float(spec.heavy_stamina if heavy else spec.stamina) * Armor.factor("stamina") * _player.swing_stamina, 0.0)
 	_combo = 0 if heavy else _combo + 1
 	var style := Weapons.style_of(item)
 	var action := StringName("%s_heavy" % style) if heavy else StringName("%s_%d" % [style, 2 - _combo % 2])
@@ -243,20 +250,72 @@ func _land(hit: Dictionary) -> void:
 		target.take_hit(0.5, hit.point, hit.direction, damage)
 	OccludedAudio.play_at(Game.current_level if Game.current_level != null else _player, HIT_SOUNDS.pick_random(), hit.point, &"World", -2.0, 4.0, randf_range(0.85, 1.05))
 	Events.noise_made.emit(hit.point, Tuning.MELEE_HIT_NOISE)
+	Events.melee_hit.emit(&"orc" if target is Orc else (target as Animal).kind if target is Animal else &"")
 	_wear(item, 1.0)
 
 
-## Para onde o golpe vai: o bicho mais perto na frente da câmera (a trava suave) ou a câmera.
+## O alvo da trava: o orc ou bicho vivo mais perto do centro da câmera, dentro de Tuning.LOCK_RANGE.
+func _lock_target() -> Node3D:
+	var aim := _player.aim_direction()
+	aim.y = 0.0
+	aim = aim.normalized()
+	var best: Node3D = null
+	var best_angle := Tuning.LOCK_CONE * 0.5
+	var candidates: Array[Node] = []
+	candidates.append_array(get_tree().get_nodes_in_group(Orc.GROUP))
+	candidates.append_array(get_tree().get_nodes_in_group(&"animals"))
+	for node in candidates:
+		if not _alive(node):
+			continue
+		var to := (node as Node3D).global_position - _player.global_position
+		to.y = 0.0
+		if to.length() > Tuning.LOCK_RANGE or to.length() < 0.3:
+			continue
+		var angle := rad_to_deg(aim.angle_to(to.normalized()))
+		if angle < best_angle:
+			best_angle = angle
+			best = node
+	return best
+
+
+func _alive(node: Node) -> bool:
+	if node is Orc:
+		return not (node as Orc).is_dead()
+	if node is Animal:
+		return (node as Animal).state != Animal.State.DEAD
+	return false
+
+
+## Com a trava, a câmera segue o alvo; morto ou longe, solta.
+func _follow_lock(delta: float) -> void:
+	if locked == null:
+		return
+	if not is_instance_valid(locked) or not _alive(locked) or locked.global_position.distance_to(_player.global_position) > Tuning.LOCK_RANGE * 1.5:
+		locked = null
+		return
+	_player.track_with_camera(locked.global_position, delta)
+
+
+## Para onde o golpe vai: o alvo travado, o bicho mais perto na frente da câmera (a trava suave) ou
+## a câmera.
 func _strike_direction() -> Vector3:
+	if locked != null and is_instance_valid(locked):
+		var at := locked.global_position - _player.global_position
+		at.y = 0.0
+		if at.length_squared() > 0.0001:
+			return at.normalized()
 	var aim := _player.aim_direction()
 	aim.y = 0.0
 	aim = aim.normalized() if aim.length_squared() > 0.0001 else _player.facing()
 	var best := SOFT_LOCK_RANGE
 	var direction := aim
-	for node in get_tree().get_nodes_in_group(&"animals"):
-		var animal := node as Animal
-		if animal == null or animal.state == Animal.State.DEAD:
+	var near: Array[Node] = []
+	near.append_array(get_tree().get_nodes_in_group(&"animals"))
+	near.append_array(get_tree().get_nodes_in_group(Orc.GROUP))
+	for node in near:
+		if not _alive(node):
 			continue
+		var animal := node as Node3D
 		var to := animal.global_position - _player.global_position
 		to.y = 0.0
 		var distance := to.length()
@@ -368,13 +427,14 @@ func defend(attack: Dictionary) -> StringName:
 			_wear(item, 3.0)
 			_player.shove(-away * 1.4, 0.15)
 			return &"braced"
-		if not charge and not missile and _guard_time <= Tuning.PARRY_WINDOW:
+		if not charge and not missile and _guard_time <= Tuning.PARRY_WINDOW * (1.0 + _player.parry_bonus):
 			if attacker != null and attacker.has_method("stagger"):
 				attacker.stagger(Tuning.PARRY_STAGGER)
 			stamina = minf(stamina + 0.1, 1.0)
 			OccludedAudio.play_at(_player, PARRY_SOUND, _player.global_position + Vector3.UP * 0.6, &"World", -2.0, 4.0, randf_range(0.95, 1.05))
 			Events.noise_made.emit(_player.global_position, Tuning.MELEE_HIT_NOISE)
 			_wear(item, 0.5)
+			Events.guard_held.emit(&"parried")
 			return &"parried"
 		# Com o escudo (F13) a defesa passa menos e cansa menos; quem gasta é o escudo.
 		var shield := Armor.shield_in_use()
@@ -389,6 +449,7 @@ func defend(attack: Dictionary) -> StringName:
 				_wear(item, 1.0)
 			var leak := Armor.SHIELD_LEAK if shield != &"" else Tuning.BLOCK_LEAK
 			_take(damage * leak * (1.6 if charge else 1.0), attack, push * 0.5, gained * (1.0 if charge else 0.4) * (0.5 if shield != &"" else 1.0))
+			Events.guard_held.emit(&"blocked")
 			return &"blocked"
 		# Sem fôlego, a defesa cede: o golpe passa inteiro e derruba.
 		stamina = 0.0

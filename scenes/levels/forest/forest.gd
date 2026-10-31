@@ -76,6 +76,11 @@ func _ready() -> void:
 	signs.name = "OrcSigns"
 	add_child(signs)
 	signs.build(_terrain, _vegetation)
+	# A ponte caída da borda oeste e o troll que mora nela (F14).
+	var bridge := TrollBridge.new()
+	bridge.name = "TrollBridge"
+	add_child(bridge)
+	bridge.build(_terrain)
 	_void = NorthVoid.new()
 	_void.name = "NorthVoid"
 	add_child(_void)

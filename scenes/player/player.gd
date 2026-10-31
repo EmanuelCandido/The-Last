@@ -82,6 +82,9 @@ var tremor_factors := {}
 var scent_factors := {}
 ## Multiplicadores da velocidade, por nome (F11: defendendo anda devagar).
 var speed_factors := {}
+## Prática de luta (a Practice põe): fração a mais na janela do aparo e o fôlego dos golpes.
+var parry_bonus := 0.0
+var swing_stamina := 1.0
 
 var _spawn_transform: Transform3D
 var _controls_enabled := true
@@ -462,6 +465,15 @@ func shove(push: Vector3, seconds: float) -> void:
 	velocity.z = push.z
 	velocity.y = maxf(velocity.y, push.y)
 	_shove = maxf(_shove, seconds)
+
+
+## A trava de alvo: a câmera vira devagar para `point` (o goblin continua andando pela câmera).
+func track_with_camera(point: Vector3, delta: float) -> void:
+	var to := point - global_position
+	if Vector2(to.x, to.z).length_squared() < 0.01:
+		return
+	var yaw := atan2(-to.x, -to.z)
+	_camera_pivot.rotation.y = lerp_angle(_camera_pivot.rotation.y, yaw, 1.0 - exp(-Tuning.LOCK_FOLLOW * delta))
 
 
 ## Controles ligados (não está dormindo, numa cena ou acordando), mesmo no meio de uma ação.

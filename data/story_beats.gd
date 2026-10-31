@@ -36,6 +36,18 @@ const PROGRESS_FLAGS: Array[StringName] = [
 	&"climate_cut", &"access_card", &"control_room", &"confession",
 ]
 
+## O bestiário de Ari (nas Dicas, F11+): cada entrada aparece quando o flag dela liga (o goblin
+## encontrou aquilo de verdade). [flag, título, texto]
+const BESTIARY := [
+	[&"bestiary_boar", "Javali", "De longe, foge; de perto ou ferido, investe reto. Saio da frente no último instante, ou recebo na lança firmada: ele se empala."],
+	[&"bestiary_wolf", "Lobos", "Chegam de noite, depois de um uivo. Rondam, rosnam a uns nove passos e mordem. Não passam do fogo. Uma flechada e vão embora."],
+	[&"bestiary_orc_scout", "O batedor", "Machado e couro, sozinho ou em dupla. Vê e ouve bem, fareja mal. De pé eu só alcanço a perna dele: acertada, ele manca."],
+	[&"bestiary_orc_warrior", "O guerreiro", "Espada, elmo e peitoral de ferro. A faca escorrega no ferro; o porrete e a flecha de ferro, não. Aparado, ajoelha: a cabeça fica perto."],
+	[&"bestiary_orc_archer", "O arqueiro", "Fica longe e puxa um arco do meu tamanho. Primeiro o rangido, depois o grunhido, depois a flecha. Só o escudo segura."],
+	[&"bestiary_orc_chief", "O grande da Pedra Rachada", "Investe reto: saio de lado, ou deixo ele bater num tronco e ficar tonto. Depois do golpe de cima o martelo prende no chão."],
+	[&"bestiary_troll", "O da ponte caída", "Dorme de dia nos troncos da borda oeste e anda de noite. Ouve e fareja muito, vê pouco; correndo, eu ganho. Me pegou e não me feriu: acordei na boca da toca. Tem um olho só, verde."],
+]
+
 ## Código da porta da ruína: a pintura do teto (2 cervos, 7 corvos, 1 lobo, 4 coelhos).
 const DOOR_CODE := "2714"
 ## A porta só aceita o código com este flag (Ari viu a ruína pela janela, no flash 3).
@@ -219,6 +231,18 @@ const BEATS: Array[Dictionary] = [
 		"on": "orc",
 		"when": {"reason": "chief"},
 		"do": [{"add_note": "O grande da Pedra Rachada caiu. A trompa não vai tocar neste ciclo."}],
+	},
+	{
+		"id": "troll_carried_note",
+		"on": "orc",
+		"when": {"reason": "troll"},
+		"do": [{"add_note": "Uma coisa enorme me pegou no escuro e me deixou na boca da toca, inteiro. Um olho verde e um zumbido de motor. Quem me carrega de volta sem me ferir?"}],
+	},
+	{
+		"id": "troll_lens_note",
+		"on": "orc",
+		"when": {"reason": "troll", "act_at_least": 3, "counter_at_least": {"troll_carried": 2}},
+		"do": [{"add_note": "O olho verde do troll é a mesma luz da lente. Ele não pode me ferir. Ele me devolve para a cama."}],
 	},
 	{
 		"id": "hard_fight_rested",

@@ -5,6 +5,9 @@ extends RefCounted
 ## base do frame e mexe o corpo todo, com preparação e continuação. `t` é o tempo dentro da
 ## ação; a duração e o sorteio da ação vêm do animador (`a`).
 
+## Ação `drum`: segundos até o primeiro baque (o corpo se curva sobre o tambor antes).
+const DRUM_LEAD := 0.5
+
 
 static func pose(a: GoblinAnimator, action: StringName, t: float, base: Dictionary) -> Dictionary:
 	var p := base.duplicate()
@@ -235,6 +238,33 @@ static func pose(a: GoblinAnimator, action: StringName, t: float, base: Dictiona
 			p.torso_yaw = base.torso_yaw + pull * 0.04 * work
 			p.ear_l = base.ear_l - 0.3 * listen
 			p.ear_r = base.ear_r - 0.3 * listen
+		&"drum":
+			# O orc no tambor do acampamento (F14): curvado sobre o couro, pernas abertas, as duas
+			# mãos descem uma depois da outra no ritmo de um coração (a direita no primeiro baque,
+			# a esquerda no segundo, Tuning.ORC_DRUM_DUB depois). Entre os baques a mão sobe
+			# devagar e cai depressa; o quadril afunda um pouco em cada um.
+			var lean := GoblinAnimator._curve(t, [[0.0, 0.0], [0.4, 1.0], [a._action_duration - 0.4, 1.0], [a._action_duration, 0.0]])
+			var period := a.drum_period
+			var phase_r := fposmod(t - DRUM_LEAD, period)
+			var phase_l := fposmod(t - DRUM_LEAD - Tuning.ORC_DRUM_DUB, period)
+			var keys := [[0.0, -0.5], [0.1, 0.0], [period * 0.6, 0.0], [period - 0.08, 0.9], [period, -0.5]]
+			var r := GoblinAnimator._curve(phase_r, keys) * lean
+			var l := GoblinAnimator._curve(phase_l, keys) * lean
+			var thump := maxf(-r, 0.0) + maxf(-l, 0.0)
+			p.torso_pitch = base.torso_pitch + 0.45 * lean + 0.06 * thump
+			p.spine_arch = base.spine_arch + 0.12 * lean
+			p.neck_fwd = base.neck_fwd + 0.08 * lean
+			p.head_pitch = base.head_pitch + 0.2 * lean
+			p.pelvis_y = base.pelvis_y - 0.03 * lean - 0.012 * thump
+			p.leg_l_out = base.leg_l_out + 0.06 * lean
+			p.leg_r_out = base.leg_r_out + 0.06 * lean
+			p.arm_r_fwd = lerpf(base.arm_r_fwd, 0.6, lean) + 0.7 * r
+			p.elbow_r = lerpf(base.elbow_r, 0.7, lean) + 0.9 * maxf(r, 0.0)
+			p.arm_r_out = lerpf(base.arm_r_out, 0.1, lean)
+			p.arm_l_fwd = lerpf(base.arm_l_fwd, 0.6, lean) + 0.7 * l
+			p.elbow_l = lerpf(base.elbow_l, 0.7, lean) + 0.9 * maxf(l, 0.0)
+			p.arm_l_out = lerpf(base.arm_l_out, 0.1, lean)
+			p.torso_yaw = base.torso_yaw + 0.05 * (r - l)
 		&"scratch":
 			# Riscando a parede com uma pedra (a memória do ciclo 346): a mão esquerda apoiada na
 			# rocha, a direita na altura do peito arrasta a pedra em traços curtos, de cima para

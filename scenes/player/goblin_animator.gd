@@ -89,6 +89,8 @@ var strike_window := Vector2(0.2, 0.35)
 ## metade da altura: sem isto o golpe de lado passava por cima da cabeça dele).
 var strike_bend := 0.0
 var weapon_grip := Vector3(0.0, 0.036, 0.008)
+## Segundos de um coração para o outro na ação `drum` (F14: o orc no tambor do acampamento).
+var drum_period := 60.0 / Tuning.SHELTER_BPM
 
 ## Quanto o pé desce abaixo da base do corpo procurando chão (m).
 const FOOT_REACH := 0.3
@@ -228,6 +230,12 @@ func play_action(action: StringName, duration: float, events: Array = [], start 
 
 func is_busy() -> bool:
 	return _action != &""
+
+
+## Corta a ação no meio (o orc larga o tambor para lutar).
+func stop_action() -> void:
+	_action = &""
+	_action_events.clear()
 
 
 ## O pulo foi pedido: o corpo agacha por `seconds` antes do Player soltar o impulso.

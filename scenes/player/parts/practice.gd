@@ -12,6 +12,8 @@ extends Node
 
 const STEALTH_WORDS := ["Os passos agachados ficaram mais leves.", "Pisa sem quebrar galho.", "Já anda agachado quase sem som.", "Anda como bicho do mato."]
 const STEADY_WORDS := ["O braço do arco firmou um pouco.", "A mira treme menos.", "O braço já segura a corda firme.", "Atira como quem nasceu com o arco."]
+const GUARD_WORDS := ["Já lê o golpe que vem.", "A defesa sobe na hora certa.", "Desvia golpe como quem desvia galho.", "Ninguém pega o goblin desprevenido."]
+const SWING_WORDS := ["O braço cansa menos no golpe.", "Golpeia sem perder o fôlego.", "A arma já pesa pouco.", "Luta como quem nasceu brigando."]
 
 var _player: Player
 ## Segundos andando agachado ainda não somados ao Story (soma de 1 em 1).
@@ -21,6 +23,9 @@ var _pending := 0.0
 func _ready() -> void:
 	_player = get_parent() as Player
 	Events.arrow_hit.connect(_on_arrow_hit)
+	# F11+: a prática de luta.
+	Events.guard_held.connect(_on_guard)
+	Events.melee_hit.connect(_on_melee_hit)
 	_apply()
 
 
@@ -47,6 +52,30 @@ static func steadiness() -> float:
 	return 1.0 - exp(-Story.count(&"arrow_hits") / Tuning.PRACTICE_HITS)
 
 
+## O quanto já lê os golpes (0..1): alarga o aparo.
+static func guard() -> float:
+	return 1.0 - exp(-Story.count(&"guards_held") / Tuning.PRACTICE_GUARDS)
+
+
+## O quanto o braço já aguenta golpear (0..1): o golpe gasta menos fôlego.
+static func swing() -> float:
+	return 1.0 - exp(-Story.count(&"melee_hits") / Tuning.PRACTICE_MELEE_HITS)
+
+
+func _on_guard(_result: StringName) -> void:
+	var before := guard()
+	Story.add_count(&"guards_held")
+	_announce(before, guard(), GUARD_WORDS)
+	_apply()
+
+
+func _on_melee_hit(_kind: StringName) -> void:
+	var before := swing()
+	Story.add_count(&"melee_hits")
+	_announce(before, swing(), SWING_WORDS)
+	_apply()
+
+
 func _on_arrow_hit(_kind: StringName) -> void:
 	var before := steadiness()
 	Story.add_count(&"arrow_hits")
@@ -57,6 +86,8 @@ func _on_arrow_hit(_kind: StringName) -> void:
 func _apply() -> void:
 	_player.noise_factors[&"practice"] = 1.0 - Tuning.PRACTICE_STEALTH_MAX * stealth()
 	_player.tremor_factors[&"practice"] = 1.0 - Tuning.PRACTICE_STEADY_MAX * steadiness()
+	_player.parry_bonus = Tuning.PRACTICE_PARRY_MAX * guard()
+	_player.swing_stamina = 1.0 - Tuning.PRACTICE_SWING_MAX * swing()
 
 
 ## Passou de um quarto do caminho para o outro: avisa.

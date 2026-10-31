@@ -25,6 +25,8 @@ var _raid_size := 0
 var _last_raid_day := -99
 ## Vigilância da luta (F14): quando foi a última que contou.
 var _fight_clock := -999.0
+## Segundos até a próxima conversa na língua dos orcs (F14).
+var _talk_wait := 5.0
 
 
 func _ready() -> void:
@@ -33,7 +35,7 @@ func _ready() -> void:
 	_rng.randomize()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not enabled():
 		if get_child_count() > 0:
 			for orc in get_children():
@@ -41,6 +43,7 @@ func _process(_delta: float) -> void:
 		return
 	# O fim da Investida vale também nos testes (a que o roteiro começa).
 	_raid_update()
+	_chatter(delta)
 	# Nos testes automáticos, só os orcs que o roteiro põe (sem --orcs eles não chegam sozinhos).
 	if DevTools.automated and not DevTools.orcs:
 		return
@@ -51,6 +54,30 @@ func _process(_delta: float) -> void:
 		return
 	_arrived_day = Clock.day
 	arrive()
+
+
+## A língua dos orcs (F14): de tempos em tempos, dois orcs calmos perto um do outro conversam (um
+## fala, o outro responde quando ele termina).
+func _chatter(delta: float) -> void:
+	_talk_wait -= delta
+	if _talk_wait > 0.0:
+		return
+	_talk_wait = _rng.randf_range(Tuning.ORC_TALK_INTERVAL.x, Tuning.ORC_TALK_INTERVAL.y)
+	var calm: Array[Orc] = []
+	for child in get_children():
+		var orc := child as Orc
+		if orc != null and orc.calm():
+			calm.append(orc)
+	calm.shuffle()
+	for speaker in calm:
+		for listener in calm:
+			if speaker == listener or speaker.global_position.distance_to(listener.global_position) > Tuning.ORC_TALK_RANGE:
+				continue
+			var seconds := speaker.talk()
+			get_tree().create_timer(seconds + _rng.randf_range(0.3, 0.8), false).timeout.connect(func() -> void:
+				if is_instance_valid(listener) and listener.calm():
+					listener.talk())
+			return
 
 
 ## Os orcs podem existir agora.

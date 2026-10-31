@@ -195,6 +195,7 @@ func _think(delta: float, here: Vector2) -> void:
 
 
 func _bite(player: Player) -> void:
+	Story.set_flag(&"bestiary_wolf")
 	_bite_timer = Tuning.WOLF_BITE_INTERVAL
 	_lunge = 1.0
 	OccludedAudio.play_at(get_parent(), BITE, global_position + Vector3.UP * 0.5, &"World", -1.0, 4.0, _rng.randf_range(0.9, 1.1))

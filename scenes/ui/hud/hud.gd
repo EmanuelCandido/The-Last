@@ -44,6 +44,7 @@ func _ready() -> void:
 	Events.notification_shown.connect(_show_notice)
 	Events.game_paused.connect(func(paused: bool) -> void: visible = not paused)
 	Inventory.changed.connect(func(_item: StringName, _amount: int) -> void: _refresh_items())
+	Inventory.held_changed.connect(func(_item: StringName) -> void: _refresh_items())
 	_crosshair.draw.connect(_draw_crosshair)
 	_key_label.add_theme_color_override(&"font_color", UiStyle.ACCENT)
 	Settings.changed.connect(_on_settings_changed)
@@ -205,6 +206,13 @@ func _refresh_items() -> void:
 		_items_box.remove_child(child)
 		child.queue_free()
 	var font_size := UiStyle.hud_font_size()
+	# A arma na mão (F11+): o nome apagado e, gasta, "rachando".
+	var held := Inventory.held()
+	if held != &"":
+		var called := String(Inventory.NAMES.get(held, held))
+		if Inventory.wear(held) <= Tuning.WEAR_WARN:
+			called += " (rachando)"
+		_items_box.add_child(UiStyle.label(called, &"Hint", font_size))
 	for item: StringName in Inventory.HUD_ORDER:
 		var amount := Inventory.count(item)
 		if amount <= 0 and not (item == &"arrow" and Inventory.has(&"bow")):

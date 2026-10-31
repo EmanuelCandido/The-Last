@@ -7,6 +7,10 @@ extends Node
 @warning_ignore_start("unused_signal")
 
 ## Uma fase acabou de ser instanciada dentro do LevelRoot.
+## A luta do goblin (F11+): um golpe que acertou (o tipo do alvo) e uma defesa que segurou ou
+## aparou (`result`: &"blocked" ou &"parried"). A Practice ouve.
+signal melee_hit(kind: StringName)
+signal guard_held(result: StringName)
 signal level_loaded(level: Node3D)
 
 ## O jogo foi pausado ou despausado.

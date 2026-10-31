@@ -33,6 +33,12 @@ const GRUNTS := [
 const SHOUT := preload("res://assets/audio/sfx/orc_shout.wav")
 const HURT := [preload("res://assets/audio/sfx/orc_hurt_1.wav"), preload("res://assets/audio/sfx/orc_hurt_2.wav")]
 const DEATH := preload("res://assets/audio/sfx/orc_death.wav")
+## A língua dos orcs e os dois baques do tambor (F14).
+const TALK := [
+	preload("res://assets/audio/sfx/orc_talk_1.wav"), preload("res://assets/audio/sfx/orc_talk_2.wav"),
+	preload("res://assets/audio/sfx/orc_talk_3.wav"), preload("res://assets/audio/sfx/orc_talk_4.wav"),
+]
+const DRUM := [preload("res://assets/audio/sfx/orc_drum_1.wav"), preload("res://assets/audio/sfx/orc_drum_2.wav")]
 const HIT_SOUNDS := Arrow.HIT_FLESH
 const SEARCH_SOUND := preload("res://assets/audio/real/pickup_3.ogg")
 
@@ -54,6 +60,12 @@ var weapon_item := &"orc_axe"
 var resident := false
 ## Veio na Investida (F13): de noite, com tocha, e a toca não é proibida para ele.
 var raider := false
+## O tambor do acampamento (F14): onde ficar para bater (Vector3.INF = não é o tocador), o centro do
+## couro e o ritmo (o coração de Ari). Quem põe é o OrcCamp.
+var drum_at := Vector3.INF
+var drum_face := Vector3.ZERO
+var drum_bpm := Tuning.SHELTER_BPM
+var drum_rest := Tuning.ORC_DRUM_REST
 
 ## Tamanho do modelo (o chefe é maior).
 var _scale := Tuning.ORC_MODEL_SCALE
@@ -87,6 +99,8 @@ var _circle := 1.0
 var _shouted := false
 var _looted := false
 var _last_yaw := 0.0
+var _drum_wait := 0.0
+var _drum_hits := 0
 var _rng := RandomNumberGenerator.new()
 
 
@@ -354,9 +368,14 @@ func _think(delta: float) -> void:
 	var player := Game.player
 	if not resident and not raider and state != State.FLEE and state != State.LEAVE and Clock.hour >= Tuning.ORC_LEAVE_HOUR:
 		_leave()
+	# Qualquer coisa que tire o orc da patrulha tira as mãos do tambor.
+	if state != State.PATROL and _animator != null and _animator._action == &"drum":
+		_animator.stop_action()
 	match state:
 		State.PATROL:
 			if _check_alert():
+				return
+			if _drum(delta):
 				return
 			if route.is_empty():
 				_stand(delta)
@@ -405,6 +424,60 @@ func _check_alert() -> bool:
 	return false
 
 
+## O tocador do tambor (F14): descansa andando a rota; depois vai ao tambor e bate um tempo no ritmo
+## do coração de Ari. Longe demais dele quando o descanso acaba, larga o tambor (o acampamento
+## escolhe outro). Devolve true enquanto o tambor ocupa o orc.
+func _drum(delta: float) -> bool:
+	if drum_at == Vector3.INF or _animator == null:
+		return false
+	if _animator._action == &"drum":
+		_stand(delta)
+		var to_drum := drum_face - global_position
+		_target_yaw = atan2(to_drum.x, to_drum.z)
+		_drum_sound()
+		return true
+	if _drum_wait > 0.0:
+		_drum_wait -= delta
+		return false
+	if global_position.distance_to(drum_at) > Tuning.ORC_DRUM_REACH:
+		drum_at = Vector3.INF
+		return false
+	if _walk_to(drum_at, Tuning.ORC_WALK_SPEED, delta) > 0.5:
+		return true
+	_animator.drum_period = 60.0 / drum_bpm
+	_animator.play_action(&"drum", Tuning.ORC_DRUM_BOUT)
+	_drum_hits = 0
+	_drum_wait = drum_rest
+	return true
+
+
+## Os dois baques de cada coração, no tempo da mão que desce (GoblinActions, ação `drum`).
+func _drum_sound() -> void:
+	var t := _animator._action_time - GoblinActions.DRUM_LEAD
+	if t < 0.0 or _animator._action_duration - _animator._action_time < 0.4:
+		return
+	var period := _animator.drum_period
+	var hits := floori(t / period) * 2 + (2 if fposmod(t, period) >= Tuning.ORC_DRUM_DUB else 1)
+	if hits <= _drum_hits:
+		return
+	_drum_hits = hits
+	var second := hits % 2 == 0
+	OccludedAudio.play_at(get_parent(), DRUM[1 if second else 0], drum_face, &"Ambience",
+		Tuning.ORC_DRUM_DB - (4.0 if second else 0.0), Tuning.ORC_DRUM_SIZE, _rng.randf_range(0.97, 1.03))
+
+
+## Calmo e calado: pode puxar conversa (F14).
+func calm() -> bool:
+	return state == State.PATROL and not _voice.playing
+
+
+## Fala na língua dos orcs (F14) e devolve quantos segundos dura.
+func talk() -> float:
+	var stream: AudioStream = TALK.pick_random()
+	_play(stream, Tuning.ORC_TALK_DB, 0.92)
+	return stream.get_length() / _voice.pitch_scale
+
+
 func _investigate(at: Vector3) -> void:
 	_goal = _keep_out(at)
 	_timer = 4.0
@@ -417,6 +490,7 @@ func _enter(new_state: State) -> void:
 	state = new_state
 	match new_state:
 		State.COMBAT:
+			Story.set_flag(StringName("bestiary_orc_%s" % kind))
 			if band != null and band.has_method("on_fight"):
 				band.on_fight(self)
 			if not _shouted:

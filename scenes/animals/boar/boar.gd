@@ -107,6 +107,7 @@ func _think(delta: float, here: Vector2) -> void:
 
 
 func _start_charge() -> void:
+	Story.set_flag(&"bestiary_boar")
 	charge = Charge.RUN
 	_charge_timer = RUN_SECONDS
 	state = State.SUSPICIOUS

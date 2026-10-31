@@ -226,6 +226,7 @@ func wear_down(item: StringName, amount: float) -> bool:
 		return false
 	units[0] = float(units[0]) - amount
 	if float(units[0]) > 0.0:
+		changed.emit(item, count(item))
 		return false
 	remove(item)
 	return true
@@ -237,6 +238,7 @@ func repair(item: StringName) -> void:
 	var units: Array = _wear.get(item, [])
 	if not units.is_empty():
 		units[0] = 1.0
+		changed.emit(item, count(item))
 
 
 func _sync_wear(item: StringName) -> void:
